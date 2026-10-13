@@ -3,8 +3,8 @@
     {
       "id": "home",
       "name": "Your Island",
-      "x": 139,
-      "z": -58,
+      "x": 134,
+      "z": -57,
       "r": 26,
       "home": true,
       "seed": 1,
@@ -78,8 +78,8 @@
     {
       "id": "jade",
       "name": "Jade Cove",
-      "x": 280,
-      "z": -8,
+      "x": 329,
+      "z": -18,
       "r": 28,
       "seed": 5,
       "enemy": "gunboat",
@@ -115,8 +115,8 @@
     {
       "id": "peak",
       "name": "Sandstone Peak",
-      "x": -45,
-      "z": 296,
+      "x": -113,
+      "z": 323,
       "r": 30,
       "seed": 7,
       "enemy": "skiff",
@@ -199,9 +199,9 @@
       "theme": {
         "sand": 16113331,
         "grass": 10727818,
-        "leaf": 889611,
-        "trunk": 9394216,
-        "rock": 5393735,
+        "leaf": 753929,
+        "trunk": 11885325,
+        "rock": 3947321,
         "accent": 14720830,
         "feature": "mountain",
         "map": "#d9a05b"
@@ -210,7 +210,7 @@
     {
       "id": "isle1791904070094",
       "name": "Sandstone Peak (Copy)",
-      "x": 141,
+      "x": 151,
       "z": 147,
       "r": 30,
       "seed": 7652,
@@ -258,7 +258,7 @@
       "enemy": "skiff",
       "theme": {
         "sand": 16765562,
-        "grass": 10870858,
+        "grass": 5737735,
         "leaf": 8115770,
         "trunk": 12153914,
         "rock": 14267002,
@@ -408,9 +408,9 @@
       "id": "asset_1791906304698",
       "type": "sea_mine",
       "name": "Floating Sea Mine",
-      "x": -307,
-      "z": 51,
-      "y": 0,
+      "x": -315,
+      "z": 10,
+      "y": 1,
       "rotY": 0,
       "scale": 1
     },
@@ -492,8 +492,8 @@
       "id": "asset_1791906610193",
       "type": "watchtower",
       "name": "Watchtower",
-      "x": -337,
-      "z": -212,
+      "x": -334,
+      "z": -211,
       "y": 0,
       "rotY": 0,
       "scale": 1
@@ -548,8 +548,8 @@
       "id": "asset_1791907290273",
       "type": "billboard",
       "name": "Billboard Sign",
-      "x": 119,
-      "z": 146,
+      "x": 130,
+      "z": 151,
       "y": 0,
       "rotY": 3.9444441095071845,
       "scale": 1,
@@ -559,41 +559,11 @@
       "bgColor": "#16290f"
     },
     {
-      "id": "asset_tiki_bar_home",
-      "type": "tiki_bar",
-      "name": "Tiki Bar Hut",
-      "x": 147,
-      "z": -62,
-      "y": 0.3,
-      "rotY": 1.2,
-      "scale": 1
-    },
-    {
-      "id": "asset_beach_lounger_home",
-      "type": "beach_lounger",
-      "name": "Beach Umbrella & Loungers",
-      "x": 144,
-      "z": -50,
-      "y": 0.2,
-      "rotY": 0.8,
-      "scale": 1
-    },
-    {
-      "id": "asset_treasure_home",
-      "type": "treasure_chest",
-      "name": "Glittering Treasure Chest",
-      "x": 131,
-      "z": -68,
-      "y": 0.2,
-      "rotY": -0.6,
-      "scale": 1
-    },
-    {
       "id": "asset_sea_buoy_channel",
       "type": "sea_buoy",
       "name": "Marine Navigation Buoy",
-      "x": -13,
-      "z": -5,
+      "x": 13,
+      "z": -10,
       "y": 0,
       "rotY": 0,
       "scale": 1
@@ -602,8 +572,8 @@
       "id": "asset_1791919786628",
       "type": "tiki_bar",
       "name": "Tiki Bar Hut",
-      "x": 272,
-      "z": 1,
+      "x": 321,
+      "z": -6,
       "y": 1.5,
       "rotY": 3.455751918948773,
       "scale": 1
@@ -612,8 +582,8 @@
       "id": "asset_1791919916206",
       "type": "tent",
       "name": "Campground Tent",
-      "x": 277,
-      "z": -15,
+      "x": 323,
+      "z": -24,
       "y": 1,
       "rotY": 3.106686068549907,
       "scale": 1.2
@@ -622,8 +592,8 @@
       "id": "asset_1791919939517",
       "type": "beach_lounger",
       "name": "Beach Umbrella & Loungers",
-      "x": 268,
-      "z": -11,
+      "x": 318,
+      "z": -17,
       "y": 1.5,
       "rotY": 5.113814708343385,
       "scale": 0.9
@@ -698,8 +668,8 @@
       "id": "asset_1791920332832",
       "type": "sea_buoy",
       "name": "Marine Navigation Buoy",
-      "x": -253,
-      "z": 250,
+      "x": -83,
+      "z": 314,
       "y": 0,
       "rotY": 0,
       "scale": 1
@@ -878,6 +848,268 @@
       "z": 375,
       "y": -0.5,
       "rotY": 5.218534463463045,
+      "scale": 1
+    },
+    {
+      "id": "asset_1791921492642",
+      "type": "sea_rocks",
+      "name": "Sea Rocks Spire",
+      "x": 112,
+      "z": 377,
+      "y": 0,
+      "rotY": 0,
+      "scale": 1
+    },
+    {
+      "id": "asset_1791921501842",
+      "type": "sea_rocks",
+      "name": "Sea Rocks Spire (Copy)",
+      "x": 199,
+      "z": 390,
+      "y": 0,
+      "rotY": 0,
+      "scale": 1
+    },
+    {
+      "id": "asset_1791921509084",
+      "type": "sea_rocks",
+      "name": "Sea Rocks Spire (Copy) (Copy)",
+      "x": 130,
+      "z": 399,
+      "y": 0,
+      "rotY": 3.839724354387525,
+      "scale": 1
+    },
+    {
+      "id": "asset_1791921536354",
+      "type": "sea_rocks",
+      "name": "Sea Rocks Spire (Copy)",
+      "x": 124,
+      "z": 394,
+      "y": 0,
+      "rotY": 0,
+      "scale": 1
+    },
+    {
+      "id": "asset_1791921543439",
+      "type": "sea_rocks",
+      "name": "Sea Rocks Spire (Copy)",
+      "x": 207,
+      "z": 358,
+      "y": 0,
+      "rotY": 0,
+      "scale": 1
+    },
+    {
+      "id": "asset_1791921584614",
+      "type": "totem",
+      "name": "Mystic Island Totem",
+      "x": 122,
+      "z": 375,
+      "y": 0,
+      "rotY": 3.717551306747922,
+      "scale": 1
+    },
+    {
+      "id": "asset_1791921650662",
+      "type": "cannon",
+      "name": "Naval Cannon",
+      "x": 187,
+      "z": 328,
+      "y": 0.5,
+      "rotY": 2.3911010752322315,
+      "scale": 1.5
+    },
+    {
+      "id": "asset_1791921684250",
+      "type": "cannon",
+      "name": "Naval Cannon (Copy)",
+      "x": 170,
+      "z": 317,
+      "y": 0.5,
+      "rotY": 3.2288591161895095,
+      "scale": 1.5
+    },
+    {
+      "id": "asset_1791921694691",
+      "type": "cannon",
+      "name": "Naval Cannon (Copy) (Copy)",
+      "x": 129,
+      "z": 332,
+      "y": 0.5,
+      "rotY": 3.9444441095071845,
+      "scale": 1.5
+    },
+    {
+      "id": "asset_1791921709229",
+      "type": "cannon",
+      "name": "Naval Cannon (Copy) (Copy) (Copy)",
+      "x": 119,
+      "z": 355,
+      "y": 0.5,
+      "rotY": 4.118977034706617,
+      "scale": 1.5
+    },
+    {
+      "id": "asset_1791921719425",
+      "type": "barrels",
+      "name": "Explosive Barrels (Copy) (Copy)",
+      "x": 185,
+      "z": 341,
+      "y": 1,
+      "rotY": 0.9948376736367678,
+      "scale": 1.1
+    },
+    {
+      "id": "asset_1791921831417",
+      "type": "sea_buoy",
+      "name": "Marine Navigation Buoy (Copy)",
+      "x": -274,
+      "z": 254,
+      "y": 0,
+      "rotY": 0,
+      "scale": 1
+    },
+    {
+      "id": "asset_1791921949270",
+      "type": "palm_grove",
+      "name": "Palm Grove",
+      "x": 135,
+      "z": 387,
+      "y": 0,
+      "rotY": 0,
+      "scale": 2.6
+    },
+    {
+      "id": "asset_1791922108146",
+      "type": "treasure_chest",
+      "name": "Glittering Treasure Chest",
+      "x": 116,
+      "z": 374,
+      "y": 0.5,
+      "rotY": 2.2165681500327987,
+      "scale": 1
+    },
+    {
+      "id": "asset_1791922149309",
+      "type": "treasure_chest",
+      "name": "Glittering Treasure Chest (Copy)",
+      "x": 117,
+      "z": 381,
+      "y": 0.5,
+      "rotY": 1.5533430342749535,
+      "scale": 1
+    },
+    {
+      "id": "asset_1791922175459",
+      "type": "treasure_chest",
+      "name": "Glittering Treasure Chest (Copy)",
+      "x": 134,
+      "z": 395,
+      "y": 0.5,
+      "rotY": 2.2165681500327987,
+      "scale": 1
+    },
+    {
+      "id": "asset_1791922180455",
+      "type": "treasure_chest",
+      "name": "Glittering Treasure Chest (Copy) (Copy)",
+      "x": 153,
+      "z": 364,
+      "y": 24,
+      "rotY": 4.171336912266447,
+      "scale": 1.4
+    },
+    {
+      "id": "asset_1791922255490",
+      "type": "treasure_chest",
+      "name": "Glittering Treasure Chest (Copy) (Copy) (Copy)",
+      "x": 171,
+      "z": 358,
+      "y": 24,
+      "rotY": 2.5656340004316647,
+      "scale": 1.4
+    },
+    {
+      "id": "asset_1791922258547",
+      "type": "treasure_chest",
+      "name": "Glittering Treasure Chest (Copy) (Copy) (Copy)",
+      "x": 161,
+      "z": 384,
+      "y": 24,
+      "rotY": 0.8377580409572781,
+      "scale": 1.4
+    },
+    {
+      "id": "asset_1791922321294",
+      "type": "treasure_chest",
+      "name": "Glittering Treasure Chest",
+      "x": 201,
+      "z": 347,
+      "y": 0.5,
+      "rotY": 0.890117918517108,
+      "scale": 1.2
+    },
+    {
+      "id": "asset_1791922340405",
+      "type": "treasure_chest",
+      "name": "Glittering Treasure Chest (Copy)",
+      "x": 195,
+      "z": 339,
+      "y": 0.5,
+      "rotY": 1.8325957145940461,
+      "scale": 1.1
+    },
+    {
+      "id": "asset_1791922375758",
+      "type": "rowboats",
+      "name": "Beached Rowboat",
+      "x": 129,
+      "z": 132,
+      "y": -0.5,
+      "rotY": 3.3335788713091694,
+      "scale": 1
+    },
+    {
+      "id": "asset_1791922406139",
+      "type": "pier",
+      "name": "Wooden Pier",
+      "x": 125,
+      "z": 139,
+      "y": 0,
+      "rotY": 2.775073510670984,
+      "scale": 1,
+      "length": 14,
+      "width": 4
+    },
+    {
+      "id": "asset_1791922457126",
+      "type": "beach_lounger",
+      "name": "Beach Umbrella & Loungers",
+      "x": 139,
+      "z": 143,
+      "y": 1.5,
+      "rotY": 4.5553093477052,
+      "scale": 1
+    },
+    {
+      "id": "asset_1791922476446",
+      "type": "sea_buoy",
+      "name": "Marine Navigation Buoy",
+      "x": 154,
+      "z": 119,
+      "y": 0,
+      "rotY": 0,
+      "scale": 1
+    },
+    {
+      "id": "asset_1791922516710",
+      "type": "tiki_bar",
+      "name": "Tiki Bar Hut",
+      "x": 146,
+      "z": 135,
+      "y": 0,
+      "rotY": 4.834562028024293,
       "scale": 1
     }
   ]
