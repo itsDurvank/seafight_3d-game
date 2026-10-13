@@ -98,7 +98,8 @@ export const PLAYER = {
 };
 
 export const WEAPONS = {
-  gun: { rate: 14, speed: 120, life: 1.1, dmg: 4, spread: 0.03 }, // 56 dps if every shot lands (about half do), so ~2-10 s to sink a boat
+  gun: { rate: 14, speed: 120, life: 1.1, dmg: 4, spread: 0.012, assistCone: 0.22, assist: 0.85, hitPad: 0.8 }, // spread = random cone (rad). assistCone/assist = gentle aim assist: shots bend toward a boat within this many rad of your nose (0 = off). hitPad = extra hit radius for your bullets.
+  // 56 dps if every shot lands (about half do), so ~2-10 s to sink a boat
   // Our missile works like a fighter-jet missile: it locks onto the boat nearest your crosshair when you
   // fire (inside `lockCone` radians either side of your heading, within `lockRange`), steers at it for
   // `track` seconds, then goes ballistic. It also loses the lock if the target slips outside `loseCone`

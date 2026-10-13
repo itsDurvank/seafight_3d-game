@@ -1,0 +1,128 @@
+diff --git a/public/js/combat.js b/public/js/combat.js
+index ded5c8c..e02dee3 100644
+--- a/public/js/combat.js
++++ b/public/js/combat.js
+@@ -357,7 +357,7 @@ export class Combat {
+         for (const t of targets) {
+           if (t.team === b.owner || !t.alive) continue;
+           const dx = t.state.x - b.x, dz = t.state.z - b.z;
+-          const hr = t.radius * (t.hitScale || 1);
++          const hr = t.radius * (t.hitScale || 1) + (b.owner === 'player' ? WEAPONS.gun.hitPad || 0 : 0);
+           if (dx * dx + dz * dz < hr * hr) {
+             t.takeDamage(b.dmg, b.owner);
+             if (b.owner === 'player' && this.onPlayerHit) this.onPlayerHit(t);
+diff --git a/public/js/config.js b/public/js/config.js
+index 82a4e4c..dd5e3a3 100644
+--- a/public/js/config.js
++++ b/public/js/config.js
+@@ -98,7 +98,8 @@ export const PLAYER = {
+ };
+ 
+ export const WEAPONS = {
+-  gun: { rate: 14, speed: 120, life: 1.1, dmg: 4, spread: 0.03 }, // 56 dps if every shot lands (about half do), so ~2-10 s to sink a boat
++  gun: { rate: 14, speed: 120, life: 1.1, dmg: 4, spread: 0.012, assistCone: 0.22, assist: 0.85, hitPad: 0.8 }, // spread = random cone (rad). assistCone/assist = gentle aim assist: shots bend toward a boat within this many rad of your nose (0 = off). hitPad = extra hit radius for your bullets.
++  // 56 dps if every shot lands (about half do), so ~2-10 s to sink a boat
+   // Our missile works like a fighter-jet missile: it locks onto the boat nearest your crosshair when you
+   // fire (inside `lockCone` radians either side of your heading, within `lockRange`), steers at it for
+   // `track` seconds, then goes ballistic. It also loses the lock if the target slips outside `loseCone`
+diff --git a/public/js/enemies.js b/public/js/enemies.js
+index 975d734..11bce59 100644
+--- a/public/js/enemies.js
++++ b/public/js/enemies.js
+@@ -45,6 +45,13 @@ export class Director {
+     const live = enemies.filter((e) => e.alive && e.mode !== 'retreat');
+     for (const e of enemies) if (!live.includes(e)) { e.zone = 'far'; e.station = null; }
+ 
++    // Only the few boats closest to you may target YOU; every other boat is reserved for fighting other boats.
++    const nHunt = SWARM.maxAttackers + Math.round(HUNT.k * SWARM.huntAttackers);
++    const pd = (e) => Math.hypot(e.state.x - px, e.state.z - pz) - (e.mayHitPlayer ? 25 : 0); // bonus = no flip-flopping
++    const byDist = live.slice().sort((a, b) => pd(a) - pd(b));
++    for (const e of enemies) e.mayHitPlayer = false;
++    byDist.slice(0, nHunt).forEach((e) => { e.mayHitPlayer = true; });
++
+     // closest boats hold the near zone (boats already there get a bonus so roles do not flicker)
+     const score = (e) => Math.hypot(e.state.x - px, e.state.z - pz) - (e.zone === 'near' ? 35 : 0);
+     live.sort((a, b) => score(a) - score(b));
+@@ -106,6 +113,7 @@ export class EnemyBoat {
+   constructor(scene, combat, island, typeKey, hooks = {}) {
+     this.uid = UID++;
+     this.team = `enemy:${island.id}`;
++    this.mayHitPlayer = true; // set by the Director every second
+     this.zone = 'far'; // 'near' (holds the fight around you) or 'far' (waits further out)
+     this.station = null; // the spot the director wants us to hang around
+     this.slotAng = null;
+@@ -150,11 +158,11 @@ export class EnemyBoat {
+     this.bar = new THREE.Group();
+     const bg = new THREE.Mesh(
+       new THREE.PlaneGeometry(BAR_W, BAR_H),
+-      new THREE.MeshBasicMaterial({ color: 0x2b3a4a, transparent: true, opacity: 0.65, depthTest: false })
++      new THREE.MeshBasicMaterial({ color: 0x2b3a4a, transparent: true, opacity: 0.65, depthTest: false, depthWrite: false })
+     );
+     const fillGeo = new THREE.PlaneGeometry(BAR_W - 0.3, BAR_H - 0.2);
+     fillGeo.translate((BAR_W - 0.3) / 2, 0, 0); // grow from the left edge
+-    this.fill = new THREE.Mesh(fillGeo, new THREE.MeshBasicMaterial({ color: 0x7bf07b, depthTest: false }));
++    this.fill = new THREE.Mesh(fillGeo, new THREE.MeshBasicMaterial({ color: 0x7bf07b, transparent: true, opacity: 1, depthTest: false, depthWrite: false })); // transparent too, otherwise the grey backing is drawn on top of it
+     this.fill.position.set(-(BAR_W - 0.3) / 2, 0, 0.01);
+     bg.renderOrder = 998;
+     this.fill.renderOrder = 999;
+@@ -330,12 +338,8 @@ export class EnemyBoat {
+       if (t.team === 'player') {
+         // waiting boats leave you alone, and only a few boats may go after you at once
+         if (this.zone === 'far' && HUNT.k < 0.5) continue; // waiting boats join in once you have idled a while
+-        let closer = 0;
+-        for (const o of all) {
+-          if (o === this || o.team === 'player' || !o.alive || o.target !== t) continue;
+-          if (Math.hypot(o.state.x - t.state.x, o.state.z - t.state.z) < d) closer++;
+-        }
+-        if (closer >= SWARM.maxAttackers + Math.round(HUNT.k * SWARM.huntAttackers)) continue;
++        // the director picks which boats may go after you; the rest hunt each other (unless you just shot them)
++        if (!this.mayHitPlayer && !(this.aggressor === 'player' && this.aggressorAge < 3)) continue;
+       }
+       // prefer close, wounded targets; slight bias toward the player; stick with the current
+       // target and hit back at whoever just hurt us
+diff --git a/public/js/main.js b/public/js/main.js
+index befff78..0e160fe 100644
+--- a/public/js/main.js
++++ b/public/js/main.js
+@@ -166,6 +166,32 @@ function respawnPlayer() {
+   hud.toast('Back at the harbor. Sail out and try again! ⚓', 3000);
+ }
+ 
++// Machine-gun aim assist. Bullets fly straight, so while you steer they trail behind your nose like a hose and miss.
++// If a boat is near your nose, bend the shot toward where that boat will be when the bullet arrives.
++function gunAim(s) {
++  const G = WEAPONS.gun;
++  if (!G.assistCone) return s.yaw;
++  const bs = G.speed + Math.max(0, s.speed);
++  const reach = bs * G.life * 0.9;
++  let best = null, bestOff = G.assistCone, bestAng = s.yaw;
++  for (const e of enemies) {
++    if (!e.alive) continue;
++    let px = e.state.x, pz = e.state.z;
++    const evx = Math.sin(e.state.yaw) * e.state.speed, evz = Math.cos(e.state.yaw) * e.state.speed;
++    let d = Math.hypot(px - s.x, pz - s.z);
++    for (let k = 0; k < 3; k++) { // predict where it will be when the bullet gets there
++      const tt = d / bs;
++      px = e.state.x + evx * tt; pz = e.state.z + evz * tt;
++      d = Math.hypot(px - s.x, pz - s.z);
++    }
++    if (d > reach || d < 4) continue;
++    const ang = Math.atan2(px - s.x, pz - s.z);
++    const off = angleDiff(s.yaw, ang);
++    if (Math.abs(off) < bestOff) { bestOff = Math.abs(off); best = e; bestAng = s.yaw + off; }
++  }
++  return best ? s.yaw + (bestAng - s.yaw) * G.assist : s.yaw;
++}
++
+ // Fighter-jet style: the missile locks onto the boat closest to your nose (inside a cone, within range) at launch,
+ // tracks it for a short time, then flies on. No boat in the cone = no lock, it flies straight.
+ function acquireLock() {
+@@ -286,7 +312,7 @@ function frame() {
+         gunSide = -gunSide;
+         const fx = Math.sin(s.yaw), fz = Math.cos(s.yaw);
+         const lx = Math.cos(s.yaw), lz = -Math.sin(s.yaw);
+-        const ang = s.yaw + (Math.random() - 0.5) * 2 * WEAPONS.gun.spread;
++        const ang = gunAim(s) + (Math.random() - 0.5) * 2 * WEAPONS.gun.spread;
+         combat.fireBullet('player', s.x + fx * 3.6 + lx * gunSide * 0.55, s.z + fz * 3.6 + lz * gunSide * 0.55,
+           ang, WEAPONS.gun.speed + Math.max(0, s.speed), WEAPONS.gun.dmg, WEAPONS.gun.life);
+       }

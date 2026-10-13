@@ -45,6 +45,13 @@ export class Director {
     const live = enemies.filter((e) => e.alive && e.mode !== 'retreat');
     for (const e of enemies) if (!live.includes(e)) { e.zone = 'far'; e.station = null; }
 
+    // Only the few boats closest to you may target YOU; every other boat is reserved for fighting other boats.
+    const nHunt = SWARM.maxAttackers + Math.round(HUNT.k * SWARM.huntAttackers);
+    const pd = (e) => Math.hypot(e.state.x - px, e.state.z - pz) - (e.mayHitPlayer ? 25 : 0); // bonus = no flip-flopping
+    const byDist = live.slice().sort((a, b) => pd(a) - pd(b));
+    for (const e of enemies) e.mayHitPlayer = false;
+    byDist.slice(0, nHunt).forEach((e) => { e.mayHitPlayer = true; });
+
     // closest boats hold the near zone (boats already there get a bonus so roles do not flicker)
     const score = (e) => Math.hypot(e.state.x - px, e.state.z - pz) - (e.zone === 'near' ? 35 : 0);
     live.sort((a, b) => score(a) - score(b));
@@ -106,6 +113,7 @@ export class EnemyBoat {
   constructor(scene, combat, island, typeKey, hooks = {}) {
     this.uid = UID++;
     this.team = `enemy:${island.id}`;
+    this.mayHitPlayer = true; // set by the Director every second
     this.zone = 'far'; // 'near' (holds the fight around you) or 'far' (waits further out)
     this.station = null; // the spot the director wants us to hang around
     this.slotAng = null;
@@ -150,11 +158,11 @@ export class EnemyBoat {
     this.bar = new THREE.Group();
     const bg = new THREE.Mesh(
       new THREE.PlaneGeometry(BAR_W, BAR_H),
-      new THREE.MeshBasicMaterial({ color: 0x2b3a4a, transparent: true, opacity: 0.65, depthTest: false })
+      new THREE.MeshBasicMaterial({ color: 0x2b3a4a, transparent: true, opacity: 0.65, depthTest: false, depthWrite: false })
     );
     const fillGeo = new THREE.PlaneGeometry(BAR_W - 0.3, BAR_H - 0.2);
     fillGeo.translate((BAR_W - 0.3) / 2, 0, 0); // grow from the left edge
-    this.fill = new THREE.Mesh(fillGeo, new THREE.MeshBasicMaterial({ color: 0x7bf07b, depthTest: false }));
+    this.fill = new THREE.Mesh(fillGeo, new THREE.MeshBasicMaterial({ color: 0x7bf07b, transparent: true, opacity: 1, depthTest: false, depthWrite: false })); // transparent too, otherwise the grey backing is drawn on top of it
     this.fill.position.set(-(BAR_W - 0.3) / 2, 0, 0.01);
     bg.renderOrder = 998;
     this.fill.renderOrder = 999;
@@ -330,12 +338,8 @@ export class EnemyBoat {
       if (t.team === 'player') {
         // waiting boats leave you alone, and only a few boats may go after you at once
         if (this.zone === 'far' && HUNT.k < 0.5) continue; // waiting boats join in once you have idled a while
-        let closer = 0;
-        for (const o of all) {
-          if (o === this || o.team === 'player' || !o.alive || o.target !== t) continue;
-          if (Math.hypot(o.state.x - t.state.x, o.state.z - t.state.z) < d) closer++;
-        }
-        if (closer >= SWARM.maxAttackers + Math.round(HUNT.k * SWARM.huntAttackers)) continue;
+        // the director picks which boats may go after you; the rest hunt each other (unless you just shot them)
+        if (!this.mayHitPlayer && !(this.aggressor === 'player' && this.aggressorAge < 3)) continue;
       }
       // prefer close, wounded targets; slight bias toward the player; stick with the current
       // target and hit back at whoever just hurt us

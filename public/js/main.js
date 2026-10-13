@@ -166,6 +166,32 @@ function respawnPlayer() {
   hud.toast('Back at the harbor. Sail out and try again! ⚓', 3000);
 }
 
+// Machine-gun aim assist. Bullets fly straight, so while you steer they trail behind your nose like a hose and miss.
+// If a boat is near your nose, bend the shot toward where that boat will be when the bullet arrives.
+function gunAim(s) {
+  const G = WEAPONS.gun;
+  if (!G.assistCone) return s.yaw;
+  const bs = G.speed + Math.max(0, s.speed);
+  const reach = bs * G.life * 0.9;
+  let best = null, bestOff = G.assistCone, bestAng = s.yaw;
+  for (const e of enemies) {
+    if (!e.alive) continue;
+    let px = e.state.x, pz = e.state.z;
+    const evx = Math.sin(e.state.yaw) * e.state.speed, evz = Math.cos(e.state.yaw) * e.state.speed;
+    let d = Math.hypot(px - s.x, pz - s.z);
+    for (let k = 0; k < 3; k++) { // predict where it will be when the bullet gets there
+      const tt = d / bs;
+      px = e.state.x + evx * tt; pz = e.state.z + evz * tt;
+      d = Math.hypot(px - s.x, pz - s.z);
+    }
+    if (d > reach || d < 4) continue;
+    const ang = Math.atan2(px - s.x, pz - s.z);
+    const off = angleDiff(s.yaw, ang);
+    if (Math.abs(off) < bestOff) { bestOff = Math.abs(off); best = e; bestAng = s.yaw + off; }
+  }
+  return best ? s.yaw + (bestAng - s.yaw) * G.assist : s.yaw;
+}
+
 // Fighter-jet style: the missile locks onto the boat closest to your nose (inside a cone, within range) at launch,
 // tracks it for a short time, then flies on. No boat in the cone = no lock, it flies straight.
 function acquireLock() {
@@ -286,7 +312,7 @@ function frame() {
         gunSide = -gunSide;
         const fx = Math.sin(s.yaw), fz = Math.cos(s.yaw);
         const lx = Math.cos(s.yaw), lz = -Math.sin(s.yaw);
-        const ang = s.yaw + (Math.random() - 0.5) * 2 * WEAPONS.gun.spread;
+        const ang = gunAim(s) + (Math.random() - 0.5) * 2 * WEAPONS.gun.spread;
         combat.fireBullet('player', s.x + fx * 3.6 + lx * gunSide * 0.55, s.z + fz * 3.6 + lz * gunSide * 0.55,
           ang, WEAPONS.gun.speed + Math.max(0, s.speed), WEAPONS.gun.dmg, WEAPONS.gun.life);
       }
