@@ -320,6 +320,13 @@ export const audio = {
     tone(d, 'sine', 660, 990, 0.4, 0.3, 0.15);
   },
 
+  // grabbing a health potion: a bubbly rising chime
+  potion() {
+    if (!ctx || muted) return;
+    const d = bus(null, null, 0.5);
+    [392, 523, 659, 784].forEach((f, i) => tone(d, 'sine', f, f * 1.04, 0.22, 0.3, i * 0.06));
+  },
+
   // Space: water scrubbing off speed
   brake() {
     if (!ctx || muted || !ok('brake', 300)) return;

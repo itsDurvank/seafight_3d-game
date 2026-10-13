@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { ENEMY_TYPES, WEAPONS, WORLD, DIFFICULTY as D, SWARM, ENEMY_SPEED } from './config.js';
+import { ENEMY_TYPES, WEAPONS, WORLD, DIFFICULTY as D, SWARM, ENEMY_SPEED, POTION } from './config.js';
 import { Boat } from './boat.js';
 import { audio } from './audio.js';
 import { resolveCollisions } from './world.js';
@@ -417,7 +417,7 @@ export class EnemyBoat {
     this.dodgeCd -= dt;
     this.bCool -= dt;
     this.pulseT -= dt;
-    if (this.pulseT <= 0) { this.engage = !this.engage; this.pulseT = this.engage ? rand(8, 12) : rand(1.5, 2.5); }
+    if (this.pulseT <= 0) { this.engage = !this.engage; this.pulseT = this.engage ? rand(9, 14) : rand(0.8, 1.5); }
     if (HUNT.k > 0.6) this.engage = true; // no lulls for a sitting duck
     if (this.bOn) {
       this.bEnergy -= dt; this.bHold += dt; this.bIdle = 0;
@@ -542,6 +542,15 @@ export class EnemyBoat {
       // a boat that has fallen behind its spot around you speeds up to catch up (a hunter, not a drifter)
       const sd = this.station ? Math.hypot(this.station.x - s.x, this.station.z - s.z) : 0;
       desiredSpeed = Math.max(spd * ENEMY_SPEED.roam, Math.min(this.maxRun, spd * ENEMY_SPEED.roam + (this.maxRun - spd * ENEMY_SPEED.roam) * clamp((sd - 30) / 120, 0, 1)));
+    }
+
+    // hurt boats head for the nearest health potion (even on the run home), unless they are in the middle of breaking away
+    if (this.mode !== 'evade' && hpNow < POTION.seekHp && EnemyBoat.potions) {
+      const pot = EnemyBoat.potions.nearest(s.x, s.z, POTION.seekRange);
+      if (pot) {
+        desiredYaw = Math.atan2(pot.x - s.x, pot.z - s.z);
+        desiredSpeed = Math.max(desiredSpeed, spd * 0.95);
+      }
     }
 
     // dodges override everything else

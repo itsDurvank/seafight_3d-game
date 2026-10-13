@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { WORLD, BOAT, PLAYER, WEAPONS, COLORS, SWARM, KILL_REWARD } from './config.js';
+import { WORLD, BOAT, PLAYER, WEAPONS, COLORS, SWARM, KILL_REWARD, POTION } from './config.js';
 import { createWater } from './waves.js';
 import { createSky } from './sky.js';
 import { createWorld, resolveCollisions } from './world.js';
@@ -9,6 +9,7 @@ import { Minimap } from './minimap.js';
 import { createInput } from './input.js';
 import { createHud } from './hud.js';
 import { Combat } from './combat.js';
+import { Potions } from './potions.js';
 import { EnemyBoat, Director, HUNT } from './enemies.js';
 import { audio } from './audio.js';
 
@@ -129,6 +130,19 @@ const enemies = WORLD.islands
   });
 const targets = [player, ...enemies];
 EnemyBoat.ctx = { enemies, player }; // lets sunk boats respawn near the action
+
+// Health potions: random pick-ups on the sea that you and any hurt enemy boat can claim
+const potions = new Potions(scene, combat);
+EnemyBoat.potions = potions; // lets hurt enemies head for the nearest one
+potions.onSpawn = () => hud.toast('🧪 A health potion appeared! Check the minimap.', 2200);
+potions.onClaim = (who, p, healed, target) => {
+  if (who === 'player') {
+    audio.potion();
+    hud.toast(`🧪 +${Math.round(healed)} HP`, 1500);
+  } else if (Math.hypot(p.x - boat.state.x, p.z - boat.state.z) < 140) {
+    hud.toast(`🧪 ${target.island.enemyName || target.type.name} grabbed a potion!`, 1500);
+  }
+};
 const director = new Director();
 
 combat.onPlayerHit = () => hud.hit(); // hit marker on every shot that lands
@@ -349,6 +363,7 @@ function frame() {
   if (HUNT.k > 0.6 && !huntWarned) { huntWarned = true; hud.toast('⚠️ They smell blood! Keep moving!', 2500); }
   if (HUNT.k < 0.2) huntWarned = false;
   for (const e of enemies) e.update(dt, t, player, camera, targets);
+  potions.update(dt, t, player, enemies);
 
   // Boats bump into each other.
   //  - ramming with the Shift boost: you lose 10% of your health, they lose 30% of theirs
@@ -407,7 +422,7 @@ function frame() {
   world.update(t);
   updateCamera(dt);
   sky.update(camera, t);
-  minimap.draw(boat, enemies);
+  minimap.draw(boat, enemies, potions.list());
   audio.setListener(s.x, s.z, camYaw);
   audio.update(dt, { speed: s.speed, boosting: boat.boosting, alive: player.alive, hpFrac: player.hp / player.maxHp });
   tutorial();

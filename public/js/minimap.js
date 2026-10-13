@@ -12,7 +12,7 @@ export class Minimap {
     return [this.size / 2 + x * this.scale, this.size / 2 + z * this.scale];
   }
 
-  draw(boat, enemies = []) {
+  draw(boat, enemies = [], potions = []) {
     const c = this.ctx, S = this.size;
     c.clearRect(0, 0, S, S);
 
@@ -45,6 +45,15 @@ export class Minimap {
       c.fillStyle = e.island.theme.map;
       c.strokeStyle = '#2b3a4a'; c.lineWidth = 1.5;
       c.beginPath(); c.arc(x, z, 3.5, 0, Math.PI * 2); c.fill(); c.stroke();
+    }
+
+    // health potions: red dots with a white cross
+    for (const p of potions) {
+      const [x, z] = this.px(p.x, p.z);
+      c.fillStyle = '#ff3b57'; c.strokeStyle = '#fff'; c.lineWidth = 1.5;
+      c.beginPath(); c.arc(x, z, 5, 0, Math.PI * 2); c.fill(); c.stroke();
+      c.strokeStyle = '#fff'; c.lineWidth = 1.6;
+      c.beginPath(); c.moveTo(x - 2.5, z); c.lineTo(x + 2.5, z); c.moveTo(x, z - 2.5); c.lineTo(x, z + 2.5); c.stroke();
     }
 
     // you: white-rimmed triangle pointing the way you sail

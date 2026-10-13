@@ -61,9 +61,9 @@ export const WORLD = {
 };
 
 export const BOAT = {
-  baseTop: 70, // normal top speed
-  topCap: 105, // normal top speed: it climbs from baseTop to this while you sail flat out
-  topGain: 3, // top speed gained per second while sailing flat out (about 12 s from 70 to 105)
+  baseTop: 76, // normal top speed
+  topCap: 114, // normal top speed: it climbs from baseTop to this while you sail flat out
+  topGain: 3.2, // top speed gained per second while sailing flat out (about 12 s from 76 to 114)
   topDecay: 1.5, // top speed lost per second when you let go of W
   pull: 0.8, // how quickly speed catches up to the top speed
   maxReverse: 5,
@@ -83,7 +83,7 @@ export const BOAT = {
   brakeDecel: 90, // how fast Space slows you (speed units per second)
   brakeTurnMul: 1.6, // steering is much easier while braking
   boostTurnMul: 1.5, // extra steering authority while boosting
-  boostMax: 150, // absolute speed limit while boosting
+  boostMax: 160, // absolute speed limit while boosting
   // ramming while boosting (percent of each boat's MAX health)
   boostRamSelfPct: 0.10,
   boostRamEnemyPct: 0.30,
@@ -116,35 +116,35 @@ export const ENEMY_TYPES = {
   skiff: {
     name: 'Mango Skiff', boost: 1.75, hp: 45, speed: 28, turn: 2.4, scale: 0.85, radius: 2.4,
     pref: 36, range: 85, detect: 140,
-    gun: { rate: 0.16, burst: 5, pause: 1.6, dmg: 4, spread: 0.06 },
-    missile: { cd: 13 },
+    gun: { rate: 0.16, burst: 5, pause: 1.2, dmg: 4, spread: 0.06 },
+    missile: { cd: 11 },
     style: { hull: 0xffa62b, accent: 0xffffff, cabin: 0xffe0a3, roof: 0xff7a1a, flag: 0xffffff, look: 'sail' },
   },
   cruiser: {
     name: 'Coral Cruiser', boost: 1.3, hp: 130, speed: 14, turn: 1.0, scale: 1.5, radius: 3.6,
     pref: 70, range: 120, detect: 150,
-    missile: { cd: 6 },
+    missile: { cd: 5 },
     style: { hull: 0xff7aa8, accent: 0xfff0f5, cabin: 0xffc2d6, roof: 0xe84a82, flag: 0xffffff, look: 'pod' },
   },
   raider: {
     name: 'Violet Raider', boost: 1.7, hp: 70, speed: 36, turn: 2.0, scale: 1.0, radius: 2.6,
     pref: 45, range: 90, detect: 150,
-    gun: { rate: 0.22, burst: 4, pause: 1.3, dmg: 5, spread: 0.07 },
-    missile: { cd: 10 },
+    gun: { rate: 0.22, burst: 4, pause: 1.0, dmg: 5, spread: 0.07 },
+    missile: { cd: 8.5 },
     style: { hull: 0x8e6bff, accent: 0x39e6ff, cabin: 0xd9ccff, roof: 0x5b3fd1, flag: 0x39e6ff, look: 'raider' },
   },
   gunboat: {
     name: 'Jade Gunboat', boost: 1.45, hp: 95, speed: 22, turn: 1.4, scale: 1.25, radius: 3.1,
     pref: 55, range: 100, detect: 150,
-    gun: { rate: 0.3, burst: 4, pause: 1.5, dmg: 5, spread: 0.05, twin: true },
-    missile: { cd: 9 },
+    gun: { rate: 0.3, burst: 4, pause: 1.2, dmg: 5, spread: 0.05, twin: true },
+    missile: { cd: 7.5 },
     style: { hull: 0x1fb36b, accent: 0xfff3b0, cabin: 0xc8f5dc, roof: 0x0b7d49, flag: 0xfff3b0, look: 'twin' },
   },
   dread: {
     name: 'Sunset Dreadnought', boost: 1.25, hp: 170, speed: 16, turn: 0.85, scale: 1.8, radius: 4.2,
     pref: 75, range: 125, detect: 160,
-    gun: { rate: 0.25, burst: 6, pause: 1.8, dmg: 5, spread: 0.06 },
-    missile: { cd: 7 },
+    gun: { rate: 0.25, burst: 6, pause: 1.4, dmg: 5, spread: 0.06 },
+    missile: { cd: 6 },
     style: { hull: 0xff6b4a, accent: 0xffd166, cabin: 0xffc9a8, roof: 0xb23a24, flag: 0xffd166, look: 'dread' },
   },
 };
@@ -157,9 +157,9 @@ export const ENEMY_TYPES = {
 //   - backing off between attack pulses: a bit slower, then it comes back
 // Big boats are `bigMul` of the small ones' speed, so they act as slower, harder-hitting anchors.
 export const ENEMY_SPEED = {
-  cruise: 70, // a small boat's normal speed (+/- `wobble`)
-  run: 1.35, // top speed when hunting a fast target = cruise x this (about 95). Hard cap without boost.
-  boost: 118, // burst top speed of a small boat (the player boosts to ~150)
+  cruise: 78, // a small boat's normal speed (+/- `wobble`)
+  run: 1.38, // top speed when hunting a fast target = cruise x this (about 108). Hard cap without boost.
+  boost: 128, // burst top speed of a small boat (the player boosts to ~160)
   bigMul: 0.72, // big boats: cruise 50, run 68, boost 85
   circle: 0.7, // fraction of cruise while circling a target at its preferred range
   roam: 0.7, // fraction of cruise while just wandering
@@ -168,7 +168,23 @@ export const ENEMY_SPEED = {
 };
 
 // Rewards for sinking a boat: they feed the no-regeneration rule, so aggression is how you stay alive.
-export const KILL_REWARD = { healSmall: 15, healBig: 25, boostSeconds: 2, resetMissile: true };
+// Sinking a boat no longer heals you (healSmall/healBig = 0): health comes from the potions on the sea (see POTION).
+export const KILL_REWARD = { healSmall: 0, healBig: 0, boostSeconds: 2, resetMissile: true };
+
+// Health potions: they appear at random on the sea, and you or any HURT enemy boat can claim them.
+export const POTION = {
+  every: [15, 30], // seconds between spawns
+  firstSpawn: [6, 10], // the first one comes early
+  maxAlive: 4,
+  heal: 0.4, // fraction of max health restored
+  pickup: 3.4, // pick-up distance (added to the boat's radius)
+  lifetime: 50, // seconds before an unclaimed potion vanishes
+  nearPlayerChance: 0.5, // chance a potion spawns near you (the rest are anywhere on the map)
+  nearRing: [90, 260], // how far from you the nearby ones appear
+  seekHp: 0.55, // enemy boats below this fraction of health go for a potion
+  seekRange: 260, // ...if one is within this distance
+  enemyClaimBelow: 0.75, // an enemy only claims a potion when below this fraction of health
+};
 
 // How the 8 enemy boats spread out around you (see Director in enemies.js).
 export const SWARM = {
@@ -211,7 +227,7 @@ export const DIFFICULTY = {
   // (dodging a missile, one panic escape when badly hurt, a brief charge from far away).
   // After a burst a boat must wait `burstGap` before the next offensive one, and the meter refills slowly.
   boost: { time: 4, min: 1.0, minOn: 0.6, offenseMax: 2.2, burstGap: [6, 10], refillDelay: 4, refillTime: 22 },
-  turnMul: 0.75, // turning vs the stat sheet: wide arcs, no instant 90-degree jinks (the player turns at about 1.5 rad/s)
+  turnMul: 0.85, // turning vs the stat sheet: wide arcs, no instant 90-degree jinks (the player turns at about 1.5 rad/s)
   turnDrag: 0.25, // a hard turn bleeds up to this fraction of speed, so dodges are arcs you can follow
   dodgeRange: 105, // an enemy starts its dodge when a missile aimed at it is this close
   respawn: 9, // seconds until a sunk enemy boat comes back (it returns near the action)
