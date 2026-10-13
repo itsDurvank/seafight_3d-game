@@ -195,6 +195,8 @@ export class EnemyBoat {
     this.wpTimer = 0;
     this.noEnemyTimer = 0; // after wandering too far out, ignore other boats for a while and come back
     this.bumpCd = 0;
+    this.rival = null;
+    this.rivalTimer = 0;
     this.dodging = null; // the missile we are currently side-stepping
     this.dodgeOk = false;
     this.dodgeCd = 0; // can't dodge again until this runs out
@@ -304,7 +306,14 @@ export class EnemyBoat {
     return Math.hypot(st.x - h.x, st.z - h.z) < h.r;
   }
 
-  // Roam: half the time head for somebody else's fight (battle-royale convergence), otherwise wander the arena.
+  pickRival(all) {
+    const foes = all.filter((o) => o !== this && o.alive && o.team !== 'player' && o.team !== this.team);
+    if (!foes.length) { this.rival = null; return; }
+    foes.sort((a, b) => Math.hypot(a.state.x - this.state.x, a.state.z - this.state.z) - Math.hypot(b.state.x - this.state.x, b.state.z - this.state.z));
+    this.rival = foes[Math.floor(Math.random() * Math.min(2, foes.length))];
+  }
+
+  // Roam: head for our rival or somebody else's fight, otherwise wander the arena.
   pickWaypoint(player, all) {
     const s = this.state;
     this.wp = null;
@@ -312,9 +321,9 @@ export class EnemyBoat {
     if (Math.random() < AI.roamHunt) {
       const pool = all.filter((o) => o !== this && o.alive && o.team !== this.team && !(o.team === 'player' && this.inSafeHarbor(o.state)));
       if (pool.length) {
-        const o = pool[Math.floor(Math.random() * pool.length)];
+        const o = (this.rival && this.rival.alive) ? this.rival : pool[Math.floor(Math.random() * pool.length)];
         for (let k = 0; k < 8; k++) {
-          const a = Math.random() * TAU, r = rand(35, 95);
+          const a = Math.random() * TAU, r = rand(30, 75);
           const x = o.state.x + Math.cos(a) * r, z = o.state.z + Math.sin(a) * r;
           if (freeSpot(x, z)) { this.wp = { x, z }; this.wpHunt = true; break; }
         }
@@ -342,9 +351,7 @@ export class EnemyBoat {
 
   // ------------------------------------------------------------ target choice
 
-  // Utility scoring instead of "the player is special". Distance dominates, so boats that end up next to
-  // each other fight each other; weak or distracted boats are juicy; whoever hurt us is remembered;
-  // and only a few boats at a time pile onto you.
+  // Utility scoring: boats prioritize nearby targets, engage rivals, and only up to playerCap boats target player
   chooseTarget(player, all, hpR) {
     const s = this.state, ty = this.type;
     if (this.jitT <= 0) { this.jit = {}; this.jitT = rand(5, 10); }
@@ -354,12 +361,13 @@ export class EnemyBoat {
       const isP = t.team === 'player';
       if (isP && this.inSafeHarbor(t.state)) continue; // the harbor is off limits
       if (!isP && this.noEnemyTimer > 0) continue;
-      if (!isP && Math.hypot(t.state.x - player.state.x, t.state.z - player.state.z) > SWARM.fightLeash) continue; // keep the chaos in view
       const d = Math.hypot(t.state.x - s.x, t.state.z - s.z);
       if (d < 65) near++;
-      const reach = (isP ? 1.5 : 1) * D.detectMul * (t === this.target ? ty.detect * 1.6 : ty.detect);
+      // Fair detection reach for both player and enemy boats
+      const baseReach = ty.detect * (isP ? 1.4 : 1.4) * D.detectMul;
+      const reach = (t === this.target ? baseReach * 1.6 : baseReach);
       if (d > reach) continue;
-      let sc = AI.wProx * (1 - clamp(d / 260, 0, 1)); // close = interesting
+      let sc = AI.wProx * (1 - clamp(d / 280, 0, 1)); // close = interesting
       sc += AI.wWeak * (1 - t.hp / t.maxHp) * (0.5 + this.opp); // wounded = tempting
       if (t.target && t.target !== this && t.target.alive) sc += AI.wBusy * this.opp; // busy with someone else = a free hit
       if (t.target === this) sc += AI.wThreat; // it is coming for me
@@ -368,7 +376,12 @@ export class EnemyBoat {
       if (isP) {
         sc += this.playerBias + HUNT.k * 1.2;
         const others = HUNT.n - (this.target === t ? 1 : 0);
-        sc -= AI.wCrowd * Math.max(0, others - (AI.playerCap + Math.round(HUNT.k * 2))); // don't all pile on one boat
+        if (others >= (AI.playerCap + Math.round(HUNT.k * 2))) {
+          sc -= 4.0; // soft cap exceeded: strongly prefer enemy vs enemy dogfights
+        }
+      } else {
+        sc += 1.0; // base motivation to fight other enemy boats
+        if (t === this.rival) sc += 2.0; // rival dogfight bonus!
       }
       if (t.maxHp > this.maxHp * 1.5 && hpR < 0.5) sc -= 0.5 * (1 - this.aggr); // timid boats avoid giants when hurt
       const key = t.uid == null ? 'p' : t.uid;
@@ -812,6 +825,11 @@ export class EnemyBoat {
     if (this.fireDodgeTimer > 0) this.fireDodgeTimer -= dt;
     this.bCool -= dt;
     this.targetLock -= dt;
+    this.rivalTimer -= dt;
+    if (this.rivalTimer <= 0) {
+      this.pickRival(all);
+      this.rivalTimer = rand(SWARM.rivalTime[0], SWARM.rivalTime[1]);
+    }
     this.jitT -= dt;
     this.reactCd -= dt;
     this.fleeCd -= dt;

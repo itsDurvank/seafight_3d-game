@@ -228,7 +228,7 @@ export const SWARM = {
   farRing: [90, 140], // waiting boats stay within visible combat distance
   farKeepOut: 60, // waiting boats won't crowd directly on top of you
   maxAttackers: 3, // at most 3 boats pursue YOU; remainder dogfight each other
-  fightLeash: 170, // boat-vs-boat fights stay within this distance of you, keeping chaos right in view
+  fightLeash: 260, // boat-vs-boat fights stay within this distance of you, keeping chaos right in view
   rivalBonus: 45, // every boat picks a rival for a while and prefers it, so fights keep changing partners
   rivalTime: [8, 16], // seconds before a boat picks a new rival
   // Standing still gets you hunted: the longer you idle, the closer, more numerous and sharper they get.
