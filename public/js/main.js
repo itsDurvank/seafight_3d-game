@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import './mapLoader.js'; // loads public/maps/default.json into WORLD before game initializes
 import { WORLD, BOAT, PLAYER, WEAPONS, COLORS, SWARM, KILL_REWARD, POTION } from './config.js';
 import { createWater } from './waves.js';
 import { createSky } from './sky.js';

@@ -1,0 +1,176 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Boom Boats</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;600;700&display=swap" rel="stylesheet" />
+  <style>
+    :root { --wood:#d9803f; --wood-dark:#b9642a; --cream:#fff3de; --ink:#5b3a22; --teal:#1fd1c9; --rope:#e8b24a; }
+    * { box-sizing: border-box; }
+    html, body { margin:0; height:100%; overflow:hidden; background:#7fe0ef;
+      font-family: "Fredoka", "Trebuchet MS", "Segoe UI", system-ui, sans-serif; color:var(--ink); user-select:none; }
+    #game { position:fixed; inset:0; display:block; }
+
+    /* chunky warm "wooden sign" panels, matching the dock in the art */
+    .panel { position:fixed; background:rgba(255,243,222,.93); border:3px solid #e8a35a; border-radius:16px;
+      box-shadow:0 4px 0 var(--wood-dark), 0 10px 22px rgba(0,70,100,.28); }
+    kbd { background:#fff; border-radius:6px; padding:1px 7px; border:1px solid #e3d5bf;
+      box-shadow:0 2px 0 #e3d5bf; font:inherit; font-size:12px; font-weight:600; }
+
+    #title { top:82px; left:16px; padding:8px 16px; font-weight:700; font-size:18px; }
+    #title small { display:block; font-weight:400; font-size:12px; opacity:.7; }
+
+    /* ship health: glossy blue gauge in a wooden frame */
+    #hp { position:fixed; top:18px; left:16px; width:min(380px,46vw); height:38px; }
+    .hp-frame { position:absolute; inset:0; z-index:2; padding:4px; border-radius:12px; border:3px solid #2e1b10;
+      background:linear-gradient(#bd7647,#8f4f2a);
+      box-shadow:inset 0 2px 0 rgba(255,214,170,.55), 0 3px 0 #5a2f16, 0 8px 16px rgba(0,60,90,.3); }
+    .hp-trough { position:relative; height:100%; border-radius:8px; border:2px solid #2e1b10; background:#27476b; overflow:hidden; }
+    #hp-fill { height:100%; width:100%; transition:width .15s ease;
+      background:linear-gradient(#d4edff 0,#a3d3f8 45%,#6aa9e8 100%); }
+    #hp-fill.mid { background:linear-gradient(#fff3c9,#ffd166 45%,#f2a33a); }
+    #hp-fill.low { background:linear-gradient(#ffd0c8,#ff7b6b 45%,#e04646); }
+    .hp-shine { position:absolute; left:5%; right:5%; top:44%; height:2px; pointer-events:none;
+      background:linear-gradient(90deg,transparent,#fff 30%,#fff 70%,transparent); opacity:.9; }
+    #hp-text { position:absolute; inset:0; display:flex; align-items:center; justify-content:center;
+      font-weight:700; font-size:13px; color:#fff; text-shadow:0 1px 0 #1d3b5c,0 0 3px #1d3b5c; }
+    .hp-notches { position:absolute; left:50%; top:-8px; transform:translateX(-50%); display:flex; gap:7px; z-index:1; }
+    .hp-notches i { width:7px; height:13px; background:#2e1b10; border-radius:2px 2px 0 0; }
+    .hp-dial { position:absolute; left:50%; bottom:-15px; width:40px; height:40px; transform:translateX(-50%); z-index:1;
+      border-radius:50%; background:repeating-conic-gradient(#14c9bd 0 15deg,#fff 15deg 30deg);
+      -webkit-mask:radial-gradient(circle,transparent 10px,#000 11px,#000 19px,transparent 20px);
+      mask:radial-gradient(circle,transparent 10px,#000 11px,#000 19px,transparent 20px);
+      filter:drop-shadow(0 0 1px #1b1b1b) drop-shadow(0 0 1px #1b1b1b); }
+
+    #speed { top:16px; right:16px; padding:6px 12px; min-width:120px; font-size:14px; }
+    #speed .mini { height:8px; background:#e9d3b2; border-radius:6px; margin:6px 0; overflow:hidden; border:1px solid #c98a55; }
+    #boost-fill { height:100%; width:0; background:linear-gradient(90deg,#1fd1c9,#ff8a3d); }
+    #speed .small { font-size:13px; opacity:.85; }
+
+    #weapons { position:fixed; bottom:14px; left:50%; transform:translateX(-50%); display:flex; gap:9px; }
+    .slot { position:relative; width:80px; padding:5px 4px 4px; text-align:center; overflow:hidden;
+      background:rgba(255,243,222,.93); border:3px solid #e8a35a; border-radius:16px;
+      box-shadow:0 4px 0 var(--wood-dark), 0 10px 22px rgba(0,70,100,.28); transition:transform .08s ease; }
+    .slot kbd { position:absolute; top:4px; left:5px; font-size:10px; padding:0 5px; }
+    .slot .ico { display:block; width:34px; height:34px; margin:0 auto 1px; filter:drop-shadow(0 2px 0 rgba(91,58,34,.35)); transition:filter .15s ease; }
+    .slot .flame { transform-box:fill-box; transform-origin:50% 100%; }
+    .slot.active .flame, .slot.selected .flame { animation:flick .18s infinite alternate; }
+    @keyframes flick { from { transform:scaleY(.92); } to { transform:scaleY(1.1); } }
+    #missile-slot:not(.ready) .ico, #boost-slot:not(.ready):not(.active) .ico { filter:grayscale(.75) opacity(.65); }
+    #boost-slot.active .ico { filter:drop-shadow(0 0 6px #ff8a3d); }
+    #gun-slot.active .ico { transform:translateY(1px) scale(1.06); }
+    .slot small { display:block; font-size:10.5px; font-weight:600; line-height:1.2; }
+    .slot.active { transform:translateY(2px) scale(.97); border-color:#ffb347; background:#fff0c4; }
+    .slot.ready { border-color:#5ee6a0; }
+    .slot.selected { border-color:#ff8a3d; background:#fff0c4; box-shadow:0 4px 0 var(--wood-dark), 0 0 0 3px rgba(255,138,61,.45), 0 10px 22px rgba(0,70,100,.28); }
+    #boost-slot.active { border-color:#ff8a3d; background:#ffe2a8; transform:translateY(2px) scale(.97); }
+    #boost-slot.active #boost-time { color:#d2451e; }
+    #boost-cd { position:absolute; left:0; right:0; bottom:0; height:0; background:rgba(60,45,35,.5); pointer-events:none; }
+    #boost-time { display:block; font-size:10.5px; margin-top:2px; position:relative; }
+    #missile-cd { position:absolute; left:0; right:0; bottom:0; height:0; background:rgba(60,45,35,.5); pointer-events:none; }
+    #missile-time { display:block; font-size:10.5px; margin-top:2px; position:relative; }
+
+    #controls { bottom:58px; left:16px; padding:10px 14px; font-size:13px; line-height:1.7; }
+    #controls.hidden { display:none; }
+    #help-btn { bottom:16px; left:16px; width:34px; height:34px; padding:0; border-radius:50%; font:inherit; font-weight:700;
+      font-size:18px; color:var(--ink); cursor:pointer; display:flex; align-items:center; justify-content:center; }
+    #help-btn:hover { background:#fff0c4; }
+    #minimap-wrap { bottom:16px; right:16px; padding:8px; border-radius:50%; }
+    #minimap { display:block; width:200px; height:200px; border-radius:50%; }
+
+    #toast { top:84px; left:50%; transform:translateX(-50%); padding:12px 22px; font-size:16px; font-weight:600;
+      text-align:center; max-width:80vw; transition:opacity .8s ease; }
+    #toast.hide { opacity:0; pointer-events:none; }
+
+    #hitmarker { position:fixed; left:50%; top:44%; width:26px; height:26px; opacity:0; pointer-events:none; transform:translate(-50%,-50%) rotate(45deg); }
+    #hitmarker::before, #hitmarker::after { content:''; position:absolute; background:#fff; border-radius:2px; box-shadow:0 0 0 1.5px rgba(40,20,10,.55); }
+    #hitmarker::before { left:11px; top:0; width:4px; height:26px; }
+    #hitmarker::after { left:0; top:11px; width:26px; height:4px; }
+    #flash { position:fixed; inset:0; pointer-events:none; opacity:0;
+      background:radial-gradient(ellipse at center, rgba(255,60,60,0) 55%, rgba(255,60,60,.65) 100%); }
+
+    @media (max-width:700px){ #minimap{width:130px;height:130px} #controls{display:none} .slot{width:70px} }
+  </style>
+</head>
+<body>
+  <canvas id="game"></canvas>
+  <div id="flash"></div>
+  <div id="hitmarker"></div>
+
+  <div id="title" class="panel">💥 Boom Boats<small>Battle Sailing</small></div>
+
+  <div id="hp">
+    <div class="hp-notches"><i></i><i></i><i></i></div>
+    <div class="hp-dial"></div>
+    <div class="hp-frame"><div class="hp-trough"><div id="hp-fill"></div><div class="hp-shine"></div><span id="hp-text">100</span></div></div>
+  </div>
+
+  <div id="speed" class="panel">
+    <div>⚓ <b id="speed-text">0</b> km/h</div>
+    <div class="mini" title="Speed boost"><div id="boost-fill"></div></div>
+    <div class="small">Boats sunk: <b id="kills">0</b></div>
+  </div>
+
+  <div id="toast" class="panel">Welcome to the harbor! Hold <kbd>W</kbd> to sail. Press <kbd>?</kbd> for controls.</div>
+
+  <div id="weapons">
+    <div id="gun-slot" class="slot"><kbd>1</kbd><svg class="ico" viewBox="0 0 48 48" aria-hidden="true">
+        <defs>
+          <linearGradient id="g-brass" x1="0" x2="1"><stop offset="0" stop-color="#ffe08a"/><stop offset=".5" stop-color="#f2b134"/><stop offset="1" stop-color="#c9821c"/></linearGradient>
+          <linearGradient id="g-tip" x1="0" x2="1"><stop offset="0" stop-color="#ffb27a"/><stop offset=".55" stop-color="#e2683a"/><stop offset="1" stop-color="#a8431f"/></linearGradient>
+          <g id="g-bullet" stroke="#5b3a22" stroke-width="1.3" stroke-linejoin="round">
+            <path d="M-5,-4 C-5,-12 -2,-17 0,-19 C2,-17 5,-12 5,-4Z" fill="url(#g-tip)"/>
+            <rect x="-5" y="-4" width="10" height="20" rx="1.5" fill="url(#g-brass)"/>
+            <rect x="-5" y="-4" width="10" height="2" fill="#8a5a14" stroke="none"/>
+            <rect x="-5" y="13" width="10" height="3" rx="1" fill="#a86a14"/>
+          </g>
+        </defs>
+        <use href="#g-bullet" transform="translate(13 29) rotate(-24)"/>
+        <use href="#g-bullet" transform="translate(35 29) rotate(24)"/>
+        <use href="#g-bullet" transform="translate(24 30)"/>
+      </svg><small>Machine Gun</small></div>
+    <div id="missile-slot" class="slot ready"><kbd>2</kbd><svg class="ico" viewBox="0 0 48 48" aria-hidden="true">
+        <defs><linearGradient id="g-mbody" x1="0" x2="1"><stop offset="0" stop-color="#fffdf5"/><stop offset=".6" stop-color="#ece3d0"/><stop offset="1" stop-color="#c9bda5"/></linearGradient></defs>
+        <g transform="translate(21 27) rotate(45)" stroke="#5b3a22" stroke-width="1.3" stroke-linejoin="round">
+          <path class="flame" d="M-4.5,14 Q0,31 4.5,14Z" fill="#ff8a3d"/>
+          <path class="flame" d="M-2.3,14 Q0,24 2.3,14Z" fill="#ffe066" stroke="none"/>
+          <path d="M-6,3 L-13,16 L-6,14Z" fill="#e5473a"/>
+          <path d="M6,3 L13,16 L6,14Z" fill="#e5473a"/>
+          <path d="M-6,14 L-6,-6 Q-6,-14 0,-20 Q6,-14 6,-6 L6,14Z" fill="url(#g-mbody)"/>
+          <path d="M-6,-6 Q-6,-14 0,-20 Q6,-14 6,-6Z" fill="#e5473a"/>
+          <rect x="-6" y="7" width="12" height="2.6" fill="#e5473a"/>
+          <circle cx="0" cy="0" r="2.8" fill="#7fd3ff"/>
+        </g>
+      </svg><small>Missiles</small>
+      <div id="missile-cd"></div><b id="missile-time">READY</b></div>
+    <div id="boost-slot" class="slot ready"><kbd>Shift</kbd><svg class="ico" viewBox="0 0 48 48" aria-hidden="true">
+        <defs><linearGradient id="g-flame" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#ffb020"/><stop offset="1" stop-color="#ff4d1c"/></linearGradient></defs>
+        <path d="M2 17 H9 M1 25 H8 M3 33 H9 M46 17 H39 M47 25 H40 M45 33 H39" stroke="#1fd1c9" stroke-width="2.4" stroke-linecap="round"/>
+        <g class="flame">
+          <path d="M24 3 C27 12 37 18 37 30 C37 39 31 45 24 45 C17 45 11 39 11 30 C11 24 14 21 16 16 C18 20 20 21 21 19 C23 15 22 9 24 3Z" fill="url(#g-flame)" stroke="#8a3512" stroke-width="1.5" stroke-linejoin="round"/>
+          <path d="M24 20 C27 26 32 29 32 34 C32 39 28 42 24 42 C20 42 16 39 16 34 C16 30 20 27 24 20Z" fill="#ffd166"/>
+          <path d="M24 31 C26 34 28 35 28 38 C28 40 26 41 24 41 C22 41 20 40 20 38 C20 35 22 34 24 31Z" fill="#fff6c9"/>
+        </g>
+      </svg><small>Boost</small>
+      <div id="boost-cd"></div><b id="boost-time">READY</b></div>
+  </div>
+
+  <button id="help-btn" class="panel ui-btn" title="Controls (?)">?</button>
+  <div id="controls" class="panel hidden">
+    <kbd>W</kbd> sail &nbsp; <kbd>S</kbd> reverse &nbsp; <kbd>A</kbd> <kbd>D</kbd> steer<br />
+    <kbd>1</kbd> machine gun &nbsp; <kbd>2</kbd> missile<br />
+    <kbd>Left click</kbd> fire (hold for gun)<br />
+    <kbd>Shift</kbd> toggle boost (8s, refills) &mdash; ram!<br />
+    <kbd>Space</kbd> brake (easier steering)<br />
+    <kbd>H</kbd> sail home &nbsp; <kbd>M</kbd> sound on/off
+  </div>
+  <div id="minimap-wrap" class="panel"><canvas id="minimap" width="200" height="200"></canvas></div>
+
+  <script type="importmap">
+    { "imports": { "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js" } }
+  </script>
+  <script type="module" src="/js/main.js"></script>
+</body>
+</html>

@@ -1,0 +1,233 @@
+import * as THREE from 'three';
+import { BOAT, WORLD } from './config.js';
+import { waveHeight } from './waves.js';
+
+const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+
+function mat(color) {
+  return new THREE.MeshStandardMaterial({ color, flatShading: true, roughness: 0.8 });
+}
+
+export const PLAYER_STYLE = {
+  hull: 0xfff4e0, accent: 0xff7a59, cabin: 0xffd9a0, roof: 0xff8a3d, flag: 0xffe066, look: 'player', scale: 1,
+};
+
+// One model builder for every boat. `style.look` changes the silhouette so
+// each island's boat is easy to tell apart.
+function buildModel(style) {
+  const g = new THREE.Group();
+  g.rotation.order = 'YXZ';
+  const add = (mesh, x, y, z) => { mesh.position.set(x, y, z); g.add(mesh); return mesh; };
+  const dark = 0x3b4452;
+  const barrel = (len, r, x, y, z, color = dark) => {
+    const geo = new THREE.CylinderGeometry(r, r, len, 8);
+    geo.rotateX(Math.PI / 2);
+    return add(new THREE.Mesh(geo, mat(color)), x, y, z);
+  };
+
+  add(new THREE.Mesh(new THREE.BoxGeometry(2.2, 0.8, 5), mat(style.hull)), 0, 0.2, 0);
+
+  // pointed bow
+  const bowGeo = new THREE.ConeGeometry(1.1 * Math.SQRT2, 2, 4);
+  bowGeo.rotateY(Math.PI / 4);
+  bowGeo.rotateX(Math.PI / 2); // tip points +Z
+  const bow = add(new THREE.Mesh(bowGeo, mat(style.hull)), 0, 0.2, 3.5);
+  bow.scale.set(1, 0.36, 1);
+
+  add(new THREE.Mesh(new THREE.BoxGeometry(2.25, 0.22, 5.05), mat(style.accent)), 0, 0.3, 0);
+
+  const tall = style.look === 'pod' || style.look === 'dread';
+  const cabinH = tall ? 1.5 : 1;
+  add(new THREE.Mesh(new THREE.BoxGeometry(1.6, cabinH, 1.6), mat(style.cabin)), 0, 0.6 + cabinH / 2, -0.6);
+  add(new THREE.Mesh(new THREE.BoxGeometry(1.95, 0.2, 1.95), mat(style.roof)), 0, 0.7 + cabinH, -0.6);
+
+  const flagMat = new THREE.MeshStandardMaterial({ color: style.flag, side: THREE.DoubleSide });
+
+  switch (style.look) {
+    case 'sail': {
+      // small fast boat with a white triangular sail
+      add(new THREE.Mesh(new THREE.CylinderGeometry(0.07, 0.07, 4.6, 5), mat(0xffffff)), 0, 3.1, 0.9);
+      const sh = new THREE.Shape();
+      sh.moveTo(0, 0); sh.lineTo(2.8, 0); sh.lineTo(0, 4.2);
+      const sg = new THREE.ShapeGeometry(sh);
+      sg.rotateY(Math.PI / 2); // shape x now runs toward the stern
+      add(new THREE.Mesh(sg, new THREE.MeshStandardMaterial({ color: 0xffffff, side: THREE.DoubleSide, flatShading: true })), 0, 1.0, 0.9);
+      const f = add(new THREE.Mesh(new THREE.PlaneGeometry(0.9, 0.5), flagMat), 0, 5.5, 0.4);
+      f.rotation.y = Math.PI / 2;
+      barrel(1.4, 0.1, 0, 0.9, 2.5);
+      break;
+    }
+    case 'pod': {
+      // big slow cruiser carrying a missile pod
+      add(new THREE.Mesh(new THREE.BoxGeometry(1.7, 0.5, 1.9), mat(dark)), 0, 0.95, 1.5);
+      for (const mx of [-0.45, 0.45]) {
+        for (const my of [0.95, 1.35]) barrel(2.1, 0.17, mx, my, 1.6, 0xff4d4d);
+      }
+      add(new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.06, 1.4, 5), mat(0xffffff)), 0, 3.3, -0.6);
+      const f = add(new THREE.Mesh(new THREE.PlaneGeometry(0.9, 0.5), flagMat), 0, 3.8, -1.05);
+      f.rotation.y = Math.PI / 2;
+      break;
+    }
+    case 'raider': {
+      // sleek and fast, with swept fins
+      for (const side of [-1, 1]) {
+        const fin = add(new THREE.Mesh(new THREE.BoxGeometry(0.15, 0.9, 1.4), mat(style.accent)), side * 1.1, 0.9, -2.0);
+        fin.rotation.z = -side * 0.25;
+      }
+      barrel(1.8, 0.12, 0, 0.95, 2.2);
+      add(new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.06, 1.6, 5), mat(0xffffff)), 0, 2.6, -0.6);
+      const f = add(new THREE.Mesh(new THREE.PlaneGeometry(0.9, 0.5), flagMat), 0, 3.2, -1.05);
+      f.rotation.y = Math.PI / 2;
+      break;
+    }
+    case 'twin': {
+      // twin heavy cannons on a turret
+      add(new THREE.Mesh(new THREE.BoxGeometry(1.4, 0.5, 1.4), mat(dark)), 0, 0.85, 1.5);
+      barrel(2.2, 0.2, -0.45, 1.1, 2.4);
+      barrel(2.2, 0.2, 0.45, 1.1, 2.4);
+      add(new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.06, 1.6, 5), mat(0xffffff)), 0, 2.6, -0.6);
+      const f = add(new THREE.Mesh(new THREE.PlaneGeometry(0.9, 0.5), flagMat), 0, 3.2, -1.05);
+      f.rotation.y = Math.PI / 2;
+      break;
+    }
+    case 'dread': {
+      // flagship: smokestacks, bow cannons and a missile rack
+      for (const sz of [-1.6, -2.5]) {
+        add(new THREE.Mesh(new THREE.CylinderGeometry(0.35, 0.4, 1.8, 8), mat(dark)), 0, 2.1, sz);
+        add(new THREE.Mesh(new THREE.CylinderGeometry(0.37, 0.37, 0.25, 8), mat(style.accent)), 0, 2.7, sz);
+      }
+      barrel(2.2, 0.2, -0.5, 1.0, 2.4);
+      barrel(2.2, 0.2, 0.5, 1.0, 2.4);
+      add(new THREE.Mesh(new THREE.BoxGeometry(1.5, 0.4, 1.2), mat(dark)), 0, 0.85, 1.2);
+      barrel(1.4, 0.15, -0.4, 1.15, 1.2, 0xff4d4d);
+      barrel(1.4, 0.15, 0.4, 1.15, 1.2, 0xff4d4d);
+      const f = add(new THREE.Mesh(new THREE.PlaneGeometry(1.1, 0.6), flagMat), 0, 4.3, -0.6);
+      f.rotation.y = Math.PI / 2;
+      break;
+    }
+    default: {
+      // the player's boat: twin machine guns up front, missile pod on the roof
+      barrel(1.5, 0.11, -0.55, 0.95, 2.4);
+      barrel(1.5, 0.11, 0.55, 0.95, 2.4);
+      add(new THREE.Mesh(new THREE.BoxGeometry(0.9, 0.3, 1.2), mat(dark)), 0, 1.95, -0.6);
+      barrel(1.4, 0.13, -0.22, 2.2, -0.6, 0xff4d4d);
+      barrel(1.4, 0.13, 0.22, 2.2, -0.6, 0xff4d4d);
+      add(new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.06, 1.2, 5), mat(0xffffff)), 0, 2.9, -1.2);
+      const f = add(new THREE.Mesh(new THREE.PlaneGeometry(0.9, 0.5), flagMat), 0, 3.3, -1.65);
+      f.rotation.y = Math.PI / 2;
+    }
+  }
+
+  g.scale.setScalar(style.scale || 1);
+  return g;
+}
+
+export class Boat {
+  constructor(scene, style = PLAYER_STYLE, spawn = WORLD.boatSpawn) {
+    this.scale = style.scale || 1;
+    this.top = BOAT.baseTop; // current top speed (grows while you sail flat out)
+    this.boostEnergy = BOAT.boostTime; // seconds of boost left in the meter
+    this.boostOn = false; // Shift toggles this
+    this.boostIdle = 0; // seconds since boost was last on
+    this.state = { x: spawn.x, z: spawn.z, yaw: spawn.yaw, speed: 0, turnVel: 0 };
+    this.group = buildModel(style);
+    scene.add(this.group);
+  }
+
+  get boosting() { return this.boostOn; }
+
+  // Shift toggles the boost on and off. It drains the meter while on; once it has been
+  // off for a couple of seconds the meter refills.
+  toggleBoost() {
+    if (this.boostOn) { this.boostOn = false; this.boostIdle = 0; return false; }
+    if (this.boostEnergy < BOAT.boostMin) return false;
+    this.boostOn = true;
+    return true;
+  }
+
+  cancelBoost() { this.boostOn = false; this.boostIdle = 0; this.boostEnergy = BOAT.boostTime; }
+
+  tickBoost(dt) {
+    if (this.boostOn) {
+      this.boostEnergy -= dt;
+      this.boostIdle = 0;
+      if (this.boostEnergy <= 0) { this.boostEnergy = 0; this.boostOn = false; }
+    } else {
+      this.boostIdle += dt;
+      if (this.boostIdle >= BOAT.boostRefillDelay) {
+        this.boostEnergy = Math.min(BOAT.boostTime, this.boostEnergy + (BOAT.boostTime / BOAT.boostRefillTime) * dt);
+      }
+    }
+  }
+
+  // Player physics. Top speed creeps up the longer you sail flat out,
+  // and slowly fades again if you let go of the throttle.
+  // While boosting the boat surges ahead on its own, well past the normal top speed.
+  update(dt, input) {
+    const s = this.state;
+    const braking = !!input.brake;
+    if (braking && this.boostOn) { this.boostOn = false; this.boostIdle = 0; } // braking cancels the boost
+    this.tickBoost(dt);
+    const boosting = this.boosting;
+
+    if (braking) {
+      // Space: scrub speed off quickly (down to a crawl, never a stop or reverse)
+      if (s.speed > BOAT.brakeMin) s.speed = Math.max(BOAT.brakeMin, s.speed - BOAT.brakeDecel * dt);
+      this.top = Math.max(BOAT.baseTop, this.top - 25 * dt);
+    } else if (boosting) {
+      const goal = Math.min(BOAT.boostMax, Math.max(this.top, BOAT.baseTop) * BOAT.boostMul + BOAT.boostAdd);
+      s.speed += (goal - s.speed) * (1 - Math.exp(-BOAT.boostPull * dt));
+    } else if (input.forward) {
+      if (s.speed > this.top * 0.88) this.top = Math.min(BOAT.topCap, this.top + BOAT.topGain * dt);
+      s.speed += (this.top - s.speed) * (1 - Math.exp(-BOAT.pull * dt));
+    } else {
+      this.top = Math.max(BOAT.baseTop, this.top - BOAT.topDecay * dt);
+      s.speed *= Math.exp(-BOAT.drag * dt);
+    }
+    if (input.back && !boosting) s.speed -= BOAT.accel * 0.6 * dt;
+    // after a boost ends, bleed the extra speed off smoothly instead of snapping
+    if (!boosting && !braking && s.speed > this.top) s.speed += (this.top - s.speed) * (1 - Math.exp(-2 * dt));
+    s.speed = Math.max(s.speed, -BOAT.maxReverse);
+
+    const steer = (input.left ? 1 : 0) - (input.right ? 1 : 0);
+    const grip = clamp(Math.abs(s.speed) / 5, 0.3, 1);
+    // Normal sailing steers a bit wider when very fast. While boosting there is no such
+    // penalty, and the rudder bites harder so the boat stays as easy to steer as normal.
+    const stability = boosting || braking ? 1 : 1 / (1 + Math.max(0, s.speed - BOAT.baseTop) / 100);
+    const turnMul = boosting ? BOAT.boostTurnMul : braking ? BOAT.brakeTurnMul : 1;
+    const target = steer * BOAT.turnRate * turnMul * grip * stability * (s.speed < -0.2 ? -1 : 1);
+    s.turnVel += (target - s.turnVel) * (1 - Math.exp(-4 * dt));
+    s.yaw += s.turnVel * dt;
+
+    s.x += Math.sin(s.yaw) * s.speed * dt;
+    s.z += Math.cos(s.yaw) * s.speed * dt;
+  }
+
+  // Sit the model on the waves and tilt it to match the surface.
+  syncModel(dt, t) {
+    const s = this.state;
+    const fx = Math.sin(s.yaw), fz = Math.cos(s.yaw); // forward
+    const lx = Math.cos(s.yaw), lz = -Math.sin(s.yaw); // left
+    const L = 2.5 * this.scale, W = 1.1 * this.scale;
+
+    const hF = waveHeight(s.x + fx * L, s.z + fz * L, t);
+    const hB = waveHeight(s.x - fx * L, s.z - fz * L, t);
+    const hL = waveHeight(s.x + lx * W, s.z + lz * W, t);
+    const hR = waveHeight(s.x - lx * W, s.z - lz * W, t);
+
+    const y = (hF + hB + hL + hR) / 4 + 0.1;
+    const pitchT = -Math.atan2(hF - hB, 2 * L);
+    const rollT = Math.atan2(hL - hR, 2 * W) - s.turnVel * 0.12 * clamp(s.speed / 8, 0, 1.5);
+
+    const k = 1 - Math.exp(-6 * dt);
+    const g = this.group;
+    g.position.set(s.x, y, s.z);
+    g.rotation.y = s.yaw;
+    g.rotation.x += (pitchT - g.rotation.x) * k;
+    g.rotation.z += (rollT - g.rotation.z) * k;
+  }
+
+  teleport(x, z, yaw) {
+    Object.assign(this.state, { x, z, yaw, speed: 0, turnVel: 0 });
+  }
+}

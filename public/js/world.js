@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { WORLD } from './config.js';
 import { makeMountain, makePebbles } from './mountain.js';
+import { makeAsset } from './assets.js';
 
 function rng(seed) {
   let a = seed >>> 0;
@@ -36,7 +37,7 @@ function makePalm(T, rand) {
   return g;
 }
 
-function makeIsland(def) {
+export function makeIsland(def) {
   const T = def.theme;
   const rand = rng(def.seed);
   const g = new THREE.Group();
@@ -146,7 +147,7 @@ function makeIsland(def) {
 }
 
 // Warm wooden dock with rope railings, hanging lanterns and tire fenders.
-function makeDock() {
+export function makeDock() {
   const { x, z, w, d } = WORLD.dock;
   const g = new THREE.Group();
   g.position.set(x, 0, z);
@@ -264,6 +265,9 @@ function makeButterflies(scene) {
 export function createWorld(scene) {
   scene.add(makeDock());
   for (const def of WORLD.islands) scene.add(makeIsland(def));
+  if (Array.isArray(WORLD.assets)) {
+    for (const a of WORLD.assets) scene.add(makeAsset(a));
+  }
   const flutter = makeButterflies(scene);
   return { update: (t) => flutter(t) };
 }

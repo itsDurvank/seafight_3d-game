@@ -1,0 +1,12 @@
+{
+  "name": "boom-boats-map-editor",
+  "version": "1.0.0",
+  "description": "Standalone map editor for Boom Boats",
+  "main": "server/index.js",
+  "scripts": {
+    "start": "node server/index.js"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}
