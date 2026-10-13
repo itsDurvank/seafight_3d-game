@@ -74,18 +74,18 @@ export class Helmsman {
     }
     const cfg = S[style];
     let want = desired;
-    if (style === 'cruise') want += Math.sin(this.clock * this.rate + this.ph) * S.meander; // gentle drift instead of a ruler-straight line
+    if (style === 'cruise' && !o.urgent) want += Math.sin(this.clock * this.rate + this.ph) * S.meander;
     let diff = angleDiff(yaw, want);
-    // dead zone: small errors are ignored, giving clean, straight runs
-    const dz = cfg.dz;
+    // dead zone: 0 during urgent avoidance for instant tracking
+    const dz = o.urgent ? 0 : cfg.dz;
     diff = Math.abs(diff) <= dz ? 0 : diff - Math.sign(diff) * dz;
-    // Cap turn rate smoothly: agile without spinning out of control
-    const factor = o.urgent && style === 'sweep' ? Math.min(0.85, cfg.factor * 1.25) : cfg.factor;
+    // Full turning authority during obstacle glide
+    const factor = o.urgent ? 1.2 : (style === 'sweep' ? Math.min(0.85, cfg.factor * 1.25) : cfg.factor);
     const cap = o.maxTurn * factor;
     const target = clamp(diff * S.gain, -cap, cap);
-    const acc = (style === 'snap' ? S.snapAccel : S.accel) * dt;
+    const acc = (o.urgent || style === 'snap' ? S.snapAccel * 1.5 : S.accel) * dt;
     this.vel += clamp(target - this.vel, -acc, acc);
-    this.vel = clamp(this.vel, -o.maxTurn, o.maxTurn);
+    this.vel = clamp(this.vel, -o.maxTurn * (o.urgent ? 1.25 : 1.0), o.maxTurn * (o.urgent ? 1.25 : 1.0));
     return { yaw: yaw + this.vel * dt, vel: this.vel, style };
   }
 }

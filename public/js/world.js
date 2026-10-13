@@ -304,6 +304,6 @@ export function resolveCollisions(b, radius, dt) {
     hit = true;
   }
 
-  if (hit) b.speed *= Math.exp(-3 * dt);
+  if (hit) b.speed *= Math.exp(-0.8 * dt);
   return hit;
 }

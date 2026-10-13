@@ -13,16 +13,25 @@ const angleDiff = (a, b) => ((b - a + Math.PI) % TAU + TAU) % TAU - Math.PI;
 const BAR_W = 5;
 const BAR_H = 0.55;
 
-// Everything a boat must steer around: the islands and the wooden dock.
-const OBSTACLES = [
-  ...WORLD.islands.map((i) => ({ x: i.x, z: i.z, r: i.r })),
-  { x: WORLD.dock.x, z: WORLD.dock.z, r: 8 },
-];
+// Everything a boat must steer around: dynamically reflects current islands and dock
+function getObstacles() {
+  const obs = [];
+  if (Array.isArray(WORLD.islands)) {
+    for (let i = 0; i < WORLD.islands.length; i++) {
+      const isl = WORLD.islands[i];
+      obs.push({ x: isl.x, z: isl.z, r: isl.r });
+    }
+  }
+  if (WORLD.dock) {
+    obs.push({ x: WORLD.dock.x, z: WORLD.dock.z, r: 8 });
+  }
+  return obs;
+}
 
 // A clear spot of open water (inside the sea, away from islands and the harbor).
 function freeSpot(x, z, margin = 28) {
   if (Math.hypot(x, z) > WORLD.radius - 70) return false;
-  return OBSTACLES.every((o) => Math.hypot(x - o.x, z - o.z) > o.r + margin);
+  return getObstacles().every((o) => Math.hypot(x - o.x, z - o.z) > o.r + margin);
 }
 
 // How hard the swarm is hunting you right now (0..1): rises while you sit still.
@@ -1042,21 +1051,68 @@ export class EnemyBoat {
 
     // ----- steering: avoid islands, the harbor, other boats and the edge of the sea -----
     let vx = Math.sin(desiredYaw), vz = Math.cos(desiredYaw);
-    let urgent = !!(rammer || (mt && this.dodgeOk && this.dodgeSeen > react && mt.dist < D.dodgeRange) || this.fireDodgeTimer > 0) || this.mode === 'evade';
-    for (const o of OBSTACLES) {
-      const dx = s.x - o.x, dz = s.z - o.z;
-      const d = Math.hypot(dx, dz) || 0.001;
-      const margin = o.r + this.radius + 14 + Math.max(0, s.speed) * 0.7;
-      if (d < margin) {
-        const w = (margin - d) / margin;
-        if (w > 0.3) urgent = true; // an island is close: full turning authority
-        const nx = dx / d, nz = dz / d;
-        // Tangential glide around the obstacle rather than backwards push to maintain forward headway
-        const tx = -nz * this.dir, tz = nx * this.dir;
-        vx += (nx * 1.2 + tx * 2.0) * w * 2.0;
-        vz += (nz * 1.2 + tz * 2.0) * w * 2.0;
+    let urgent = !!(rammer || (mt && this.dodgeOk && this.dodgeSeen > react && mt.dist < D.dodgeRange) || this.fireDodgeTimer > 0);
+
+    const fx = Math.sin(s.yaw), fz = Math.cos(s.yaw);
+    const curSpd = Math.max(0, s.speed);
+    const obstacles = getObstacles();
+
+    // 1. Predictive Island and Harbor Avoidance with Smooth Tangential Gliding
+    const islandLookAhead = Math.max(48, curSpd * 1.6);
+    for (const o of obstacles) {
+      const toX = o.x - s.x, toZ = o.z - s.z;
+      const d = Math.hypot(toX, toZ) || 0.001;
+      const safeRadius = o.r + this.radius + 16;
+
+      // Proximity check: active when approaching island boundary
+      const proxZone = safeRadius + 28;
+      let proxW = 0;
+      if (d < proxZone) {
+        proxW = clamp((proxZone - d) / 28, 0, 1);
+      }
+
+      // Predictive forward raycast look-ahead
+      let rayW = 0;
+      const forwardProj = toX * fx + toZ * fz;
+      if (forwardProj > 0 && forwardProj < islandLookAhead + o.r) {
+        const perpDist = Math.abs(toX * fz - toZ * fx);
+        const corridor = safeRadius + 15;
+        if (perpDist < corridor) {
+          const fwdFactor = 1 - forwardProj / (islandLookAhead + o.r);
+          const latFactor = 1 - perpDist / corridor;
+          rayW = clamp(fwdFactor * latFactor, 0, 1);
+        }
+      }
+
+      const avoidWeight = Math.max(proxW, rayW);
+      if (avoidWeight > 0) {
+        if (avoidWeight > 0.16) urgent = true;
+
+        // Outward normal pushing away from island
+        const nx = -toX / d, nz = -toZ / d;
+
+        // Compute tangential gliding vector aligned with boat forward travel
+        const dot1 = (-nz) * fx + nx * fz;
+        const dot2 = nz * fx + (-nx) * fz;
+        const cross = fx * toZ - fz * toX;
+        let tx = 0, tz = 0;
+        if (Math.abs(dot1 - dot2) > 0.04) {
+          tx = dot1 >= dot2 ? -nz : nz;
+          tz = dot1 >= dot2 ? nx : -nx;
+        } else {
+          // Exactly head-on: steer away from the obstacle side
+          tx = cross >= 0 ? -nz : nz;
+          tz = cross >= 0 ? nx : -nx;
+        }
+
+        const normFactor = 1.3 + proxW * 1.8;
+        const tangFactor = 2.8;
+        const push = avoidWeight * 3.8;
+        vx += (nx * normFactor + tx * tangFactor) * push;
+        vz += (nz * normFactor + tz * tangFactor) * push;
       }
     }
+
     // Separation between boats (avoid crowding / congestions)
     for (const o of all) {
       if (o === this || !o.alive) continue;
@@ -1065,7 +1121,7 @@ export class EnemyBoat {
       const margin = this.radius + o.radius + (o === tg ? 7 : Math.max(16, SWARM.personalSpace));
       if (d < margin) {
         const w = (margin - d) / margin;
-        if (w > 0.45) urgent = true;
+        if (w > 0.4) urgent = true;
         vx += (dx / d) * w * 1.8; vz += (dz / d) * w * 1.8;
       }
     }
@@ -1089,18 +1145,44 @@ export class EnemyBoat {
         vx += (pdx / pd) * w * 1.2; vz += (pdz / pd) * w * 1.2;
       }
     }
-    const fromMid = Math.hypot(s.x, s.z);
-    if (fromMid > WORLD.radius - 55) {
-      const w = (fromMid - (WORLD.radius - 55)) / 55;
-      if (w > 0.4) urgent = true;
-      vx -= (s.x / fromMid) * w * 2.2; vz -= (s.z / fromMid) * w * 2.2;
+
+    // 2. Predictive Map Edge Avoidance with Circular Perimeter Banking
+    const fromMid = Math.hypot(s.x, s.z) || 1;
+    const edgeLookAhead = Math.max(50, curSpd * 1.8);
+    const aheadX = s.x + fx * edgeLookAhead;
+    const aheadZ = s.z + fz * edgeLookAhead;
+    const aheadFromMid = Math.hypot(aheadX, aheadZ);
+    const edgeWarnRadius = WORLD.radius - 85;
+    const effEdgeDist = Math.max(fromMid, aheadFromMid);
+
+    if (effEdgeDist > edgeWarnRadius) {
+      const edgeW = clamp((effEdgeDist - edgeWarnRadius) / 85, 0, 1);
+      if (edgeW > 0.15) urgent = true;
+
+      // Inward radial normal toward center of sea
+      const inX = -s.x / fromMid;
+      const inZ = -s.z / fromMid;
+
+      // Circular perimeter tangent aligned with forward travel
+      let ptx = -inZ, ptz = inX;
+      if (ptx * fx + ptz * fz < 0) {
+        ptx = -ptx;
+        ptz = -ptz;
+      }
+
+      const edgePush = edgeW * 4.2;
+      vx += (inX * 1.5 + ptx * 2.8) * edgePush;
+      vz += (inZ * 1.5 + ptz * 2.8) * edgePush;
+
+      // Maintain high cruising speed while banking along perimeter
+      if (edgeW > 0.3) desiredSpeed = Math.max(desiredSpeed, spd * 0.85);
     }
+
     desiredYaw = Math.atan2(vx, vz);
 
     const diff = angleDiff(s.yaw, desiredYaw);
-    const stab = 1 / (1 + Math.max(0, s.speed - 60) / 100); // like the player: fast boats turn wider
+    const stab = 1 / (1 + Math.max(0, s.speed - 60) / 100); // fast boats turn wider
     const maxTurn = ty.turn * D.turnMul * turnBoost * stab;
-    // the helmsman decides HOW we turn: long straights, wide curves, or (rarely, briefly) a steep turn
     const reactive = tacName === 'counter' || tacName === 'turnabout' || this.afterDodge;
     const hs = this.helm.step(dt, s.yaw, desiredYaw, {
       maxTurn, urgent, reactive,
@@ -1110,28 +1192,40 @@ export class EnemyBoat {
     });
     s.yaw = hs.yaw;
     s.turnVel = hs.vel;
-    // Maintain forward headway - NEVER stop dead in water or pivot in place
-    const minHeadway = spd * (D.minCombatSpeed || 0.50);
+
+    // Maintain consistent forward motion & speed: glide smoothly
+    const minHeadway = spd * (urgent ? 0.70 : (D.minCombatSpeed || 0.50));
     const dragMul = 1 - (D.turnDrag || 0.16) * Math.min(1, Math.abs(hs.vel) / 1.8);
     desiredSpeed = Math.max(minHeadway, desiredSpeed * dragMul);
     s.speed += (desiredSpeed - s.speed) * (1 - Math.exp(-(this.bOn ? 2.2 : 1.5) * dt));
     s.x += Math.sin(s.yaw) * s.speed * dt;
     s.z += Math.cos(s.yaw) * s.speed * dt;
 
-    if (resolveCollisions(s, this.radius, dt) && this.bumpCd <= 0) {
-      // jammed against an island or the edge of the sea: back out of it
-      this.bumpCd = 2;
-      this.dir *= -1;
-      if (this.mode !== 'flee') {
-        let pt = null, bd = 1e9;
-        if (Math.hypot(s.x, s.z) > WORLD.radius - 4) pt = { x: s.x * 2, z: s.z * 2 };
-        else for (const o of OBSTACLES) {
-          const d = Math.hypot(s.x - o.x, s.z - o.z);
-          if (d < bd) { bd = d; pt = o; }
+    // Momentum-preserving surface sliding on contact - NO backward evades or dead stops
+    if (resolveCollisions(s, this.radius, dt)) {
+      s.speed = Math.max(s.speed, spd * 0.75);
+      if (this.bumpCd <= 0) {
+        this.bumpCd = 0.4;
+        let nearestObs = null, minD = 1e9;
+        for (const o of obstacles) {
+          const d = Math.hypot(s.x - o.x, s.z - o.z) - o.r;
+          if (d < minD) { minD = d; nearestObs = o; }
         }
-        this.mode = 'evade';
-        this.evadeTimer = 1.5;
-        this.fleePt = pt;
+        const edgeD = WORLD.radius - Math.hypot(s.x, s.z);
+        if (edgeD < minD) {
+          const midD = Math.hypot(s.x, s.z) || 1;
+          const inX = -s.x / midD, inZ = -s.z / midD;
+          let ptx = -inZ, ptz = inX;
+          if (ptx * fx + ptz * fz < 0) { ptx = -ptx; ptz = -ptz; }
+          s.yaw = Math.atan2(ptx, ptz);
+        } else if (nearestObs) {
+          const toX = nearestObs.x - s.x, toZ = nearestObs.z - s.z;
+          const d = Math.hypot(toX, toZ) || 1;
+          const nx = -toX / d, nz = -toZ / d;
+          let tx = -nz, tz = nx;
+          if (tx * fx + tz * fz < 0) { tx = -tx; tz = -tz; }
+          s.yaw = Math.atan2(tx, tz);
+        }
       }
     }
 
