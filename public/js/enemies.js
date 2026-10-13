@@ -128,7 +128,7 @@ export class EnemyBoat {
     this.state = this.boat.state;
     this.radius = ty.radius;
     this.big = ty.scale >= 1.2; // cruiser, gunboat and dreadnought are the heavy boats
-    this.playerBias = rand(60, 110); // how much this boat prefers going after you over other enemies
+    this.playerBias = rand(15, 45); // how much this boat prefers going after you over other enemies
     this.hitScale = D.hitbox; // bullets and missiles use a slightly bigger hitbox
     this.maxHp = Math.round(ty.hp * D.hp * (ty.scale >= 1.2 ? D.bigHp : 1)); // big boats carry extra armour
     this.hp = this.maxHp;
@@ -181,6 +181,8 @@ export class EnemyBoat {
     this.dir = Math.random() < 0.5 ? 1 : -1; // which way it circles / dodges
     this.dirTimer = rand(2, 4);
     this.thinkTimer = Math.random() * 0.4;
+    this.rival = null; // the boat we are currently picking on
+    this.rivalT = 0;
     this.evadeTimer = 0;
     this.fleePt = null;
     this.wp = null;
@@ -326,12 +328,21 @@ export class EnemyBoat {
     const a = WORLD.arena;
     if (Math.hypot(s.x, s.z) > WORLD.radius - 80) this.noEnemyTimer = 7;
 
+    // pick a rival: one of the 3 closest other boats, kept for a while, so fights keep changing partners
+    if (!this.rival || !this.rival.alive || this.rivalT <= 0) {
+      const pool = all.filter((o) => o !== this && o.alive && o.team !== this.team && o.team !== 'player')
+        .sort((a, b) => Math.hypot(a.state.x - s.x, a.state.z - s.z) - Math.hypot(b.state.x - s.x, b.state.z - s.z))
+        .slice(0, 3);
+      this.rival = pool.length ? pool[Math.floor(Math.random() * pool.length)] : null;
+      this.rivalT = rand(SWARM.rivalTime[0], SWARM.rivalTime[1]);
+    }
     let target = null, best = Infinity;
     let near = 0, cx = 0, cz = 0;
     for (const t of all) {
       if (t === this || !t.alive || t.team === this.team) continue;
       if (t.team === 'player' && this.inSafeHarbor(t.state)) continue; // the harbor is off limits
       if (t.team !== 'player' && this.noEnemyTimer > 0) continue;
+      if (t.team !== 'player' && Math.hypot(t.state.x - player.state.x, t.state.z - player.state.z) > SWARM.fightLeash) continue; // keep the chaos near you
       const d = Math.hypot(t.state.x - s.x, t.state.z - s.z);
       if (d < 65) { near++; cx += t.state.x; cz += t.state.z; }
       if (d > (t.team === 'player' ? 1.5 : 1) * D.detectMul * (t === this.target ? ty.detect * 1.6 : ty.detect)) continue;
@@ -339,12 +350,13 @@ export class EnemyBoat {
         // waiting boats leave you alone, and only a few boats may go after you at once
         if (this.zone === 'far' && HUNT.k < 0.5) continue; // waiting boats join in once you have idled a while
         // the director picks which boats may go after you; the rest hunt each other (unless you just shot them)
-        if (!this.mayHitPlayer && !(this.aggressor === 'player' && this.aggressorAge < 3)) continue;
+        if (!this.mayHitPlayer && !(this.aggressor === 'player' && this.aggressorAge < 1.5)) continue;
       }
       // prefer close, wounded targets; slight bias toward the player; stick with the current
       // target and hit back at whoever just hurt us
       let score = d + (t.hp / t.maxHp) * 45;
-      if (t.team === 'player') score -= this.playerBias + (this.zone === 'near' ? 80 : 0); // you are the focus, but not the only thing worth shooting
+      if (t.team === 'player') score -= this.playerBias + (this.zone === 'near' ? 10 : 0); // a small pull toward you, but whatever is closest wins
+      if (t === this.rival) score -= SWARM.rivalBonus;
       if (t === this.target) score -= 22;
       if (t.team === this.aggressor && this.aggressorAge < 6) score -= 30;
       if (score < best) { best = score; target = t; }
@@ -400,6 +412,7 @@ export class EnemyBoat {
     this.evadeTimer -= dt;
     this.wpTimer -= dt;
     this.bumpCd -= dt;
+    this.rivalT -= dt;
     this.noEnemyTimer -= dt;
     this.dodgeCd -= dt;
     this.bCool -= dt;
@@ -592,6 +605,15 @@ export class EnemyBoat {
       if (md > lim) {
         const w = clamp((md - lim) / 150, 0, 1);
         vx += (mdx / md) * w * 1.2; vz += (mdz / md) * w * 1.2;
+      }
+    }
+    if (this.mode === 'attack' && tg && tg.team !== 'player' && player.alive) {
+      const pdx = player.state.x - s.x, pdz = player.state.z - s.z;
+      const pd = Math.hypot(pdx, pdz) || 1;
+      const lim = SWARM.fightLeash * 1.1;
+      if (pd > lim) {
+        const w = clamp((pd - lim) / 120, 0, 1);
+        vx += (pdx / pd) * w * 1.2; vz += (pdz / pd) * w * 1.2;
       }
     }
     const fromMid = Math.hypot(s.x, s.z);

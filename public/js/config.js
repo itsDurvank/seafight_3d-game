@@ -176,7 +176,10 @@ export const SWARM = {
   nearRing: { small: [50, 105], big: [75, 125] }, // how far from you the near boats hang out
   farRing: [230, 330], // where the waiting boats cruise
   farKeepOut: 150, // waiting boats won't drift closer to you than this
-  maxAttackers: 4, // this many boats go after YOU at once (you are the focus); the rest fight each other
+  maxAttackers: 3, // at most this many boats may go after YOU at once; the rest are reserved for fighting each other
+  fightLeash: 190, // boat-vs-boat fights stay within this distance of you, so the chaos happens where you can see it
+  rivalBonus: 45, // every boat picks a rival for a while and prefers it, so fights keep changing partners
+  rivalTime: [10, 20], // seconds before a boat picks a new rival
   // Standing still gets you hunted: the longer you idle, the closer, more numerous and sharper they get.
   huntAttackers: 1, // extra boats that join the hunt at full heat
   huntExtra: 2, // extra boats pulled out of the waiting group at full heat
@@ -186,7 +189,7 @@ export const SWARM = {
   personalSpace: 30, // boats keep this much room from each other so nobody clumps
   orbitSpeed: 0.05, // radians/second the whole ring slowly turns around you
   respawnRing: [110, 170], // sunk boats come back this far from you, away from other boats
-  runawayChance: 0.3, // when badly hurt: chance to flee far away (a chase) instead of going home
+  runawayChance: 0.15, // when badly hurt: chance to flee far away (a chase) instead of going home
   runawayDist: [220, 320],
 };
 
@@ -196,7 +199,7 @@ export const DIFFICULTY = {
   bigHp: 1.35, // extra health multiplier for the big boats (cruiser, gunboat, dreadnought) on top of `hp`
   speed: 0.9, // enemy speed multiplier
   dmg: 1.0, // damage enemy weapons deal to you
-  dmgVsEnemy: 0.7, // damage enemy weapons deal to other enemy boats
+  dmgVsEnemy: 1.0, // damage enemy weapons deal to other enemy boats
   aim: 0.7, // 0..1: how well they lead their shots
   hitbox: 1.05, // enemy boats are 5% easier to hit
   dodge: 0.95, // overall multiplier on how often enemies dodge missiles

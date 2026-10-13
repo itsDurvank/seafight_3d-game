@@ -12,7 +12,7 @@ index ded5c8c..e02dee3 100644
              t.takeDamage(b.dmg, b.owner);
              if (b.owner === 'player' && this.onPlayerHit) this.onPlayerHit(t);
 diff --git a/public/js/config.js b/public/js/config.js
-index 82a4e4c..dd5e3a3 100644
+index 82a4e4c..345e415 100644
 --- a/public/js/config.js
 +++ b/public/js/config.js
 @@ -98,7 +98,8 @@ export const PLAYER = {
@@ -25,8 +25,38 @@ index 82a4e4c..dd5e3a3 100644
    // Our missile works like a fighter-jet missile: it locks onto the boat nearest your crosshair when you
    // fire (inside `lockCone` radians either side of your heading, within `lockRange`), steers at it for
    // `track` seconds, then goes ballistic. It also loses the lock if the target slips outside `loseCone`
+@@ -175,7 +176,10 @@ export const SWARM = {
+   nearRing: { small: [50, 105], big: [75, 125] }, // how far from you the near boats hang out
+   farRing: [230, 330], // where the waiting boats cruise
+   farKeepOut: 150, // waiting boats won't drift closer to you than this
+-  maxAttackers: 4, // this many boats go after YOU at once (you are the focus); the rest fight each other
++  maxAttackers: 3, // at most this many boats may go after YOU at once; the rest are reserved for fighting each other
++  fightLeash: 190, // boat-vs-boat fights stay within this distance of you, so the chaos happens where you can see it
++  rivalBonus: 45, // every boat picks a rival for a while and prefers it, so fights keep changing partners
++  rivalTime: [10, 20], // seconds before a boat picks a new rival
+   // Standing still gets you hunted: the longer you idle, the closer, more numerous and sharper they get.
+   huntAttackers: 1, // extra boats that join the hunt at full heat
+   huntExtra: 2, // extra boats pulled out of the waiting group at full heat
+@@ -185,7 +189,7 @@ export const SWARM = {
+   personalSpace: 30, // boats keep this much room from each other so nobody clumps
+   orbitSpeed: 0.05, // radians/second the whole ring slowly turns around you
+   respawnRing: [110, 170], // sunk boats come back this far from you, away from other boats
+-  runawayChance: 0.3, // when badly hurt: chance to flee far away (a chase) instead of going home
++  runawayChance: 0.15, // when badly hurt: chance to flee far away (a chase) instead of going home
+   runawayDist: [220, 320],
+ };
+ 
+@@ -195,7 +199,7 @@ export const DIFFICULTY = {
+   bigHp: 1.35, // extra health multiplier for the big boats (cruiser, gunboat, dreadnought) on top of `hp`
+   speed: 0.9, // enemy speed multiplier
+   dmg: 1.0, // damage enemy weapons deal to you
+-  dmgVsEnemy: 0.7, // damage enemy weapons deal to other enemy boats
++  dmgVsEnemy: 1.0, // damage enemy weapons deal to other enemy boats
+   aim: 0.7, // 0..1: how well they lead their shots
+   hitbox: 1.05, // enemy boats are 5% easier to hit
+   dodge: 0.95, // overall multiplier on how often enemies dodge missiles
 diff --git a/public/js/enemies.js b/public/js/enemies.js
-index 975d734..11bce59 100644
+index 975d734..15be315 100644
 --- a/public/js/enemies.js
 +++ b/public/js/enemies.js
 @@ -45,6 +45,13 @@ export class Director {
@@ -51,6 +81,15 @@ index 975d734..11bce59 100644
      this.zone = 'far'; // 'near' (holds the fight around you) or 'far' (waits further out)
      this.station = null; // the spot the director wants us to hang around
      this.slotAng = null;
+@@ -120,7 +128,7 @@ export class EnemyBoat {
+     this.state = this.boat.state;
+     this.radius = ty.radius;
+     this.big = ty.scale >= 1.2; // cruiser, gunboat and dreadnought are the heavy boats
+-    this.playerBias = rand(60, 110); // how much this boat prefers going after you over other enemies
++    this.playerBias = rand(15, 45); // how much this boat prefers going after you over other enemies
+     this.hitScale = D.hitbox; // bullets and missiles use a slightly bigger hitbox
+     this.maxHp = Math.round(ty.hp * D.hp * (ty.scale >= 1.2 ? D.bigHp : 1)); // big boats carry extra armour
+     this.hp = this.maxHp;
 @@ -150,11 +158,11 @@ export class EnemyBoat {
      this.bar = new THREE.Group();
      const bg = new THREE.Mesh(
@@ -65,7 +104,37 @@ index 975d734..11bce59 100644
      this.fill.position.set(-(BAR_W - 0.3) / 2, 0, 0.01);
      bg.renderOrder = 998;
      this.fill.renderOrder = 999;
-@@ -330,12 +338,8 @@ export class EnemyBoat {
+@@ -173,6 +181,8 @@ export class EnemyBoat {
+     this.dir = Math.random() < 0.5 ? 1 : -1; // which way it circles / dodges
+     this.dirTimer = rand(2, 4);
+     this.thinkTimer = Math.random() * 0.4;
++    this.rival = null; // the boat we are currently picking on
++    this.rivalT = 0;
+     this.evadeTimer = 0;
+     this.fleePt = null;
+     this.wp = null;
+@@ -318,29 +328,35 @@ export class EnemyBoat {
+     const a = WORLD.arena;
+     if (Math.hypot(s.x, s.z) > WORLD.radius - 80) this.noEnemyTimer = 7;
+ 
++    // pick a rival: one of the 3 closest other boats, kept for a while, so fights keep changing partners
++    if (!this.rival || !this.rival.alive || this.rivalT <= 0) {
++      const pool = all.filter((o) => o !== this && o.alive && o.team !== this.team && o.team !== 'player')
++        .sort((a, b) => Math.hypot(a.state.x - s.x, a.state.z - s.z) - Math.hypot(b.state.x - s.x, b.state.z - s.z))
++        .slice(0, 3);
++      this.rival = pool.length ? pool[Math.floor(Math.random() * pool.length)] : null;
++      this.rivalT = rand(SWARM.rivalTime[0], SWARM.rivalTime[1]);
++    }
+     let target = null, best = Infinity;
+     let near = 0, cx = 0, cz = 0;
+     for (const t of all) {
+       if (t === this || !t.alive || t.team === this.team) continue;
+       if (t.team === 'player' && this.inSafeHarbor(t.state)) continue; // the harbor is off limits
+       if (t.team !== 'player' && this.noEnemyTimer > 0) continue;
++      if (t.team !== 'player' && Math.hypot(t.state.x - player.state.x, t.state.z - player.state.z) > SWARM.fightLeash) continue; // keep the chaos near you
+       const d = Math.hypot(t.state.x - s.x, t.state.z - s.z);
+       if (d < 65) { near++; cx += t.state.x; cz += t.state.z; }
+       if (d > (t.team === 'player' ? 1.5 : 1) * D.detectMul * (t === this.target ? ty.detect * 1.6 : ty.detect)) continue;
        if (t.team === 'player') {
          // waiting boats leave you alone, and only a few boats may go after you at once
          if (this.zone === 'far' && HUNT.k < 0.5) continue; // waiting boats join in once you have idled a while
@@ -76,10 +145,41 @@ index 975d734..11bce59 100644
 -        }
 -        if (closer >= SWARM.maxAttackers + Math.round(HUNT.k * SWARM.huntAttackers)) continue;
 +        // the director picks which boats may go after you; the rest hunt each other (unless you just shot them)
-+        if (!this.mayHitPlayer && !(this.aggressor === 'player' && this.aggressorAge < 3)) continue;
++        if (!this.mayHitPlayer && !(this.aggressor === 'player' && this.aggressorAge < 1.5)) continue;
        }
        // prefer close, wounded targets; slight bias toward the player; stick with the current
        // target and hit back at whoever just hurt us
+       let score = d + (t.hp / t.maxHp) * 45;
+-      if (t.team === 'player') score -= this.playerBias + (this.zone === 'near' ? 80 : 0); // you are the focus, but not the only thing worth shooting
++      if (t.team === 'player') score -= this.playerBias + (this.zone === 'near' ? 10 : 0); // a small pull toward you, but whatever is closest wins
++      if (t === this.rival) score -= SWARM.rivalBonus;
+       if (t === this.target) score -= 22;
+       if (t.team === this.aggressor && this.aggressorAge < 6) score -= 30;
+       if (score < best) { best = score; target = t; }
+@@ -396,6 +412,7 @@ export class EnemyBoat {
+     this.evadeTimer -= dt;
+     this.wpTimer -= dt;
+     this.bumpCd -= dt;
++    this.rivalT -= dt;
+     this.noEnemyTimer -= dt;
+     this.dodgeCd -= dt;
+     this.bCool -= dt;
+@@ -590,6 +607,15 @@ export class EnemyBoat {
+         vx += (mdx / md) * w * 1.2; vz += (mdz / md) * w * 1.2;
+       }
+     }
++    if (this.mode === 'attack' && tg && tg.team !== 'player' && player.alive) {
++      const pdx = player.state.x - s.x, pdz = player.state.z - s.z;
++      const pd = Math.hypot(pdx, pdz) || 1;
++      const lim = SWARM.fightLeash * 1.1;
++      if (pd > lim) {
++        const w = clamp((pd - lim) / 120, 0, 1);
++        vx += (pdx / pd) * w * 1.2; vz += (pdz / pd) * w * 1.2;
++      }
++    }
+     const fromMid = Math.hypot(s.x, s.z);
+     if (fromMid > WORLD.radius - 55) {
+       const w = (fromMid - (WORLD.radius - 55)) / 55;
 diff --git a/public/js/main.js b/public/js/main.js
 index befff78..0e160fe 100644
 --- a/public/js/main.js
