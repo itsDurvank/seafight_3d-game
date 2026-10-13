@@ -123,6 +123,7 @@ export const ENEMY_TYPES = {
   cruiser: {
     name: 'Coral Cruiser', boost: 1.3, hp: 130, speed: 14, turn: 1.0, scale: 1.5, radius: 3.6,
     pref: 70, range: 120, detect: 150,
+    gun: { rate: 0.35, burst: 3, pause: 1.4, dmg: 4, spread: 0.07 },
     missile: { cd: 5 },
     style: { hull: 0xff7aa8, accent: 0xfff0f5, cabin: 0xffc2d6, roof: 0xe84a82, flag: 0xffffff, look: 'pod' },
   },
@@ -171,19 +172,40 @@ export const ENEMY_SPEED = {
 // Sinking a boat no longer heals you (healSmall/healBig = 0): health comes from the potions on the sea (see POTION).
 export const KILL_REWARD = { healSmall: 0, healBig: 0, boostSeconds: 2, resetMissile: true };
 
-// Health potions: they appear at random on the sea, and you or any HURT enemy boat can claim them.
+// Health potions float on the sea. They come in small sets of 1-3, and a new set only appears
+// `respawnDelay` seconds after the LAST potion on the sea has been taken (or has drifted away unclaimed).
+// You or any HURT enemy boat can claim them.
 export const POTION = {
-  every: [15, 30], // seconds between spawns
-  firstSpawn: [6, 10], // the first one comes early
-  maxAlive: 4,
+  setSize: [1, 3], // how many potions in one set
+  respawnDelay: [40, 60], // seconds between the last potion disappearing and the next set
+  firstSpawn: [8, 14], // the very first set comes early
+  maxAlive: 3,
   heal: 0.4, // fraction of max health restored
   pickup: 3.4, // pick-up distance (added to the boat's radius)
-  lifetime: 50, // seconds before an unclaimed potion vanishes
-  nearPlayerChance: 0.5, // chance a potion spawns near you (the rest are anywhere on the map)
-  nearRing: [90, 260], // how far from you the nearby ones appear
-  seekHp: 0.55, // enemy boats below this fraction of health go for a potion
-  seekRange: 260, // ...if one is within this distance
+  lifetime: 120, // an unclaimed potion eventually drifts away (this also starts the next countdown)
+  spawnRing: [60, 150], // a set appears this far from you: close enough to matter, never on top of you
+  setSpread: [18, 45], // potions of one set float this far from the set's centre
+  spacing: 16, // minimum distance between two potions
+  seekHp: 0.55, // (legacy) enemy boats now roll their own value, see AI.seekHp
+  seekRange: 260, // enemies below their own threshold go for a potion within this distance
   enemyClaimBelow: 0.75, // an enemy only claims a potion when below this fraction of health
+};
+
+// Enemy brain tuning (see enemies.js). Every boat rolls its own personality inside these ranges each time it spawns,
+// so fights never look identical.
+export const AI = {
+  fleeHp: [0.12, 0.38], // health fraction at which a boat starts thinking about running (each boat rolls its own)
+  seekHp: [0.4, 0.7], // health fraction below which a boat goes for a potion
+  recoverHp: [0.5, 0.8], // health fraction at which a retreating boat comes back
+  lastStand: [6, 12], // seconds a cornered/stubborn boat fights on instead of running
+  lockTime: [3, 7], // how long a boat sticks with its target before reconsidering
+  roamHunt: 0.6, // chance a roaming boat sails towards another boat's fight instead of wandering
+  aimCone: 1.0, // radians (~57 deg): the arc in front of the bow in which guns can swivel onto the main target
+  aimConeOpp: 0.6, // ...and at a boat that just happens to be in front of the guns
+  gunPause: [0.65, 1.0], // multiplier on the pause between machine-gun bursts (lower = more shooting)
+  // target scoring (higher = more important). Distance wins, so close neighbours fight each other.
+  wProx: 2.4, wWeak: 1.0, wBusy: 0.55, wThreat: 0.7, wSticky: 0.7, wGrudge: 1.1,
+  wCrowd: 0.7, playerCap: 2, // soft cap on how many boats pile onto you at once
 };
 
 // How the 8 enemy boats spread out around you (see Director in enemies.js).
@@ -193,7 +215,7 @@ export const SWARM = {
   farRing: [230, 330], // where the waiting boats cruise
   farKeepOut: 150, // waiting boats won't drift closer to you than this
   maxAttackers: 3, // at most this many boats may go after YOU at once; the rest are reserved for fighting each other
-  fightLeash: 190, // boat-vs-boat fights stay within this distance of you, so the chaos happens where you can see it
+  fightLeash: 330, // boat-vs-boat fights stay within this distance of you, so the chaos happens where you can see it
   rivalBonus: 45, // every boat picks a rival for a while and prefers it, so fights keep changing partners
   rivalTime: [10, 20], // seconds before a boat picks a new rival
   // Standing still gets you hunted: the longer you idle, the closer, more numerous and sharper they get.
@@ -202,7 +224,7 @@ export const SWARM = {
   huntClose: 0.35, // the ring tightens by this much at full heat
   huntDmg: 0.15, // their damage against you rises by this much at full heat
   idleSpeed: 21, // below this speed you count as standing still
-  personalSpace: 30, // boats keep this much room from each other so nobody clumps
+  personalSpace: 14, // boats keep this much room from each other (small, so neighbours actually fight instead of drifting apart)
   orbitSpeed: 0.05, // radians/second the whole ring slowly turns around you
   respawnRing: [110, 170], // sunk boats come back this far from you, away from other boats
   runawayChance: 0.15, // when badly hurt: chance to flee far away (a chase) instead of going home

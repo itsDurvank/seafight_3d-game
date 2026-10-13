@@ -61,35 +61,58 @@ function makePotion(glowTex) {
 
   flask.add(glass, liquid, surface, neck, cork, string, tag);
   flask.scale.setScalar(2.2);
+  flask.position.y = 1.5; // the round bottom sits below the waterline, so it looks like it floats
+
+  // a little life-ring keeps it afloat; the whole "buoy" rocks with the waves
+  const buoy = new THREE.Group();
+  const ring = new THREE.Mesh(new THREE.TorusGeometry(3.1, 0.5, 8, 24), new THREE.MeshStandardMaterial({ color: 0xff5a6e, roughness: 0.6, flatShading: true }));
+  ring.rotation.x = Math.PI / 2;
+  ring.position.y = 0.1;
+  const stripe = new THREE.Mesh(new THREE.TorusGeometry(3.1, 0.52, 8, 24, Math.PI / 3), new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.6, flatShading: true }));
+  const stripes = new THREE.Group();
+  for (let i = 0; i < 3; i++) {
+    const s = stripe.clone();
+    s.rotation.x = Math.PI / 2;
+    s.rotation.z = i * (Math.PI * 2 / 3);
+    s.position.y = 0.1;
+    stripes.add(s);
+  }
+  buoy.add(flask, ring, stripes);
+  g.add(buoy);
 
   const glow = new THREE.Sprite(new THREE.SpriteMaterial({ map: glowTex, blending: THREE.AdditiveBlending, transparent: true, depthWrite: false, fog: false }));
-  glow.scale.set(15, 15, 1);
-  glow.position.y = 3;
+  glow.scale.set(13, 13, 1);
+  glow.position.y = 3.2;
   const beam = new THREE.Mesh(
-    new THREE.CylinderGeometry(0.45, 0.45, 46, 8, 1, true),
-    new THREE.MeshBasicMaterial({ color: 0xff4d66, transparent: true, opacity: 0.2, blending: THREE.AdditiveBlending, depthWrite: false, fog: false, side: THREE.DoubleSide })
+    new THREE.CylinderGeometry(0.4, 0.4, 28, 8, 1, true),
+    new THREE.MeshBasicMaterial({ color: 0xff4d66, transparent: true, opacity: 0.16, blending: THREE.AdditiveBlending, depthWrite: false, fog: false, side: THREE.DoubleSide })
   );
-  beam.position.y = 23;
+  beam.position.y = 14;
   g.add(glow, beam);
   g.visible = false;
-  return { g, flask, glow };
+  return { g, flask, glow, buoy };
 }
 
-// Health potions appear at random on the sea every 15-30 seconds (one or two at a time).
-// You or ANY enemy boat can grab one, but only when hurt, so they pull the fight toward them.
+// Health potions float on the sea in small sets of 1-3. A new set appears 40-60 seconds after the last
+// potion on the sea is gone, a little way from you. You or ANY hurt enemy boat can grab one,
+// so they pull the fight towards them.
+const easeOutBack = (x) => { const c1 = 1.70158, c3 = c1 + 1; return 1 + c3 * Math.pow(x - 1, 3) + c1 * Math.pow(x - 1, 2); };
+
 export class Potions {
   constructor(scene, combat) {
     this.combat = combat;
-    this.onSpawn = null; // (potion) => void
+    this.onSpawn = null; // (count, firstPotion) => void
     this.onClaim = null; // (who, potion, healed) => void
     const tex = glowTexture();
     this.items = [];
     for (let i = 0; i < POTION.maxAlive; i++) {
       const m = makePotion(tex);
       scene.add(m.g);
-      this.items.push({ ...m, on: false, x: 0, z: 0, age: 0, ph: 0 });
+      this.items.push({ ...m, on: false, x: 0, z: 0, age: 0, ph: 0, ripple: 0 });
     }
-    this.timer = rand(POTION.firstSpawn[0], POTION.firstSpawn[1]);
+    this.first = true;
+    this.armed = false; // true while we are counting down to the next set
+    this.timer = 0;
   }
 
   // live potions (for the minimap and the enemy AI)
@@ -113,28 +136,44 @@ export class Potions {
     return WORLD.islands.every((i) => Math.hypot(x - i.x, z - i.z) > i.r + 24);
   }
 
-  spawnOne(player) {
+  place(x, z) {
     const free = this.items.find((p) => !p.on);
-    if (!free) return;
-    for (let tries = 0; tries < 30; tries++) {
-      let x, z;
-      if (player && Math.random() < POTION.nearPlayerChance) { // half of them show up in the neighbourhood of the fight
-        const a = Math.random() * TAU, r = rand(POTION.nearRing[0], POTION.nearRing[1]);
-        x = player.state.x + Math.cos(a) * r; z = player.state.z + Math.sin(a) * r;
-      } else { // the rest are anywhere on the map
+    if (!free) return null;
+    if (!this.freeSpot(x, z)) return null;
+    if (this.items.some((p) => p.on && Math.hypot(p.x - x, p.z - z) < POTION.spacing)) return null;
+    free.on = true; free.x = x; free.z = z; free.age = 0; free.ph = Math.random() * TAU; free.ripple = 0;
+    free.g.position.set(x, 0, z);
+    free.g.scale.setScalar(0.001); // pops up out of the water
+    free.g.visible = true;
+    this.combat.ring(x, z, 16, 0.9, 0xff6b81, 0.9);
+    return free;
+  }
+
+  // A set of 1-3 potions, floating close together a little way from you.
+  spawnSet(player) {
+    const n = Math.floor(rand(POTION.setSize[0], POTION.setSize[1] + 1));
+    let cx = 0, cz = 0, ok = false;
+    for (let tries = 0; tries < 40 && !ok; tries++) {
+      if (player) {
+        const a = Math.random() * TAU, r = rand(POTION.spawnRing[0], POTION.spawnRing[1]);
+        cx = player.state.x + Math.cos(a) * r; cz = player.state.z + Math.sin(a) * r;
+      } else {
         const a = Math.random() * TAU, r = Math.sqrt(Math.random()) * (WORLD.radius - 90);
-        x = Math.cos(a) * r; z = Math.sin(a) * r;
+        cx = Math.cos(a) * r; cz = Math.sin(a) * r;
       }
-      if (!this.freeSpot(x, z)) continue;
-      // keep potions apart from each other
-      if (this.items.some((p) => p.on && Math.hypot(p.x - x, p.z - z) < 60)) continue;
-      free.on = true; free.x = x; free.z = z; free.age = 0; free.ph = Math.random() * TAU;
-      free.g.position.set(x, 0, z);
-      free.g.visible = true;
-      this.combat.ring(x, z, 16, 0.9, 0xff6b81, 0.9);
-      if (this.onSpawn) this.onSpawn(free);
-      return;
+      ok = this.freeSpot(cx, cz);
     }
+    if (!ok) return 0;
+    let first = null, placed = 0;
+    for (let i = 0; i < n; i++) {
+      for (let tries = 0; tries < 30; tries++) {
+        const a = Math.random() * TAU, r = i === 0 ? 0 : rand(POTION.setSpread[0], POTION.setSpread[1]);
+        const p = this.place(cx + Math.cos(a) * r, cz + Math.sin(a) * r);
+        if (p) { first = first || p; placed++; break; }
+      }
+    }
+    if (placed && this.onSpawn) this.onSpawn(placed, first);
+    return placed;
   }
 
   take(p, who, target) {
@@ -147,24 +186,40 @@ export class Potions {
   }
 
   update(dt, t, player, enemies) {
-    this.timer -= dt;
-    if (this.timer <= 0) {
-      this.timer = rand(POTION.every[0], POTION.every[1]);
-      const n = Math.random() < 0.5 ? 1 : 2; // one or two potions at a time
-      for (let i = 0; i < n; i++) this.spawnOne(player.alive ? player : null);
+    // The next set is only scheduled once the sea is empty of potions.
+    if (this.items.some((p) => p.on)) {
+      this.armed = false;
+    } else {
+      if (!this.armed) {
+        this.armed = true;
+        this.timer = this.first ? rand(POTION.firstSpawn[0], POTION.firstSpawn[1]) : rand(POTION.respawnDelay[0], POTION.respawnDelay[1]);
+        this.first = false;
+      }
+      this.timer -= dt;
+      if (this.timer <= 0) {
+        if (this.spawnSet(player.alive ? player : null) > 0) this.armed = false;
+        else this.timer = 3; // couldn't find open water this time: try again shortly
+      }
     }
 
     for (const p of this.items) {
       if (!p.on) continue;
       p.age += dt;
-      if (p.age > POTION.lifetime) { p.on = false; p.g.visible = false; continue; } // nobody wanted it
+      if (p.age > POTION.lifetime) { p.on = false; p.g.visible = false; continue; } // nobody wanted it: it drifts away
 
-      // float on the waves, spin, pulse the glow
-      const bob = Math.sin(t * 2 + p.ph) * 0.35;
-      p.g.position.y = waveHeight(p.x, p.z, t) + 2.4 + bob;
-      p.flask.rotation.y += dt * 1.2;
-      p.glow.material.opacity = 0.75 + 0.25 * Math.sin(t * 4 + p.ph);
-      if (p.age > POTION.lifetime - 6) p.g.visible = Math.floor(t * 6) % 2 === 0; // blinks just before it vanishes
+      // float on the waves: ride the swell, tilt with the slope, sway gently, pop up when it appears
+      const sx = p.x + Math.sin(t * 0.35 + p.ph) * 1.2, sz = p.z + Math.cos(t * 0.3 + p.ph) * 1.2;
+      const bob = Math.sin(t * 1.7 + p.ph) * 0.12;
+      p.g.position.set(sx, waveHeight(sx, sz, t) - 0.15 + bob, sz);
+      const hx = waveHeight(sx + 2.5, sz, t) - waveHeight(sx - 2.5, sz, t);
+      const hz = waveHeight(sx, sz + 2.5, t) - waveHeight(sx, sz - 2.5, t);
+      p.buoy.rotation.set(Math.atan2(hz, 5) * 1.4 + Math.sin(t * 1.1 + p.ph) * 0.04, 0, -Math.atan2(hx, 5) * 1.4 + Math.cos(t * 0.9 + p.ph) * 0.04);
+      p.g.scale.setScalar(Math.max(0.001, easeOutBack(Math.min(1, p.age / 0.9))));
+      p.flask.rotation.y += dt * 0.8;
+      p.glow.material.opacity = 0.7 + 0.25 * Math.sin(t * 3 + p.ph);
+      p.ripple -= dt;
+      if (p.ripple <= 0) { p.ripple = 2.4; this.combat.ring(sx, sz, 5.5, 1.5, 0xffffff, 0.3); } // slow ripples spreading on the water
+      if (p.age > POTION.lifetime - 6) p.g.visible = Math.floor(t * 6) % 2 === 0; // blinks just before it drifts away
 
       // you first (only if you are hurt), then the enemy boats (only the hurt ones)
       if (player.alive && player.hp < player.maxHp && Math.hypot(player.state.x - p.x, player.state.z - p.z) < POTION.pickup + player.radius) {

@@ -134,7 +134,7 @@ EnemyBoat.ctx = { enemies, player }; // lets sunk boats respawn near the action
 // Health potions: random pick-ups on the sea that you and any hurt enemy boat can claim
 const potions = new Potions(scene, combat);
 EnemyBoat.potions = potions; // lets hurt enemies head for the nearest one
-potions.onSpawn = () => hud.toast('🧪 A health potion appeared! Check the minimap.', 2200);
+potions.onSpawn = (n) => hud.toast(n > 1 ? `🧪 ${n} health potions are floating nearby! Check the minimap.` : '🧪 A health potion is floating nearby! Check the minimap.', 2400);
 potions.onClaim = (who, p, healed, target) => {
   if (who === 'player') {
     audio.potion();

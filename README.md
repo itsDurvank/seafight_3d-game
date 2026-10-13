@@ -46,22 +46,23 @@ Then open http://localhost:3000
 - **Boost.** Press Shift to surge ahead (about 103 km/h at the start, up to about 148 flat out). The speed ramps up smoothly over a second or two instead of jumping. Boost lasts a few seconds, then needs time to cool down.
   Ramming an enemy while boosting costs you 10% of your max health and costs them 30% of theirs.
 - **Explosions.** Every boat that is destroyed (yours or theirs) blows up in a fireball with a shockwave, sparks, flying wreckage and smoke.
-- **Enemy boats fight each other, too.** Each one is on its own team. They sail out of their harbors to the middle of the sea,
-  pick a target (you or another enemy), and decide how to fight:
-  - *attack*: close in and circle the target, shooting when lined up. Against a stronger boat they turn cautious and keep their distance;
-    against a weak one they go in for the finish.
-  - *dodge*: they side-step incoming missiles, get out of the way of a boosting player, and weave when bullets are flying at them.
-  - *escape*: when surrounded, cornered, or stuck on an island they break away; when badly hurt they run home, heal up and come back.
-  Sunk boats come back after 25 seconds.
-  You are the fastest boat on the water (70 -> 105 km/h, boost up to about 148), but the enemies are built to run you down. Their speed is **dynamic**, like a dogfight:
-they intercept (aim where you will be, not where you are), match your speed and then beat it by up to about 35% when hunting from far away (small boats about 95, big boats 68),
-ease off as they arrive so they don't overshoot, and slow into a turn fight while circling you. Fast boats turn wider, just like yours. They boost to catch up if you pull away,
-but only for a few seconds, and a boost dodge needs boost in the tank. Big boats are slower, tougher anchors with 35% extra health.
-Tune it in `ENEMY_SPEED`, `DIFFICULTY.boost` and `DIFFICULTY.turnMul` in `config.js`.
-
-**The rhythm of a fight.** Boats attack in *pulses*: each presses you for 6-10 seconds, then backs off for 2-3 seconds to
-reposition and stops shooting at you, so there are always breathing moments (they are desynchronised, so it never all goes quiet).
-Idling removes the lulls. An enemy missile locking on to you sounds a double beep and flashes the screen so you can react.
+- **Enemy boats fight each other, too.** It works like a battle royale: every boat is its own team and scores every target around it
+(close, wounded, busy fighting someone else, or someone who just hurt it), then picks a fight. Distance matters most, so two boats that
+end up next to each other fight each other even if you are right there. At most about two boats pile onto you at once (a soft cap), and
+passing boats trade machine-gun fire even when neither has "chosen" the other.
+- **Every boat has a personality** (aggression, nerve, stubbornness, how much it likes boosting, how long it holds a grudge) that is
+re-rolled each time it spawns, and a repertoire of **tactics** it picks at random: *circle* (nose-in turn-fight), *rush*, *pass* (joust: drive
+past firing, then swing round), *flank* (arc to your tail), *kite* (fall back zig-zagging, snap round and shoot), *disengage* (break off and
+reposition), *ram* (boosted charge) and *counter* (see below). While attacking they weave when you line them up or shoot at them.
+- **Hit one and it hits back.** A boat that gets shot usually does a quick jink out of your line of fire, then swings round and attacks you
+(sometimes it trades blows, or breaks off and comes back from another angle). It does not simply run.
+- **Running away is rare and varied.** Each boat has its own "start thinking about running" health (about 12-38%). When it gets there it rolls one of:
+sail home and heal, dash for a far corner, run for a health potion, hide behind an island and peek out again, a *fighting retreat* (kiting while
+shooting), or a **last stand** where it refuses to run and fights on. Runners sometimes turn round to take a shot at their chaser.
+- **Boost is a decision, not a panic button.** Boats boost to charge, to flank, to ram, to dodge a missile, occasionally just for style, and only
+sometimes when fleeing. Always a short burst from a small meter.
+Sunk boats come back after 9 seconds near the action.
+Tune it in `AI` (personality ranges, target scoring, firing arc), `SWARM`, `ENEMY_SPEED` and `DIFFICULTY` in `config.js`.
 
 **Rewards.** Every shot that lands shows a hit marker. Sinking a boat heals you (+15 HP for a small boat, +25 for a big one),
 instantly reloads your missile and adds 2 seconds of boost. Health still never regenerates on its own, so aggression is how you
@@ -70,17 +71,20 @@ stay alive (`KILL_REWARD` in `config.js`). Only boats **you** sink count toward 
 
 ## The 8 enemy boats (5 small, 3 big)
 
-Small: 3 skiffs and 2 raiders. Big: cruiser, gunboat and dreadnought.
-A small *director* keeps the sea lively without crowding you: at most 5 boats hold a spread-out ring around you
-(you are the focus: up to 3 may target you at once, and they also hit each other), the other 3 cruise further out and rotate in
-when someone is sunk or runs. Sunk boats respawn near the action, away from other boats. Badly hurt boats either sail home
-or bolt for a far corner of the sea, so you get a chase. Tune it in `SWARM` in `config.js`.
-
-**Everyone is in the fight.** All 8 boats hold a spread-out ring around you (50-125 units out, never clumped), notice you from far away (`DIFFICULTY.detectMul`), and a boat that falls behind its spot speeds up to catch up. Up to 4 go after you at once while the rest fight each other.
+Small: 3 skiffs and 2 raiders. Big: cruiser, gunboat and dreadnought (the cruiser now also has a light machine gun).
+Boats are no longer parked on a ring around you. They roam towards the fighting, notice you from far away (`DIFFICULTY.detectMul`),
+and spread out naturally because each one picks its own target. See the AI notes above.
 
 **Damage.** Machine gun 4 per bullet, 14 per second (about 2-10 s to sink a boat). Missile 70: 1 / 2 / 3 / 3 / 4 direct hits sink a skiff / raider / gunboat / cruiser / dreadnought. Enemy guns do 4-5 per bullet and an enemy missile does 30, so four direct hits sink you.
 
-**Standing still gets you hunted.** The longer you idle, the more the swarm closes in: the ring tightens, more boats join, they aim better and hit a little harder (up to +15%). Keep moving and it fades. Tune it with the `hunt*` values in `SWARM`.
+**Standing still gets you hunted.** The longer you idle, the more boats go for you (the soft cap rises), they close in, aim better, hit a little harder (up to +15%) and stop taking breaks. Keep moving and it fades. Tune it with the `hunt*` values in `SWARM`.
+
+## Health potions
+
+Potions float on the sea (half submerged in a life ring, rocking with the waves, with a faint red beam so you can spot them). They come in
+**sets of 1 to 3**, a little way from you (60-150 units). A new set only appears **40-60 seconds after the last potion on the sea is gone**
+(taken, or drifted away unclaimed after 2 minutes). You, or any enemy that is hurt, can grab one, so they pull fights towards them.
+Tune it in `POTION` in `config.js`.
 
 ## The islands
 
