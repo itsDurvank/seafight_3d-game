@@ -1,0 +1,13 @@
+{
+  "name": "island-resort",
+  "version": "0.1.0",
+  "description": "Boom Boats: a 3D browser battle-sailing game.",
+  "main": "server/index.js",
+  "scripts": {
+    "start": "node server/index.js"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "dependencies": {}
+}
