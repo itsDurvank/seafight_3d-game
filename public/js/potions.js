@@ -93,9 +93,9 @@ function makePotion(glowTex) {
   return { g, flask, glow, buoy };
 }
 
-// Health potions float on the sea in small sets of 1-3. A new set appears 40-60 seconds after the last
-// potion on the sea is gone, a little way from you. You or ANY hurt enemy boat can grab one,
-// so they pull the fight towards them.
+// Health potions float on the sea in batches of up to 3. Each one spawns at a different random
+// location around the player, staggered over a few seconds. A new batch only begins after
+// ALL potions from the previous batch are consumed or expire, plus `respawnDelay` seconds.
 const easeOutBack = (x) => { const c1 = 1.70158, c3 = c1 + 1; return 1 + c3 * Math.pow(x - 1, 3) + c1 * Math.pow(x - 1, 2); };
 
 export class Potions {
@@ -111,8 +111,10 @@ export class Potions {
       this.items.push({ ...m, on: false, x: 0, z: 0, age: 0, ph: 0, ripple: 0 });
     }
     this.first = true;
-    this.armed = false; // true while we are counting down to the next set
-    this.timer = 0;
+    this.batchTimer = 0; // countdown to start the next batch
+    this.batchWaiting = false; // true while counting down to next batch
+    this.batchQueue = []; // staggered spawn timers [{delay, placed}]
+    this.batchSpawned = 0; // how many from this batch have appeared
   }
 
   // live potions (for the minimap and the enemy AI)
@@ -136,44 +138,56 @@ export class Potions {
     return WORLD.islands.every((i) => Math.hypot(x - i.x, z - i.z) > i.r + 24);
   }
 
-  place(x, z) {
-    const free = this.items.find((p) => !p.on);
-    if (!free) return null;
-    if (!this.freeSpot(x, z)) return null;
-    if (this.items.some((p) => p.on && Math.hypot(p.x - x, p.z - z) < POTION.spacing)) return null;
-    free.on = true; free.x = x; free.z = z; free.age = 0; free.ph = Math.random() * TAU; free.ripple = 0;
-    free.g.position.set(x, 0, z);
-    free.g.scale.setScalar(0.001); // pops up out of the water
-    free.g.visible = true;
-    this.combat.ring(x, z, 16, 0.9, 0xff6b81, 0.9);
-    return free;
+  // far from other live potions
+  farFromOthers(x, z) {
+    return this.items.every((p) => !p.on || Math.hypot(p.x - x, p.z - z) >= POTION.spacing);
   }
 
-  // A set of 1-3 potions, floating close together a little way from you.
-  spawnSet(player) {
-    const n = Math.floor(rand(POTION.setSize[0], POTION.setSize[1] + 1));
-    let cx = 0, cz = 0, ok = false;
-    for (let tries = 0; tries < 40 && !ok; tries++) {
-      if (player) {
-        const a = Math.random() * TAU, r = rand(POTION.spawnRing[0], POTION.spawnRing[1]);
-        cx = player.state.x + Math.cos(a) * r; cz = player.state.z + Math.sin(a) * r;
-      } else {
-        const a = Math.random() * TAU, r = Math.sqrt(Math.random()) * (WORLD.radius - 90);
-        cx = Math.cos(a) * r; cz = Math.sin(a) * r;
-      }
-      ok = this.freeSpot(cx, cz);
+  place(player) {
+    const free = this.items.find((p) => !p.on);
+    if (!free) return null;
+    // find a random spot near the player that is in open water and far from other potions
+    const px = player ? player.state.x : 0, pz = player ? player.state.z : 0;
+    for (let tries = 0; tries < 50; tries++) {
+      const a = Math.random() * TAU;
+      const r = rand(POTION.spawnRing[0], POTION.spawnRing[1]);
+      const x = px + Math.cos(a) * r, z = pz + Math.sin(a) * r;
+      if (!this.freeSpot(x, z)) continue;
+      if (!this.farFromOthers(x, z)) continue;
+      free.on = true; free.x = x; free.z = z; free.age = 0; free.ph = Math.random() * TAU; free.ripple = 0;
+      free.g.position.set(x, 0, z);
+      free.g.scale.setScalar(0.001); // pops up out of the water
+      free.g.visible = true;
+      this.combat.ring(x, z, 16, 0.9, 0xff6b81, 0.9);
+      return free;
     }
-    if (!ok) return 0;
-    let first = null, placed = 0;
-    for (let i = 0; i < n; i++) {
-      for (let tries = 0; tries < 30; tries++) {
-        const a = Math.random() * TAU, r = i === 0 ? 0 : rand(POTION.setSpread[0], POTION.setSpread[1]);
-        const p = this.place(cx + Math.cos(a) * r, cz + Math.sin(a) * r);
-        if (p) { first = first || p; placed++; break; }
+    return null; // couldn't find open water this time
+  }
+
+  // Schedule a new batch: up to 3 potions with varied spawn patterns
+  startBatch() {
+    this.batchWaiting = false;
+    this.batchSpawned = 0;
+    const total = POTION.batchSize;
+    this.batchQueue = [];
+    const roll = Math.random();
+    if (roll < 0.35) {
+      // Pattern 1: all 3 spawn at once at different locations
+      for (let i = 0; i < total; i++) {
+        this.batchQueue.push({ delay: 0, placed: false });
       }
+    } else if (roll < 0.75) {
+      // Pattern 2: 1 spawns now, then 2 spawn together after a short interval
+      const delayLater = rand(3.0, 5.5);
+      this.batchQueue.push({ delay: 0, placed: false });
+      this.batchQueue.push({ delay: delayLater, placed: false });
+      this.batchQueue.push({ delay: delayLater, placed: false });
+    } else {
+      // Pattern 3: 1 spawns now, then 1, then 1 staggered
+      this.batchQueue.push({ delay: 0, placed: false });
+      this.batchQueue.push({ delay: rand(2.5, 4.0), placed: false });
+      this.batchQueue.push({ delay: rand(5.5, 7.5), placed: false });
     }
-    if (placed && this.onSpawn) this.onSpawn(placed, first);
-    return placed;
   }
 
   take(p, who, target) {
@@ -186,19 +200,39 @@ export class Potions {
   }
 
   update(dt, t, player, enemies) {
-    // The next set is only scheduled once the sea is empty of potions.
-    if (this.items.some((p) => p.on)) {
-      this.armed = false;
-    } else {
-      if (!this.armed) {
-        this.armed = true;
-        this.timer = this.first ? rand(POTION.firstSpawn[0], POTION.firstSpawn[1]) : rand(POTION.respawnDelay[0], POTION.respawnDelay[1]);
+    const liveCount = this.items.filter((p) => p.on).length;
+
+    // Process staggered batch queue
+    if (this.batchQueue.length > 0) {
+      for (const entry of this.batchQueue) {
+        if (entry.placed) continue;
+        entry.delay -= dt;
+        if (entry.delay <= 0) {
+          const p = this.place(player.alive ? player : null);
+          if (p) {
+            entry.placed = true;
+            this.batchSpawned++;
+            if (this.onSpawn) this.onSpawn(1, p);
+          } else {
+            // retry shortly if spot wasn't found
+            entry.delay = 1.0;
+          }
+        }
+      }
+      // clean up completed entries
+      if (this.batchQueue.every((e) => e.placed)) this.batchQueue = [];
+    }
+
+    // The next batch is only scheduled once the sea is completely empty of potions AND queue is done
+    if (liveCount === 0 && this.batchQueue.length === 0) {
+      if (!this.batchWaiting) {
+        this.batchWaiting = true;
+        this.batchTimer = this.first ? rand(POTION.firstSpawn[0], POTION.firstSpawn[1]) : rand(POTION.respawnDelay[0], POTION.respawnDelay[1]);
         this.first = false;
       }
-      this.timer -= dt;
-      if (this.timer <= 0) {
-        if (this.spawnSet(player.alive ? player : null) > 0) this.armed = false;
-        else this.timer = 3; // couldn't find open water this time: try again shortly
+      this.batchTimer -= dt;
+      if (this.batchTimer <= 0) {
+        this.startBatch();
       }
     }
 

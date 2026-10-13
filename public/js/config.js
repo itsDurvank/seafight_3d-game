@@ -98,7 +98,7 @@ export const PLAYER = {
 };
 
 export const WEAPONS = {
-  gun: { rate: 14, speed: 120, life: 1.1, dmg: 4, spread: 0.012, assistCone: 0.22, assist: 0.85, hitPad: 0.8 }, // spread = random cone (rad). assistCone/assist = gentle aim assist: shots bend toward a boat within this many rad of your nose (0 = off). hitPad = extra hit radius for your bullets.
+  gun: { rate: 14, speed: 120, life: 1.1, dmg: 4, spread: 0.012, assistCone: 0.24, assist: 0.88, hitPad: 1.2 }, // spread = random cone (rad). assistCone/assist = gentle aim assist: shots bend toward a boat within this many rad of your nose (0 = off). hitPad = extra hit radius for your bullets.
   // 56 dps if every shot lands (about half do), so ~2-10 s to sink a boat
   // Our missile works like a fighter-jet missile: it locks onto the boat nearest your crosshair when you
   // fire (inside `lockCone` radians either side of your heading, within `lockRange`), steers at it for
@@ -114,36 +114,36 @@ export const WEAPONS = {
 // `boost` = speed multiplier of its escape burst: small boats surge hard, big heavy ones barely.
 export const ENEMY_TYPES = {
   skiff: {
-    name: 'Mango Skiff', boost: 1.75, hp: 45, speed: 28, turn: 2.4, scale: 0.85, radius: 2.4,
-    pref: 36, range: 85, detect: 140,
+    name: 'Mango Skiff', boost: 1.75, hp: 36, speed: 28, turn: 2.4, scale: 0.85, radius: 2.4,
+    pref: 28, range: 68, detect: 140,
     gun: { rate: 0.16, burst: 5, pause: 1.2, dmg: 4, spread: 0.06 },
     missile: { cd: 11 },
     style: { hull: 0xffa62b, accent: 0xffffff, cabin: 0xffe0a3, roof: 0xff7a1a, flag: 0xffffff, look: 'sail' },
   },
   cruiser: {
-    name: 'Coral Cruiser', boost: 1.3, hp: 130, speed: 14, turn: 1.0, scale: 1.5, radius: 3.6,
-    pref: 70, range: 120, detect: 150,
+    name: 'Coral Cruiser', boost: 1.3, hp: 95, speed: 14, turn: 1.0, scale: 1.5, radius: 3.6,
+    pref: 46, range: 82, detect: 150,
     gun: { rate: 0.35, burst: 3, pause: 1.4, dmg: 4, spread: 0.07 },
     missile: { cd: 5 },
     style: { hull: 0xff7aa8, accent: 0xfff0f5, cabin: 0xffc2d6, roof: 0xe84a82, flag: 0xffffff, look: 'pod' },
   },
   raider: {
-    name: 'Violet Raider', boost: 1.7, hp: 70, speed: 36, turn: 2.0, scale: 1.0, radius: 2.6,
-    pref: 45, range: 90, detect: 150,
+    name: 'Violet Raider', boost: 1.7, hp: 52, speed: 36, turn: 2.0, scale: 1.0, radius: 2.6,
+    pref: 32, range: 74, detect: 150,
     gun: { rate: 0.22, burst: 4, pause: 1.0, dmg: 5, spread: 0.07 },
     missile: { cd: 8.5 },
     style: { hull: 0x8e6bff, accent: 0x39e6ff, cabin: 0xd9ccff, roof: 0x5b3fd1, flag: 0x39e6ff, look: 'raider' },
   },
   gunboat: {
-    name: 'Jade Gunboat', boost: 1.45, hp: 95, speed: 22, turn: 1.4, scale: 1.25, radius: 3.1,
-    pref: 55, range: 100, detect: 150,
+    name: 'Jade Gunboat', boost: 1.45, hp: 72, speed: 22, turn: 1.4, scale: 1.25, radius: 3.1,
+    pref: 40, range: 78, detect: 150,
     gun: { rate: 0.3, burst: 4, pause: 1.2, dmg: 5, spread: 0.05, twin: true },
     missile: { cd: 7.5 },
     style: { hull: 0x1fb36b, accent: 0xfff3b0, cabin: 0xc8f5dc, roof: 0x0b7d49, flag: 0xfff3b0, look: 'twin' },
   },
   dread: {
-    name: 'Sunset Dreadnought', boost: 1.25, hp: 170, speed: 16, turn: 0.85, scale: 1.8, radius: 4.2,
-    pref: 75, range: 125, detect: 160,
+    name: 'Sunset Dreadnought', boost: 1.25, hp: 125, speed: 16, turn: 0.85, scale: 1.8, radius: 4.2,
+    pref: 50, range: 88, detect: 160,
     gun: { rate: 0.25, burst: 6, pause: 1.4, dmg: 5, spread: 0.06 },
     missile: { cd: 6 },
     style: { hull: 0xff6b4a, accent: 0xffd166, cabin: 0xffc9a8, roof: 0xb23a24, flag: 0xffd166, look: 'dread' },
@@ -172,22 +172,21 @@ export const ENEMY_SPEED = {
 // Sinking a boat no longer heals you (healSmall/healBig = 0): health comes from the potions on the sea (see POTION).
 export const KILL_REWARD = { healSmall: 0, healBig: 0, boostSeconds: 2, resetMissile: true };
 
-// Health potions float on the sea. They come in small sets of 1-3, and a new set only appears
-// `respawnDelay` seconds after the LAST potion on the sea has been taken (or has drifted away unclaimed).
-// You or any HURT enemy boat can claim them.
+// Health potions float on the sea in a batch of up to 3. They spawn staggered (sometimes 1, then 2 more
+// a few seconds later, sometimes all 3 at once). A new batch only starts `respawnDelay` seconds after
+// ALL potions from the previous batch are consumed or expire.
 export const POTION = {
-  setSize: [1, 3], // how many potions in one set
-  respawnDelay: [40, 60], // seconds between the last potion disappearing and the next set
-  firstSpawn: [8, 14], // the very first set comes early
+  batchSize: 3, // max potions per batch
+  respawnDelay: [18, 22], // seconds after all potions gone before the next batch starts (~20s)
+  firstSpawn: [6, 10], // the very first batch comes early
   maxAlive: 3,
   heal: 0.4, // fraction of max health restored
   pickup: 3.4, // pick-up distance (added to the boat's radius)
-  lifetime: 120, // an unclaimed potion eventually drifts away (this also starts the next countdown)
-  spawnRing: [60, 150], // a set appears this far from you: close enough to matter, never on top of you
-  setSpread: [18, 45], // potions of one set float this far from the set's centre
-  spacing: 16, // minimum distance between two potions
+  lifetime: 90, // an unclaimed potion eventually drifts away
+  spawnRing: [50, 160], // potions appear this far from you
+  spacing: 60, // minimum distance between two potions (forces them to different locations)
   seekHp: 0.55, // (legacy) enemy boats now roll their own value, see AI.seekHp
-  seekRange: 260, // enemies below their own threshold go for a potion within this distance
+  seekRange: 240, // enemies below their own threshold go for a potion within this distance
   enemyClaimBelow: 0.75, // an enemy only claims a potion when below this fraction of health
 };
 
@@ -199,74 +198,73 @@ export const AI = {
   recoverHp: [0.5, 0.8], // health fraction at which a retreating boat comes back
   lastStand: [6, 12], // seconds a cornered/stubborn boat fights on instead of running
   lockTime: [3, 7], // how long a boat sticks with its target before reconsidering
-  roamHunt: 0.6, // chance a roaming boat sails towards another boat's fight instead of wandering
-  aimCone: 1.0, // radians (~57 deg): the arc in front of the bow in which guns can swivel onto the main target
+  roamHunt: 0.85, // high chance a roaming boat sails towards a nearby fight instead of wandering far away
+  aimCone: 1.1, // radians (~63 deg): the arc in front of the bow in which guns can swivel onto the main target
   aimConeOpp: 0.6, // ...and at a boat that just happens to be in front of the guns
   gunPause: [0.65, 1.0], // multiplier on the pause between machine-gun bursts (lower = more shooting)
   // target scoring (higher = more important). Distance wins, so close neighbours fight each other.
-  wProx: 2.4, wWeak: 1.0, wBusy: 0.55, wThreat: 0.7, wSticky: 0.7, wGrudge: 1.1,
-  wCrowd: 0.7, playerCap: 2, // soft cap on how many boats pile onto you at once
+  wProx: 2.6, wWeak: 1.0, wBusy: 0.55, wThreat: 0.7, wSticky: 0.7, wGrudge: 1.1,
+  wCrowd: 0.6, playerCap: 3, // up to 3 boats can hunt player at once; others fight each other
   // Helming (see steering.js): every boat randomly switches between three styles instead of always turning flat out.
   //   factor = fraction of the boat's max turn rate, dz = heading error (rad) it ignores, t = how long the style lasts (s).
   steer: {
     gain: 2.2, // how eagerly turn speed follows the heading error
     accel: 2.4, // rad/s^2: how fast a boat can start/stop turning (higher = twitchier)
     snapAccel: 5, // same, while doing a steep turn
-    meander: 0.18, // rad: lazy side-to-side drift while cruising straight
+    meander: 0.16, // rad: lazy side-to-side drift while cruising straight
     cruise: { factor: 0.3, dz: 0.3, t: [1.6, 3.6] }, // long straights with a shallow drift
     sweep: { factor: 0.55, dz: 0.08, t: [2, 4.5] }, // long wide curves
     snap: { factor: 1, dz: 0, t: [0.8, 1.6], cooldown: [1.2, 3.0] }, // the steep turn: short, then a cooldown
   },
-  // Mood: each boat swings between pressing the attack and playing it safe, for 6-14 s at a time.
-  mood: { time: [6, 14], defRange: 1.25, defWeave: 1.4, atkWeave: 0.8 },
+  // Mood: each boat swings between pressing the attack and playing it safe, for 4-9 s at a time.
+  mood: { time: [4, 9], defRange: 1.15, defWeave: 1.2, atkWeave: 0.7 },
 };
 
 // How the 8 enemy boats spread out around you (see Director in enemies.js).
+// Kept closer to the player so combat is chaotic, visible, and engaging.
 export const SWARM = {
-  nearMax: 8, // this many boats hold the fight zone around you (8 = every boat is in the fight; lower it to park some further out)
-  nearRing: { small: [50, 105], big: [75, 125] }, // how far from you the near boats hang out
-  farRing: [230, 330], // where the waiting boats cruise
-  farKeepOut: 150, // waiting boats won't drift closer to you than this
-  maxAttackers: 3, // at most this many boats may go after YOU at once; the rest are reserved for fighting each other
-  fightLeash: 330, // boat-vs-boat fights stay within this distance of you, so the chaos happens where you can see it
+  nearMax: 8, // every boat stays active around the combat area
+  nearRing: { small: [32, 65], big: [45, 80] }, // closer combat ring around player
+  farRing: [90, 140], // waiting boats stay within visible combat distance
+  farKeepOut: 60, // waiting boats won't crowd directly on top of you
+  maxAttackers: 3, // at most 3 boats pursue YOU; remainder dogfight each other
+  fightLeash: 170, // boat-vs-boat fights stay within this distance of you, keeping chaos right in view
   rivalBonus: 45, // every boat picks a rival for a while and prefers it, so fights keep changing partners
-  rivalTime: [10, 20], // seconds before a boat picks a new rival
+  rivalTime: [8, 16], // seconds before a boat picks a new rival
   // Standing still gets you hunted: the longer you idle, the closer, more numerous and sharper they get.
   huntAttackers: 1, // extra boats that join the hunt at full heat
   huntExtra: 2, // extra boats pulled out of the waiting group at full heat
   huntClose: 0.35, // the ring tightens by this much at full heat
   huntDmg: 0.15, // their damage against you rises by this much at full heat
   idleSpeed: 21, // below this speed you count as standing still
-  personalSpace: 14, // boats keep this much room from each other (small, so neighbours actually fight instead of drifting apart)
-  orbitSpeed: 0.05, // radians/second the whole ring slowly turns around you
-  respawnRing: [110, 170], // sunk boats come back this far from you, away from other boats
-  runawayChance: 0.15, // when badly hurt: chance to flee far away (a chase) instead of going home
-  runawayDist: [220, 320],
+  personalSpace: 10, // tighter personal space so dogfights swirl closer together
+  orbitSpeed: 0.06, // radians/second the whole ring slowly turns around you
+  respawnRing: [65, 105], // sunk boats return closer to the action
+  runawayChance: 0.12, // when badly hurt: chance to flee briefly before turning back
+  runawayDist: [110, 160],
 };
 
-// Enemy tuning. Raise these to make the sea more dangerous.
+// Enemy tuning.
 export const DIFFICULTY = {
-  hp: 1.15, // enemy health multiplier
-  bigHp: 1.35, // extra health multiplier for the big boats (cruiser, gunboat, dreadnought) on top of `hp`
+  hp: 0.88, // enemy health multiplier (killable, fast-paced dogfights)
+  bigHp: 1.18, // extra health multiplier for the big boats (cruiser, gunboat, dreadnought)
   speed: 0.9, // enemy speed multiplier
-  dmg: 1.0, // damage enemy weapons deal to you
-  dmgVsEnemy: 1.0, // damage enemy weapons deal to other enemy boats
-  aim: 0.7, // 0..1: how well they lead their shots
-  hitbox: 1.05, // enemy boats are 5% easier to hit
-  dodge: 0.95, // overall multiplier on how often enemies dodge missiles
-  detectMul: 1.6, // how far enemies notice targets, relative to the stat sheet: higher = they come and find you
+  dmg: 0.85, // damage enemy weapons deal to you (forgiving in dense chaos)
+  dmgVsEnemy: 1.25, // damage enemy weapons deal to other enemy boats (chaos & explosions!)
+  aim: 0.62, // 0..1: how well they lead their shots
+  hitbox: 1.15, // enemy boats are 15% easier to hit (bullets connect reliably during turns)
+  dodge: 0.75, // dodge chance multiplier (challenging but not overpowered)
+  detectMul: 1.6, // how far enemies notice targets
   dodgeReact: 0.35, // seconds an enemy needs to notice a missile before it starts to side-step
-  dodgeCooldown: 6, // after trying a dodge it can't dodge again for this long (your missile reloads in 5s)
+  dodgeCooldown: 6.5, // after trying a missile dodge it can't dodge again for 6.5s
   rammerReact: 0.55, // chance an enemy bothers to get out of the way of a boosting player
-  // Enemy boost: a 4 second meter per boat, spent in short bursts for a few clear reasons
-  // (dodging a missile, one panic escape when badly hurt, a brief charge from far away).
-  // After a burst a boat must wait `burstGap` before the next offensive one, and the meter refills slowly.
-  boost: { time: 4, min: 1.0, minOn: 0.6, offenseMax: 2.2, burstGap: [6, 10], refillDelay: 4, refillTime: 22 },
-  turnMul: 0.85, // turning vs the stat sheet: wide arcs, no instant 90-degree jinks (the player turns at about 1.5 rad/s)
-  turnDrag: 0.25, // a hard turn bleeds up to this fraction of speed, so dodges are arcs you can follow
-  dodgeRange: 105, // an enemy starts its dodge when a missile aimed at it is this close
-  respawn: 9, // seconds until a sunk enemy boat comes back (it returns near the action)
-  retreatHp: 0.3, // an enemy turns tail below this fraction of health
-  recoverHp: 0.6, // ...and comes back once healed above this
+  // Enemy boost: a 4 second meter per boat, spent in short bursts
+  boost: { time: 4, min: 1.0, minOn: 0.6, offenseMax: 2.0, burstGap: [6, 10], refillDelay: 4, refillTime: 22 },
+  turnMul: 0.82, // turn multiplier: slightly wider arcs so players can line up shots
+  turnDrag: 0.3, // hard turns bleed 30% speed, opening windows to hit them
+  dodgeRange: 105, // an enemy starts its missile dodge when a missile aimed at it is this close
+  respawn: 7, // seconds until a sunk enemy boat comes back (keeps fast pace)
+  retreatHp: 0.25, // an enemy only retreats when very low
+  recoverHp: 0.55, // ...and returns quickly
   healRate: 0.04, // fraction of max health regained per second near its own island
 };

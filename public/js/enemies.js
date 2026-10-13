@@ -33,8 +33,8 @@ let UID = 0;
 
 const TACTICS = ['circle', 'rush', 'pass', 'flank', 'kite', 'disengage', 'ram'];
 const TAC_TIME = {
-  circle: [3, 6], rush: [2, 3.5], pass: [3, 5], flank: [3, 4.5], kite: [3.5, 6],
-  disengage: [1.3, 2.8], ram: [2, 2.8], turnabout: [1.2, 2.4], counter: [1.8, 3],
+  circle: [2, 3.5], rush: [1.8, 3.0], pass: [2, 3.5], flank: [2, 3.2], kite: [1.5, 2.5],
+  disengage: [1.0, 1.8], ram: [1.8, 2.5], turnabout: [1.0, 1.8], counter: [1.4, 2.2],
 };
 // chance (x boostLove) that a tactic starts with a boost burst
 const TAC_BOOST = { rush: 0.45, flank: 0.35, pass: 0.3, ram: 10, counter: 0.35, kite: 0.2 };
@@ -200,6 +200,9 @@ export class EnemyBoat {
     this.dodgeCd = 0; // can't dodge again until this runs out
     this.dodgeSeen = 0; // how long we have been looking at the current missile
     this.afterDodge = false;
+    this.fireDodgeCd = rand(1, 3); // cooldown between bullet dodging jinks
+    this.fireDodgeTimer = 0; // remaining time of current quick jink
+    this.fireDodgeDir = 1; // 1 = right, -1 = left
     this.rammerSeen = false;
     this.rammerOk = false;
     this.bEnergy = D.boost.time; // seconds of boost left in the meter
@@ -805,6 +808,8 @@ export class EnemyBoat {
     this.bumpCd -= dt;
     this.noEnemyTimer -= dt;
     this.dodgeCd -= dt;
+    this.fireDodgeCd -= dt;
+    if (this.fireDodgeTimer > 0) this.fireDodgeTimer -= dt;
     this.bCool -= dt;
     this.targetLock -= dt;
     this.jitT -= dt;
@@ -844,6 +849,18 @@ export class EnemyBoat {
     }
     if (mt) this.dodgeSeen += dt;
     else if (this.dodging) { this.dodging = null; if (this.dodgeOk) this.afterDodge = true; } // dodged it: now turn on whoever fired
+
+    // reactive gunfire dodging: when taking incoming bullet fire, perform a quick snap jink left/right
+    if (pressure >= 1 && this.fireDodgeCd <= 0 && this.fireDodgeTimer <= 0 && this.mode !== 'evade') {
+      const dodgeRoll = (this.big ? 0.35 : 0.62) * D.dodge;
+      if (Math.random() < dodgeRoll) {
+        this.fireDodgeTimer = rand(0.35, 0.52);
+        this.fireDodgeDir = Math.random() < 0.5 ? 1 : -1;
+        this.fireDodgeCd = rand(3.5, 5.5); // cooldown so they don't dodge every single burst
+      } else {
+        this.fireDodgeCd = rand(1.8, 3.0);
+      }
+    }
 
     // a boosting player barreling straight at us? get out of the way
     let rammer = null;
@@ -927,6 +944,11 @@ export class EnemyBoat {
       const m = mt.m;
       desiredYaw = this.sidestep(Math.sin(m.h), Math.cos(m.h), s.x - m.x, s.z - m.z);
       desiredSpeed = Math.max(desiredSpeed, spd * 0.95);
+    } else if (this.fireDodgeTimer > 0) {
+      // quick reactive jink dodging incoming gunfire
+      desiredYaw = s.yaw + this.fireDodgeDir * 1.35;
+      desiredSpeed = Math.max(desiredSpeed, spd * 0.9);
+      turnBoost = 1.35;
     } else if (rammer) {
       desiredYaw = this.sidestep(rammer.fx, rammer.fz, rammer.rx, rammer.rz);
       desiredSpeed = Math.max(desiredSpeed, spd * 0.95);
@@ -956,7 +978,7 @@ export class EnemyBoat {
 
     // ----- steering: avoid islands, the harbor, other boats and the edge of the sea -----
     let vx = Math.sin(desiredYaw), vz = Math.cos(desiredYaw);
-    let urgent = !!(rammer || (mt && this.dodgeOk && this.dodgeSeen > react && mt.dist < D.dodgeRange)) || this.mode === 'evade';
+    let urgent = !!(rammer || (mt && this.dodgeOk && this.dodgeSeen > react && mt.dist < D.dodgeRange) || this.fireDodgeTimer > 0) || this.mode === 'evade';
     for (const o of OBSTACLES) {
       const dx = s.x - o.x, dz = s.z - o.z;
       const d = Math.hypot(dx, dz) || 0.001;

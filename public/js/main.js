@@ -274,14 +274,14 @@ camera.position.set(boat.state.x, 7.5, boat.state.z - 15);
 
 function updateCamera(dt) {
   const s = boat.state;
-  camFar += ((boat.boosting ? 0.2 : 1) - camFar) * Math.min(1, dt * 4);
-  const speedFrac = Math.min(1.4, Math.max(0, s.speed) / BOAT.topCap) * camFar;
-  camYaw += angleDiff(camYaw, s.yaw) * Math.min(1, dt * (boat.boosting ? 4 : 2.5)); // keeps up with fast turns
-  camZoom += ((boat.boosting ? 0.97 : 1) - camZoom) * Math.min(1, dt * 4);
+  camFar += ((boat.boosting ? 0.35 : 1) - camFar) * Math.min(1, dt * 4);
+  const speedFrac = Math.min(1.0, Math.max(0, s.speed) / BOAT.topCap) * camFar;
+  camYaw += angleDiff(camYaw, s.yaw) * Math.min(1, dt * (boat.boosting ? 4.5 : 2.5)); // keeps up with fast turns
+  camZoom += ((boat.boosting ? 0.94 : 1) - camZoom) * Math.min(1, dt * 4);
   const fx = Math.sin(camYaw), fz = Math.cos(camYaw);
-  const back = (15 + speedFrac * 6) * camZoom; // pull back a little at high speed
-  camTarget.set(s.x - fx * back, (7.5 + speedFrac * 2) * camZoom, s.z - fz * back);
-  camera.position.lerp(camTarget, 1 - Math.exp(-dt * 4));
+  const back = (14 + speedFrac * 2.5) * camZoom; // stays close: only a small pull-back at speed
+  camTarget.set(s.x - fx * back, (7 + speedFrac * 1.2) * camZoom, s.z - fz * back);
+  camera.position.lerp(camTarget, 1 - Math.exp(-dt * 4.5));
 
   shake = Math.max(0, shake - dt * 2.5);
   look.set(
@@ -291,7 +291,7 @@ function updateCamera(dt) {
   );
   camera.lookAt(look);
 
-  const fov = BASE_FOV + Math.min(1.4, Math.max(0, s.speed) / BOAT.topCap) * 16 + (boat.boosting ? 8 : 0); // wider view feels faster
+  const fov = BASE_FOV + Math.min(1.0, Math.max(0, s.speed) / BOAT.topCap) * 8 + (boat.boosting ? 5 : 0); // subtle zoom-out for speed feel without losing the action
   if (Math.abs(camera.fov - fov) > 0.05) {
     camera.fov += (fov - camera.fov) * Math.min(1, dt * 4);
     camera.updateProjectionMatrix();
