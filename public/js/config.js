@@ -206,6 +206,19 @@ export const AI = {
   // target scoring (higher = more important). Distance wins, so close neighbours fight each other.
   wProx: 2.4, wWeak: 1.0, wBusy: 0.55, wThreat: 0.7, wSticky: 0.7, wGrudge: 1.1,
   wCrowd: 0.7, playerCap: 2, // soft cap on how many boats pile onto you at once
+  // Helming (see steering.js): every boat randomly switches between three styles instead of always turning flat out.
+  //   factor = fraction of the boat's max turn rate, dz = heading error (rad) it ignores, t = how long the style lasts (s).
+  steer: {
+    gain: 2.2, // how eagerly turn speed follows the heading error
+    accel: 2.4, // rad/s^2: how fast a boat can start/stop turning (higher = twitchier)
+    snapAccel: 5, // same, while doing a steep turn
+    meander: 0.18, // rad: lazy side-to-side drift while cruising straight
+    cruise: { factor: 0.3, dz: 0.3, t: [1.6, 3.6] }, // long straights with a shallow drift
+    sweep: { factor: 0.55, dz: 0.08, t: [2, 4.5] }, // long wide curves
+    snap: { factor: 1, dz: 0, t: [0.8, 1.6], cooldown: [1.2, 3.0] }, // the steep turn: short, then a cooldown
+  },
+  // Mood: each boat swings between pressing the attack and playing it safe, for 6-14 s at a time.
+  mood: { time: [6, 14], defRange: 1.25, defWeave: 1.4, atkWeave: 0.8 },
 };
 
 // How the 8 enemy boats spread out around you (see Director in enemies.js).

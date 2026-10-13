@@ -3,6 +3,7 @@ import { ENEMY_TYPES, WEAPONS, WORLD, DIFFICULTY as D, SWARM, ENEMY_SPEED, POTIO
 import { Boat } from './boat.js';
 import { audio } from './audio.js';
 import { resolveCollisions } from './world.js';
+import { Helmsman } from './steering.js';
 
 const TAU = Math.PI * 2;
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
@@ -229,6 +230,10 @@ export class EnemyBoat {
     this.wph = rand(0, TAU);
     this.wamp = rand(0.35, 0.7);
     this.pauseMul = rand(AI.gunPause[0], AI.gunPause[1]);
+    this.sharp = rand(0.7, 1.3); // fondness for steep turns (see steering.js)
+    this.mood = Math.random() < 0.5 + this.aggr * 0.2 ? 'aggressive' : 'defensive'; // swings every few seconds, see pickMood()
+    this.moodT = rand(AI.mood.time[0], AI.mood.time[1]);
+    this.helm = new Helmsman(this.sharp);
     this.taste = {};
     for (const k of TACTICS) this.taste[k] = rand(0.6, 1.4);
   }
@@ -472,6 +477,21 @@ export class EnemyBoat {
 
   // ------------------------------------------------------------------- tactics
 
+  // Aggressive / defensive swings. Aggressive boats charge, joust and ram; defensive ones hang back at range,
+  // weave harder, kite and flank. Hurt or battered boats lean defensive, a wounded target makes them pounce.
+  pickMood(hpR, tg) {
+    const tr = tg ? tg.hp / tg.maxHp : 1;
+    let a = 0.5 + this.aggr * 0.4, d = 0.5 + (1 - this.aggr) * 0.4;
+    if (hpR < 0.5) d += 0.5;
+    if (this.recentDmg > 0.25) d += 0.4;
+    if (tr < 0.4 && hpR > 0.4) a += 0.6;
+    if (this.lastStandT > 0 || (tg && tg.team === 'player' && HUNT.k > 0.4)) { a += 2; } // never hang back from a sitting duck
+    const m = pickWeighted([['aggressive', a], ['defensive', d]]);
+    if (m !== this.mood && this.tac) this.tac.t = Math.min(this.tac.t, 0.6); // change of heart: re-pick the tactic soon
+    this.mood = m;
+    this.moodT = rand(AI.mood.time[0], AI.mood.time[1]);
+  }
+
   pickTactic(tg, tdist, prefD) {
     const s = this.state;
     const hpR = this.hp / this.maxHp, tr = tg.hp / tg.maxHp;
@@ -490,8 +510,11 @@ export class EnemyBoat {
       ['disengage', (0.18 + (this.engagedT > 10 ? 0.7 : 0) + (this.crowd >= 4 ? 0.4 : 0) + (1 - this.aggr) * 0.2) * calm],
       ['ram', canBoost && hpR > 0.35 ? 0.3 * this.boostLove * (tg.big || tr < 0.35 ? 1.6 : 0.6) * (r > 1.2 && r < 4 ? 1 : 0.2) : 0],
     ];
+    const mm = this.mood === 'aggressive'
+      ? { rush: 1.3, pass: 1.3, ram: 1.3, flank: 1.1, circle: 0.9, kite: 0.6, disengage: 0.6 }
+      : { rush: 0.5, pass: 0.7, ram: 0.4, flank: 1.1, circle: 1.3, kite: 1.6, disengage: 1.3 };
     for (const e of w) {
-      e[1] *= this.taste[e[0]];
+      e[1] *= this.taste[e[0]] * mm[e[0]];
       if (e[0] === this.lastTac) e[1] *= 0.3; // avoid doing the same thing twice in a row
       if (this.lastStandT > 0 && (e[0] === 'kite' || e[0] === 'disengage')) e[1] = 0;
     }
@@ -791,6 +814,7 @@ export class EnemyBoat {
     this.fleeSnapT -= dt;
     this.fleeSnapCd -= dt;
     this.lastStandT -= dt;
+    this.moodT -= dt;
     this.recentDmg = Math.max(0, this.recentDmg - dt * 0.12);
     if (this.mode === 'attack') this.engagedT += dt;
     if (this.bOn) {
@@ -801,6 +825,7 @@ export class EnemyBoat {
       if (this.bIdle >= D.boost.refillDelay) this.bEnergy = Math.min(D.boost.time, this.bEnergy + (D.boost.time / D.boost.refillTime) * dt);
     }
     if (this.mode === 'evade' && this.evadeTimer <= 0) this.thinkTimer = 0;
+    if (this.moodT <= 0) this.pickMood(this.hp / this.maxHp, this.target && this.target.alive ? this.target : null);
     if (this.thinkTimer <= 0) { this.think(player, all); this.thinkTimer = rand(0.3, 0.5); }
 
     const tg = this.target && this.target.alive ? this.target : null;
@@ -857,7 +882,7 @@ export class EnemyBoat {
 
     // ----- where do I want to go? -----
     const prefBase = this.stance === 'cautious' ? ty.range * 0.9 : this.stance === 'finisher' ? ty.pref * 0.65 : ty.pref;
-    const prefD = prefBase * this.prefJit;
+    const prefD = Math.min(prefBase * this.prefJit * (this.mood === 'defensive' && this.mode === 'attack' ? AI.mood.defRange : 1), ty.range * 0.9);
     let desiredYaw, desiredSpeed, turnBoost = 1, hold = false, snap = false;
     let tacName = null;
     if (this.mode === 'attack' && tg) {
@@ -913,7 +938,7 @@ export class EnemyBoat {
         aimedAtMe = ((s.x - tg.state.x) * Math.sin(tg.state.yaw) + (s.z - tg.state.z) * Math.cos(tg.state.yaw)) / tdist > 0.85;
       }
       const defence = clamp(pressure / 3 + (aimedAtMe ? 0.55 : 0) + this.recentDmg * 0.8, 0, 1);
-      let amp = this.wamp * defence + 0.06;
+      let amp = (this.wamp * defence + 0.06) * (this.mood === 'defensive' ? AI.mood.defWeave : AI.mood.atkWeave);
       if (tacName === 'turnabout' || (tacName === 'counter' && this.tac.phase === 'b')) amp *= 0.4; // swinging round: keep it accurate
       desiredYaw += Math.sin(t * this.wf + this.wph) * amp;
     }
@@ -931,12 +956,14 @@ export class EnemyBoat {
 
     // ----- steering: avoid islands, the harbor, other boats and the edge of the sea -----
     let vx = Math.sin(desiredYaw), vz = Math.cos(desiredYaw);
+    let urgent = !!(rammer || (mt && this.dodgeOk && this.dodgeSeen > react && mt.dist < D.dodgeRange)) || this.mode === 'evade';
     for (const o of OBSTACLES) {
       const dx = s.x - o.x, dz = s.z - o.z;
       const d = Math.hypot(dx, dz) || 0.001;
       const margin = o.r + this.radius + 14 + Math.max(0, s.speed) * 0.7;
       if (d < margin) {
         const w = (margin - d) / margin;
+        if (w > 0.3) urgent = true; // an island is close: full turning authority
         const nx = dx / d, nz = dz / d;
         // push out and slide sideways so we go around instead of bouncing back
         vx += (nx * 1.7 - nz * this.dir) * w * 2.6;
@@ -950,6 +977,7 @@ export class EnemyBoat {
       const margin = this.radius + o.radius + (o === tg ? 6 : SWARM.personalSpace);
       if (d < margin) {
         const w = (margin - d) / margin;
+        if (w > 0.5) urgent = true;
         vx += (dx / d) * w * 1.6; vz += (dz / d) * w * 1.6;
       }
     }
@@ -975,16 +1003,25 @@ export class EnemyBoat {
     const fromMid = Math.hypot(s.x, s.z);
     if (fromMid > WORLD.radius - 55) {
       const w = (fromMid - (WORLD.radius - 55)) / 55;
+      if (w > 0.4) urgent = true;
       vx -= (s.x / fromMid) * w * 2.2; vz -= (s.z / fromMid) * w * 2.2;
     }
     desiredYaw = Math.atan2(vx, vz);
 
     const diff = angleDiff(s.yaw, desiredYaw);
     const stab = 1 / (1 + Math.max(0, s.speed - 60) / 100); // like the player: fast boats turn wider
-    const turn = ty.turn * D.turnMul * turnBoost * stab;
-    s.yaw += clamp(diff, -turn * dt, turn * dt);
-    s.turnVel = clamp(diff, -turn, turn);
-    if (!this.bOn) desiredSpeed *= 1 - D.turnDrag * Math.min(1, Math.abs(diff) / 1.2); // hard turns bleed speed
+    const maxTurn = ty.turn * D.turnMul * turnBoost * stab;
+    // the helmsman decides HOW we turn: long straights, wide curves, or (rarely, briefly) a steep turn
+    const reactive = tacName === 'counter' || tacName === 'turnabout' || this.afterDodge;
+    const hs = this.helm.step(dt, s.yaw, desiredYaw, {
+      maxTurn, urgent, reactive,
+      range: tg ? tdist / Math.max(1, prefD) : 3,
+      pressure: clamp(pressure / 3, 0, 1),
+      behind: Math.abs(diff) > 1.8,
+    });
+    s.yaw = hs.yaw;
+    s.turnVel = hs.vel;
+    if (!this.bOn) desiredSpeed *= 1 - D.turnDrag * Math.min(1, Math.abs(hs.vel) / 1.8); // hard turns bleed speed, gentle curves don't
     s.speed += (desiredSpeed - s.speed) * (1 - Math.exp(-(this.bOn ? 2.2 : 1.5) * dt));
     s.x += Math.sin(s.yaw) * s.speed * dt;
     s.z += Math.cos(s.yaw) * s.speed * dt;
