@@ -558,6 +558,56 @@
       "subText": "CAPTAIN",
       "textColor": "#ffffff",
       "bgColor": "#16290f"
+    },
+    {
+      "id": "asset_sea_castle_amber",
+      "type": "sea_castle",
+      "name": "Majestic Sea Castle",
+      "x": -164,
+      "z": -224,
+      "y": 0.5,
+      "rotY": 0.35,
+      "scale": 1.15
+    },
+    {
+      "id": "asset_tiki_bar_home",
+      "type": "tiki_bar",
+      "name": "Tiki Bar Hut",
+      "x": 147,
+      "z": -62,
+      "y": 0.3,
+      "rotY": 1.2,
+      "scale": 1.0
+    },
+    {
+      "id": "asset_beach_lounger_home",
+      "type": "beach_lounger",
+      "name": "Beach Umbrella & Loungers",
+      "x": 144,
+      "z": -50,
+      "y": 0.2,
+      "rotY": 0.8,
+      "scale": 1.0
+    },
+    {
+      "id": "asset_treasure_home",
+      "type": "treasure_chest",
+      "name": "Glittering Treasure Chest",
+      "x": 131,
+      "z": -68,
+      "y": 0.2,
+      "rotY": -0.6,
+      "scale": 1.0
+    },
+    {
+      "id": "asset_sea_buoy_channel",
+      "type": "sea_buoy",
+      "name": "Marine Navigation Buoy",
+      "x": 70,
+      "z": -30,
+      "y": 0,
+      "rotY": 0,
+      "scale": 1.0
     }
   ]
 }

@@ -567,6 +567,531 @@ export function makePier(def) {
   return g;
 }
 
+// --- NEW PROCEDURAL ASSET BUILDERS ---
+
+export function makeSeaCastle(def) {
+  const g = new THREE.Group();
+  const stoneBase = flat(0x484f59);
+  const stoneWall = flat(0x646f7c);
+  const stoneLight = flat(0x768290);
+  const roofMat = flat(0xb83232); // Royal crimson tile roofs
+  const darkIron = flat(0x1a202c);
+  const goldFinial = flat(0xffd166, { metalness: 0.8, roughness: 0.3 });
+  const flagMat = flat(0xffd166);
+
+  // 1. Raised Octagonal Bastion Foundation
+  const base = new THREE.Mesh(new THREE.CylinderGeometry(14, 15.5, 3.5, 8), stoneBase);
+  base.position.y = 1.75;
+  g.add(base);
+
+  // 2. Main Outer Fortress Walls
+  const keep = new THREE.Mesh(new THREE.BoxGeometry(16, 8.5, 16), stoneWall);
+  keep.position.y = 3.5 + 4.25;
+  g.add(keep);
+
+  // Battlements / Crenellations along the main wall roofline
+  const wallTopY = 3.5 + 8.5;
+  for (let i = -7; i <= 7; i += 2.8) {
+    for (const side of [-1, 1]) {
+      const merlonZ = new THREE.Mesh(new THREE.BoxGeometry(1.6, 1.2, 0.6), stoneLight);
+      merlonZ.position.set(i, wallTopY + 0.6, side * 8.0);
+      const merlonX = new THREE.Mesh(new THREE.BoxGeometry(0.6, 1.2, 1.6), stoneLight);
+      merlonX.position.set(side * 8.0, wallTopY + 0.6, i);
+      g.add(merlonZ, merlonX);
+    }
+  }
+
+  // 3. Four Corner Bastion Towers
+  const towerCoords = [[-8.2, -8.2], [8.2, -8.2], [-8.2, 8.2], [8.2, 8.2]];
+  for (const [tx, tz] of towerCoords) {
+    const tower = new THREE.Mesh(new THREE.CylinderGeometry(2.6, 2.8, 14.5, 8), stoneLight);
+    tower.position.set(tx, 3.5 + 7.25, tz);
+    g.add(tower);
+
+    const collar = new THREE.Mesh(new THREE.CylinderGeometry(3.1, 2.7, 1.2, 8), stoneBase);
+    collar.position.set(tx, 3.5 + 14.5 + 0.6, tz);
+    g.add(collar);
+
+    const coneRoof = new THREE.Mesh(new THREE.ConeGeometry(3.3, 5.0, 8), roofMat);
+    coneRoof.position.set(tx, 3.5 + 14.5 + 1.2 + 2.5, tz);
+    g.add(coneRoof);
+
+    const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.08, 3.2, 5), flat(0xffffff));
+    pole.position.set(tx, 3.5 + 14.5 + 1.2 + 5.0 + 1.6, tz);
+    g.add(pole);
+    const pennant = new THREE.Mesh(new THREE.PlaneGeometry(1.6, 0.9), flagMat);
+    pennant.position.set(tx + 0.8, 3.5 + 14.5 + 1.2 + 5.0 + 2.4, tz);
+    pennant.rotation.y = Math.PI / 2;
+    g.add(pennant);
+  }
+
+  // 4. Grand Central Citadel Keep (Grand High Spire)
+  const citTower = new THREE.Mesh(new THREE.CylinderGeometry(4.6, 4.8, 13, 8), stoneWall);
+  citTower.position.set(0, wallTopY + 6.5, 0);
+  g.add(citTower);
+
+  const citCollar = new THREE.Mesh(new THREE.CylinderGeometry(5.2, 4.6, 1.4, 8), stoneBase);
+  citCollar.position.set(0, wallTopY + 13 + 0.7, 0);
+  g.add(citCollar);
+
+  const citRoof = new THREE.Mesh(new THREE.ConeGeometry(5.4, 6.8, 8), roofMat);
+  citRoof.position.set(0, wallTopY + 13 + 1.4 + 3.4, 0);
+  g.add(citRoof);
+
+  const orb = new THREE.Mesh(new THREE.SphereGeometry(0.8, 8, 8), goldFinial);
+  orb.position.set(0, wallTopY + 13 + 1.4 + 6.8 + 0.8, 0);
+  g.add(orb);
+
+  // 5. Arched Sea Gate & Iron Portcullis (Front facade)
+  const gateFrame = new THREE.Mesh(new THREE.BoxGeometry(5.2, 6.0, 1.4), stoneBase);
+  gateFrame.position.set(0, 3.5 + 3.0, 8.2);
+  g.add(gateFrame);
+
+  const gateArch = new THREE.Mesh(new THREE.BoxGeometry(3.6, 4.6, 1.5), darkIron);
+  gateArch.position.set(0, 3.5 + 2.3, 8.3);
+  g.add(gateArch);
+
+  for (let bx = -1.3; bx <= 1.3; bx += 0.65) {
+    const bar = new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.08, 4.4, 4), flat(0x2d3748));
+    bar.position.set(bx, 3.5 + 2.2, 8.9);
+    g.add(bar);
+  }
+
+  // 6. Glowing Gatehouse Torch Braziers
+  for (const side of [-1, 1]) {
+    const bracket = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.2, 0.7), darkIron);
+    bracket.position.set(side * 2.8, 3.5 + 4.0, 8.6);
+    g.add(bracket);
+    const torch = new THREE.Mesh(
+      new THREE.SphereGeometry(0.4, 6, 6),
+      new THREE.MeshStandardMaterial({ color: 0xffa020, emissive: 0xff7700, emissiveIntensity: 2.0 })
+    );
+    torch.position.set(side * 2.8, 3.5 + 4.3, 8.9);
+    g.add(torch);
+  }
+
+  return g;
+}
+
+export function makeTikiBar(def) {
+  const g = new THREE.Group();
+  const deckWood = flat(0x8c5b36);
+  const bamboo = flat(0xd4a373);
+  const barTop = flat(0x4a2e1b);
+  const thatch = flat(0xc49a45);
+
+  // Raised Deck
+  const deck = new THREE.Mesh(new THREE.BoxGeometry(8.0, 0.45, 6.0), deckWood);
+  deck.position.y = 0.6;
+  g.add(deck);
+
+  // Bamboo Stilt Legs
+  for (const [x, z] of [[-3.7, -2.7], [3.7, -2.7], [-3.7, 2.7], [3.7, 2.7]]) {
+    const leg = new THREE.Mesh(new THREE.CylinderGeometry(0.2, 0.24, 1.2, 6), bamboo);
+    leg.position.set(x, 0.3, z);
+    g.add(leg);
+  }
+
+  // 4 Bamboo Roof Posts
+  for (const [x, z] of [[-3.5, -2.5], [3.5, -2.5], [-3.5, 2.5], [3.5, 2.5]]) {
+    const post = new THREE.Mesh(new THREE.CylinderGeometry(0.18, 0.22, 4.2, 6), bamboo);
+    post.position.set(x, 2.9, z);
+    g.add(post);
+  }
+
+  // L-Shaped Bar Counter
+  const mainBar = new THREE.Mesh(new THREE.BoxGeometry(5.4, 1.8, 1.2), barTop);
+  mainBar.position.set(-0.6, 1.7, 1.4);
+  const returnBar = new THREE.Mesh(new THREE.BoxGeometry(1.2, 1.8, 2.8), barTop);
+  returnBar.position.set(2.4, 1.7, 0.2);
+  g.add(mainBar, returnBar);
+
+  // 3 Bar Stools
+  for (let i = -2.2; i <= 1.4; i += 1.8) {
+    const stoolLeg = new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.12, 1.1, 5), bamboo);
+    stoolLeg.position.set(i, 1.35, 2.6);
+    const stoolSeat = new THREE.Mesh(new THREE.CylinderGeometry(0.48, 0.48, 0.18, 8), barTop);
+    stoolSeat.position.set(i, 1.95, 2.6);
+    g.add(stoolLeg, stoolSeat);
+  }
+
+  // Coconut Drinks on Bar
+  const coconutMat = flat(0x5c381c);
+  for (const [cx, cz] of [[-1.2, 1.3], [0.8, 1.3]]) {
+    const cup = new THREE.Mesh(new THREE.CylinderGeometry(0.18, 0.15, 0.32, 6), coconutMat);
+    cup.position.set(cx, 2.75, cz);
+    const straw = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.03, 0.5, 4), flat(0x06d6a0));
+    straw.position.set(cx + 0.05, 2.95, cz);
+    straw.rotation.z = 0.3;
+    g.add(cup, straw);
+  }
+
+  // Thatched Pyramid Roof with Overhang
+  const roof = new THREE.Mesh(new THREE.ConeGeometry(6.4, 2.8, 4), thatch);
+  roof.position.y = 6.2;
+  roof.rotation.y = Math.PI / 4;
+  g.add(roof);
+
+  return g;
+}
+
+export function makeBeachLounger(def) {
+  const g = new THREE.Group();
+  const wood = flat(0xd4a373);
+  const tealCanvas = flat(0x06d6a0);
+  const pinkCanvas = flat(0xef476f);
+
+  // 1. Tilted Beach Umbrella
+  const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.12, 4.6, 6), flat(0xedf2f7));
+  pole.position.set(0, 2.1, -1.2);
+  pole.rotation.x = -0.15;
+  g.add(pole);
+
+  const canopy = new THREE.Mesh(new THREE.ConeGeometry(3.2, 1.2, 8), tealCanvas);
+  canopy.position.set(0, 4.1, -1.5);
+  canopy.rotation.x = -0.15;
+  g.add(canopy);
+
+  // 2. Pair of Sun Loungers (Left & Right)
+  const loungerOffsets = [[-1.8, tealCanvas], [1.8, pinkCanvas]];
+  for (const [lx, mat] of loungerOffsets) {
+    const frame = new THREE.Mesh(new THREE.BoxGeometry(1.6, 0.25, 3.8), wood);
+    frame.position.set(lx, 0.3, 0.6);
+    for (const [kx, kz] of [[-0.7, -1.1], [0.7, -1.1], [-0.7, 2.3], [0.7, 2.3]]) {
+      const leg = new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.08, 0.5, 4), wood);
+      leg.position.set(lx + kx, 0.15, kz);
+      g.add(leg);
+    }
+    const pad = new THREE.Mesh(new THREE.BoxGeometry(1.45, 0.18, 3.6), mat);
+    pad.position.set(lx, 0.5, 0.6);
+    const back = new THREE.Mesh(new THREE.BoxGeometry(1.4, 0.16, 1.5), mat);
+    back.position.set(lx, 0.95, -0.6);
+    back.rotation.x = -0.48;
+    g.add(frame, pad, back);
+  }
+
+  // Small Drinks Table
+  const table = new THREE.Mesh(new THREE.CylinderGeometry(0.7, 0.7, 0.5, 8), wood);
+  table.position.set(0, 0.45, 0.8);
+  const glass = new THREE.Mesh(new THREE.CylinderGeometry(0.15, 0.12, 0.4, 6), flat(0xffd166));
+  glass.position.set(0, 0.9, 0.8);
+  g.add(table, glass);
+
+  return g;
+}
+
+export function makeTreasureChest(def) {
+  const g = new THREE.Group();
+  const wood = flat(0x4a2e16);
+  const iron = flat(0x22262a);
+  const sand = flat(0xe9d8a6);
+
+  // Sand Mound Base
+  const mound = new THREE.Mesh(new THREE.CylinderGeometry(3.0, 3.8, 0.5, 8), sand);
+  mound.position.y = 0.25;
+  g.add(mound);
+
+  // Main Chest Body
+  const body = new THREE.Mesh(new THREE.BoxGeometry(3.2, 1.5, 2.0), wood);
+  body.position.set(0, 1.25, 0);
+  g.add(body);
+
+  // Iron Edge Bands
+  for (const bx of [-1.55, -0.5, 0.5, 1.55]) {
+    const band = new THREE.Mesh(new THREE.BoxGeometry(0.18, 1.55, 2.05), iron);
+    band.position.set(bx, 1.25, 0);
+    g.add(band);
+  }
+
+  // Front Keyhole Plate
+  const lock = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.5, 0.1), flat(0xffd700));
+  lock.position.set(0, 1.3, 1.05);
+  g.add(lock);
+
+  // Open Curved Lid tilted back
+  const lidGroup = new THREE.Group();
+  lidGroup.position.set(0, 2.0, -1.0);
+  lidGroup.rotation.x = -1.1;
+  const lid = new THREE.Mesh(
+    new THREE.CylinderGeometry(1.0, 1.0, 3.2, 8, 1, false, 0, Math.PI),
+    wood
+  );
+  lid.rotation.z = Math.PI / 2;
+  lid.position.set(0, 0, 1.0);
+  lidGroup.add(lid);
+  g.add(lidGroup);
+
+  // Sparkling Glowing Gold Treasure Heap Inside
+  const goldPile = new THREE.Mesh(
+    new THREE.SphereGeometry(1.1, 6, 6),
+    new THREE.MeshStandardMaterial({
+      color: 0xffd700,
+      emissive: 0xffa000,
+      emissiveIntensity: 1.4,
+      metalness: 0.9,
+      roughness: 0.2
+    })
+  );
+  goldPile.scale.set(1.3, 0.65, 0.85);
+  goldPile.position.set(0, 1.85, 0);
+  g.add(goldPile);
+
+  // Loose Ruby & Emerald Gemstones on sand
+  const gem1 = new THREE.Mesh(new THREE.OctahedronGeometry(0.22), flat(0xef233c, { emissive: 0xef233c, emissiveIntensity: 1.2 }));
+  gem1.position.set(1.4, 0.55, 1.2);
+  const gem2 = new THREE.Mesh(new THREE.OctahedronGeometry(0.25), flat(0x06d6a0, { emissive: 0x06d6a0, emissiveIntensity: 1.2 }));
+  gem2.position.set(-1.3, 0.55, 1.3);
+  g.add(gem1, gem2);
+
+  return g;
+}
+
+export function makeSeaBuoy(def) {
+  const g = new THREE.Group();
+  const buoyMat = flat(0xffd166);
+  const redBand = flat(0xef233c);
+  const steel = flat(0x272e39);
+
+  // Lower float cone (in water)
+  const lower = new THREE.Mesh(new THREE.CylinderGeometry(1.8, 0.8, 2.0, 10), redBand);
+  lower.position.y = 0.9;
+  g.add(lower);
+
+  // Upper float body
+  const upper = new THREE.Mesh(new THREE.CylinderGeometry(1.3, 1.8, 2.4, 10), buoyMat);
+  upper.position.y = 2.9;
+  g.add(upper);
+
+  // Black Rubber Bumper Collar
+  const collar = new THREE.Mesh(new THREE.TorusGeometry(1.8, 0.22, 6, 12), steel);
+  collar.rotation.x = Math.PI / 2;
+  collar.position.y = 1.9;
+  g.add(collar);
+
+  // Steel Tower Lattice Frame
+  const tower = new THREE.Mesh(new THREE.CylinderGeometry(0.5, 1.1, 3.2, 4), steel);
+  tower.position.y = 5.2;
+  g.add(tower);
+
+  // High-Intensity Flashing Beacon Lamp
+  const beacon = new THREE.Mesh(
+    new THREE.SphereGeometry(0.55, 8, 8),
+    new THREE.MeshStandardMaterial({
+      color: 0x00f5d4,
+      emissive: 0x00f5d4,
+      emissiveIntensity: 2.5
+    })
+  );
+  beacon.position.y = 6.8;
+  g.add(beacon);
+
+  const cageRing = new THREE.Mesh(new THREE.TorusGeometry(0.7, 0.08, 5, 8), steel);
+  cageRing.rotation.x = Math.PI / 2;
+  cageRing.position.y = 6.8;
+  g.add(cageRing);
+
+  return g;
+}
+
+export function makeTent(def) {
+  const g = new THREE.Group();
+  const canvas = flat(0x606c38);
+  const darkWood = flat(0x3e2723);
+
+  // Triangular Canvas Tent Body
+  const tent = new THREE.Mesh(new THREE.ConeGeometry(3.4, 3.2, 4), canvas);
+  tent.position.y = 1.6;
+  tent.rotation.y = Math.PI / 4;
+  g.add(tent);
+
+  // Ridge Pole
+  const ridge = new THREE.Mesh(new THREE.BoxGeometry(0.18, 0.18, 3.8), darkWood);
+  ridge.position.y = 3.15;
+  g.add(ridge);
+
+  // Bedroll inside opening
+  const bedroll = new THREE.Mesh(new THREE.CylinderGeometry(0.45, 0.45, 1.8, 6), flat(0x3d5a80));
+  bedroll.rotation.z = Math.PI / 2;
+  bedroll.position.set(0, 0.35, 1.1);
+  g.add(bedroll);
+
+  // Small Camp Crate
+  const crate = new THREE.Mesh(new THREE.BoxGeometry(1.0, 0.8, 1.0), flat(0x8a5a32));
+  crate.position.set(2.4, 0.4, 0.5);
+  g.add(crate);
+
+  return g;
+}
+
+export function makeTotem(def) {
+  const g = new THREE.Group();
+  const stoneMat = flat(0x5c6370);
+  const mossMat = flat(0x386641);
+  const runeMat = flat(0x38bdf8, { emissive: 0x0284c7, emissiveIntensity: 1.8 });
+
+  // Stepped Altar Base
+  const base1 = new THREE.Mesh(new THREE.BoxGeometry(4.8, 0.8, 4.8), stoneMat);
+  base1.position.y = 0.4;
+  const base2 = new THREE.Mesh(new THREE.BoxGeometry(3.6, 0.8, 3.6), stoneMat);
+  base2.position.y = 1.2;
+  g.add(base1, base2);
+
+  // Carved Monolithic Moai Head
+  const head = new THREE.Mesh(new THREE.BoxGeometry(2.4, 7.2, 2.8), stoneMat);
+  head.position.y = 5.2;
+  g.add(head);
+
+  const brow = new THREE.Mesh(new THREE.BoxGeometry(2.5, 0.9, 1.0), stoneMat);
+  brow.position.set(0, 6.8, 1.4);
+  const nose = new THREE.Mesh(new THREE.BoxGeometry(0.7, 2.6, 0.9), stoneMat);
+  nose.position.set(0, 5.2, 1.5);
+  const chin = new THREE.Mesh(new THREE.BoxGeometry(2.2, 1.2, 0.8), stoneMat);
+  chin.position.set(0, 2.6, 1.3);
+  g.add(brow, nose, chin);
+
+  for (const eyeX of [-0.65, 0.65]) {
+    const eye = new THREE.Mesh(new THREE.BoxGeometry(0.42, 0.35, 0.3), runeMat);
+    eye.position.set(eyeX, 6.2, 1.4);
+    g.add(eye);
+  }
+
+  const moss = new THREE.Mesh(new THREE.BoxGeometry(2.5, 1.5, 2.9), mossMat);
+  moss.position.set(0, 3.5, 0);
+  g.add(moss);
+
+  return g;
+}
+
+export function makeStoneRuins(def) {
+  const g = new THREE.Group();
+  const marble = flat(0xd5cec5);
+  const darkStone = flat(0x8c8275);
+  const ivy = flat(0x2d6a4f);
+
+  // Cracked Stone Foundation Slabs
+  const slab = new THREE.Mesh(new THREE.BoxGeometry(10.0, 0.6, 10.0), darkStone);
+  slab.position.y = 0.3;
+  g.add(slab);
+
+  // 1. Intact Pillar
+  const col1 = new THREE.Mesh(new THREE.CylinderGeometry(0.7, 0.8, 7.0, 8), marble);
+  col1.position.set(-3.2, 3.8, -3.2);
+  const cap1 = new THREE.Mesh(new THREE.BoxGeometry(1.9, 0.6, 1.9), marble);
+  cap1.position.set(-3.2, 7.4, -3.2);
+  g.add(col1, cap1);
+
+  // 2. Broken Half Pillar
+  const col2 = new THREE.Mesh(new THREE.CylinderGeometry(0.7, 0.8, 3.4, 8), marble);
+  col2.position.set(3.2, 2.0, -3.2);
+  const fallenChunk = new THREE.Mesh(new THREE.CylinderGeometry(0.68, 0.68, 2.8, 8), marble);
+  fallenChunk.rotation.z = 1.3;
+  fallenChunk.position.set(3.2, 0.9, -1.2);
+  g.add(col2, fallenChunk);
+
+  // 3. Tilted Pillar with Supported Cracked Architrave Beam
+  const col3 = new THREE.Mesh(new THREE.CylinderGeometry(0.7, 0.8, 6.8, 8), marble);
+  col3.position.set(-3.2, 3.7, 3.2);
+  col3.rotation.z = -0.12;
+  const architrave = new THREE.Mesh(new THREE.BoxGeometry(7.2, 1.1, 1.4), marble);
+  architrave.position.set(-3.2, 7.3, 0);
+  architrave.rotation.x = 0.08;
+  g.add(col3, architrave);
+
+  const vine = new THREE.Mesh(new THREE.DodecahedronGeometry(1.2, 0), ivy);
+  vine.position.set(-3.2, 4.2, 3.2);
+  g.add(vine);
+
+  return g;
+}
+
+export function makeAnchor(def) {
+  const g = new THREE.Group();
+  const iron = flat(0x2b2d42, { roughness: 0.6, metalness: 0.7 });
+  const wood = flat(0x4a2e16);
+  const sand = flat(0xe9d8a6);
+
+  // Sand Base Mound
+  const sandBase = new THREE.Mesh(new THREE.CylinderGeometry(3.4, 4.2, 0.5, 8), sand);
+  sandBase.position.y = 0.25;
+  g.add(sandBase);
+
+  // Tilted Anchor Assembly
+  const anchorGroup = new THREE.Group();
+  anchorGroup.position.set(0, 0.4, 0);
+  anchorGroup.rotation.z = 0.52;
+  anchorGroup.rotation.y = 0.3;
+
+  const shank = new THREE.Mesh(new THREE.CylinderGeometry(0.3, 0.34, 7.6, 6), iron);
+  shank.position.y = 3.8;
+  anchorGroup.add(shank);
+
+  const stock = new THREE.Mesh(new THREE.BoxGeometry(4.2, 0.5, 0.5), wood);
+  stock.position.set(0, 6.4, 0);
+  anchorGroup.add(stock);
+
+  const ring = new THREE.Mesh(new THREE.TorusGeometry(0.75, 0.18, 6, 12), iron);
+  ring.position.set(0, 7.6, 0);
+  anchorGroup.add(ring);
+
+  const crown = new THREE.Mesh(new THREE.TorusGeometry(2.2, 0.32, 6, 10, Math.PI), iron);
+  crown.rotation.z = Math.PI;
+  crown.position.set(0, 1.8, 0);
+  anchorGroup.add(crown);
+
+  for (const side of [-1, 1]) {
+    const fluke = new THREE.Mesh(new THREE.ConeGeometry(0.9, 1.4, 3), iron);
+    fluke.position.set(side * 2.2, 2.4, 0);
+    fluke.rotation.z = side * 0.4;
+    anchorGroup.add(fluke);
+  }
+  g.add(anchorGroup);
+
+  // Heavy Chain Links on Ground
+  for (let i = 0; i < 4; i++) {
+    const link = new THREE.Mesh(new THREE.TorusGeometry(0.45, 0.12, 5, 8), iron);
+    link.rotation.x = Math.PI / 2 + i * 0.3;
+    link.position.set(1.4 + i * 0.45, 0.4, -0.4 + i * 0.3);
+    g.add(link);
+  }
+
+  return g;
+}
+
+export function makeRowboats(def) {
+  const g = new THREE.Group();
+  const hullWood = flat(0x7f5539);
+  const benchWood = flat(0xb08968);
+  const oarWood = flat(0xd4a373);
+
+  const b1 = new THREE.Group();
+  b1.position.set(0, 0.7, 0);
+  b1.rotation.y = 0.2;
+  b1.rotation.z = 0.12;
+
+  const hull = new THREE.Mesh(new THREE.BoxGeometry(2.4, 1.1, 5.8), hullWood);
+  b1.add(hull);
+  const hollow = new THREE.Mesh(new THREE.BoxGeometry(2.0, 0.9, 5.4), flat(0x5c3a21));
+  hollow.position.y = 0.2;
+  b1.add(hollow);
+
+  for (const bz of [-1.5, 0, 1.5]) {
+    const bench = new THREE.Mesh(new THREE.BoxGeometry(2.1, 0.15, 0.65), benchWood);
+    bench.position.set(0, 0.35, bz);
+    b1.add(bench);
+  }
+
+  const oar1 = new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.08, 5.2, 5), oarWood);
+  oar1.rotation.set(0.2, 0.3, 0.8);
+  oar1.position.set(0.3, 0.7, 0);
+  const oar2 = new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.08, 5.2, 5), oarWood);
+  oar2.rotation.set(-0.2, -0.3, -0.8);
+  oar2.position.set(-0.3, 0.7, 0);
+  b1.add(oar1, oar2);
+
+  g.add(b1);
+  return g;
+}
+
 // Master Dispatcher: builds 3D group for any asset definition
 export function makeAsset(def) {
   const root = new THREE.Group();
@@ -577,6 +1102,36 @@ export function makeAsset(def) {
 
   let visual;
   switch (def.type) {
+    case 'sea_castle':
+      visual = makeSeaCastle(def);
+      break;
+    case 'tiki_bar':
+      visual = makeTikiBar(def);
+      break;
+    case 'beach_lounger':
+      visual = makeBeachLounger(def);
+      break;
+    case 'treasure_chest':
+      visual = makeTreasureChest(def);
+      break;
+    case 'sea_buoy':
+      visual = makeSeaBuoy(def);
+      break;
+    case 'tent':
+      visual = makeTent(def);
+      break;
+    case 'totem':
+      visual = makeTotem(def);
+      break;
+    case 'stone_ruins':
+      visual = makeStoneRuins(def);
+      break;
+    case 'anchor':
+      visual = makeAnchor(def);
+      break;
+    case 'rowboats':
+      visual = makeRowboats(def);
+      break;
     case 'billboard':
       visual = makeBillboard(def);
       break;
@@ -629,11 +1184,11 @@ export const ASSET_CATALOG = [
     category: 'Structures & Landmarks',
     items: [
       {
-        type: 'billboard',
-        name: 'Billboard Sign',
-        icon: '🪧',
-        desc: 'Custom sign with editable canvas text & colors',
-        defaultProps: { text: 'BOOM BOATS', subText: 'PIRATE BAY', textColor: '#ffffff', bgColor: '#8b5a2b', scale: 1.0 }
+        type: 'sea_castle',
+        name: 'Majestic Sea Castle',
+        icon: '🏰',
+        desc: 'Towering coastal stone fortress with bastion turrets, citadel keep, sea gate portcullis & battlements',
+        defaultProps: { scale: 1.0 }
       },
       {
         type: 'lighthouse',
@@ -645,8 +1200,22 @@ export const ASSET_CATALOG = [
       {
         type: 'watchtower',
         name: 'Watchtower',
-        icon: '🏰',
+        icon: '🏯',
         desc: 'Elevated wooden lookout post with flag',
+        defaultProps: { scale: 1.0 }
+      },
+      {
+        type: 'stone_ruins',
+        name: 'Ancient Stone Ruins',
+        icon: '🏛️',
+        desc: 'Sunken marble temple colonnade with broken pillars, architrave & creeping ivy',
+        defaultProps: { scale: 1.0 }
+      },
+      {
+        type: 'totem',
+        name: 'Mystic Island Totem',
+        icon: '🗿',
+        desc: 'Carved monolithic stone Moai head with glowing crystal eyes & moss altar',
         defaultProps: { scale: 1.0 }
       },
       {
@@ -655,6 +1224,72 @@ export const ASSET_CATALOG = [
         icon: '🪵',
         desc: 'Dock promenade extension with water pilings',
         defaultProps: { length: 14, width: 4, scale: 1.0 }
+      },
+      {
+        type: 'billboard',
+        name: 'Billboard Sign',
+        icon: '🪧',
+        desc: 'Custom sign with editable canvas text & colors',
+        defaultProps: { text: 'BOOM BOATS', subText: 'PIRATE BAY', textColor: '#ffffff', bgColor: '#8b5a2b', scale: 1.0 }
+      }
+    ]
+  },
+  {
+    category: 'Resort & Beach Life',
+    items: [
+      {
+        type: 'tiki_bar',
+        name: 'Tiki Bar Hut',
+        icon: '🍹',
+        desc: 'Tropical bamboo beach hut with thatched palm roof, bar counter, stools & coconut drinks',
+        defaultProps: { scale: 1.0 }
+      },
+      {
+        type: 'beach_lounger',
+        name: 'Beach Umbrella & Loungers',
+        icon: '🏖️',
+        desc: 'Tilted striped sun parasol with pair of colorful wooden deck loungers & drinks table',
+        defaultProps: { scale: 1.0 }
+      },
+      {
+        type: 'tent',
+        name: 'Campground Tent',
+        icon: '⛺',
+        desc: 'A-frame canvas expedition tent with bedroll and wooden camp crate',
+        defaultProps: { scale: 1.0 }
+      },
+      {
+        type: 'rowboats',
+        name: 'Beached Rowboat',
+        icon: '🚣',
+        desc: 'Rustic wooden rowboat pulled onto sand with bench seats and crossed oars',
+        defaultProps: { scale: 1.0 }
+      }
+    ]
+  },
+  {
+    category: 'Pirate & Coastal Lore',
+    items: [
+      {
+        type: 'treasure_chest',
+        name: 'Glittering Treasure Chest',
+        icon: '💎',
+        desc: 'Open iron-banded chest overflowing with glittering gold coins and radiant gemstones',
+        defaultProps: { scale: 1.0 }
+      },
+      {
+        type: 'anchor',
+        name: 'Colossal Sea Anchor',
+        icon: '⚓',
+        desc: 'Gigantic weathered cast iron ship anchor half-buried in the beach sand with heavy chain',
+        defaultProps: { scale: 1.0 }
+      },
+      {
+        type: 'shipwreck',
+        name: 'Sunken Shipwreck',
+        icon: '⛵',
+        desc: 'Listing pirate galleon hull with broken mast & sails',
+        defaultProps: { scale: 1.0 }
       }
     ]
   },
@@ -664,7 +1299,7 @@ export const ASSET_CATALOG = [
       {
         type: 'cannon',
         name: 'Naval Cannon',
-        icon: '⚓',
+        icon: '💥',
         desc: 'Coastal defense battery on stone mount with cannonballs',
         defaultProps: { scale: 1.0 }
       },
@@ -676,10 +1311,10 @@ export const ASSET_CATALOG = [
         defaultProps: { scale: 1.0 }
       },
       {
-        type: 'shipwreck',
-        name: 'Sunken Shipwreck',
-        icon: '⛵',
-        desc: 'Listing pirate galleon hull with broken mast & sails',
+        type: 'sea_buoy',
+        name: 'Marine Navigation Buoy',
+        icon: '🚨',
+        desc: 'High-visibility channel marker buoy with flashing turquoise solar beacon light',
         defaultProps: { scale: 1.0 }
       }
     ]
