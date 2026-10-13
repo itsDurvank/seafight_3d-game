@@ -20,6 +20,8 @@ function glowTexture() {
   return new THREE.CanvasTexture(c);
 }
 
+const angleDiff = (a, b) => ((b - a + Math.PI) % TAU + TAU) % TAU - Math.PI;
+
 // The potion: a round glass flask half full of red liquid, a cork, and a tag with a cross.
 function makePotion(glowTex) {
   const g = new THREE.Group();
@@ -132,36 +134,74 @@ export class Potions {
 
   // open water: away from islands, the harbor safe zone and the edge of the sea
   freeSpot(x, z) {
-    if (Math.hypot(x, z) > WORLD.radius - 90) return false;
+    if (Math.hypot(x, z) > WORLD.radius - 85) return false;
     const h = WORLD.safeHarbor;
-    if (Math.hypot(x - h.x, z - h.z) < h.r + 14) return false;
-    return WORLD.islands.every((i) => Math.hypot(x - i.x, z - i.z) > i.r + 24);
+    if (Math.hypot(x - h.x, z - h.z) < h.r + 20) return false;
+    return WORLD.islands.every((i) => Math.hypot(x - i.x, z - i.z) > i.r + 32);
   }
 
-  // far from other live potions
-  farFromOthers(x, z) {
-    return this.items.every((p) => !p.on || Math.hypot(p.x - x, p.z - z) >= POTION.spacing);
-  }
-
+  // Spawns potions scattered across different islands of the archipelago.
+  // Each potion appears near a separate island, well away from other potions and the player,
+  // so players have to use boost across the sea to reach them!
   place(player) {
     const free = this.items.find((p) => !p.on);
     if (!free) return null;
-    // find a random spot near the player that is in open water and far from other potions
     const px = player ? player.state.x : 0, pz = player ? player.state.z : 0;
-    for (let tries = 0; tries < 50; tries++) {
+    const minSpacing = POTION.spacing || 140;
+
+    // Track islands that already have an active potion nearby
+    const occupiedIslands = new Set();
+    for (const p of this.items) {
+      if (!p.on) continue;
+      for (const isl of WORLD.islands) {
+        if (Math.hypot(p.x - isl.x, p.z - isl.z) < 150) {
+          occupiedIslands.add(isl.id);
+        }
+      }
+    }
+
+    // Pick from islands that don't have a potion yet, randomized
+    const candidateIslands = WORLD.islands
+      .filter((isl) => !occupiedIslands.has(isl.id))
+      .sort(() => Math.random() - 0.5);
+
+    // Try placing the potion off the shore of one of the candidate islands
+    for (const isl of candidateIslands) {
+      for (let tries = 0; tries < 30; tries++) {
+        const a = Math.random() * TAU;
+        const r = isl.r + rand(30, 60);
+        const x = isl.x + Math.cos(a) * r, z = isl.z + Math.sin(a) * r;
+        if (!this.freeSpot(x, z)) continue;
+        if (Math.hypot(x - px, z - pz) < 55) continue; // must be a boost journey away from player!
+        if (!this.items.every((p) => !p.on || Math.hypot(p.x - x, p.z - z) >= minSpacing)) continue;
+
+        free.on = true; free.x = x; free.z = z; free.age = 0; free.ph = Math.random() * TAU; free.ripple = 0;
+        free.g.position.set(x, 0, z);
+        free.g.scale.setScalar(0.001); // pops up out of the water
+        free.g.visible = true;
+        this.combat.ring(x, z, 16, 0.9, 0xff6b81, 0.9);
+        return free;
+      }
+    }
+
+    // Fallback: search open archipelago channels with strict spacing
+    for (let tries = 0; tries < 80; tries++) {
       const a = Math.random() * TAU;
-      const r = rand(POTION.spawnRing[0], POTION.spawnRing[1]);
-      const x = px + Math.cos(a) * r, z = pz + Math.sin(a) * r;
+      const r = rand(90, 270);
+      const x = Math.cos(a) * r, z = Math.sin(a) * r;
       if (!this.freeSpot(x, z)) continue;
-      if (!this.farFromOthers(x, z)) continue;
+      if (Math.hypot(x - px, z - pz) < 55) continue;
+      if (!this.items.every((p) => !p.on || Math.hypot(p.x - x, p.z - z) >= (minSpacing * 0.85))) continue;
+
       free.on = true; free.x = x; free.z = z; free.age = 0; free.ph = Math.random() * TAU; free.ripple = 0;
       free.g.position.set(x, 0, z);
-      free.g.scale.setScalar(0.001); // pops up out of the water
+      free.g.scale.setScalar(0.001);
       free.g.visible = true;
       this.combat.ring(x, z, 16, 0.9, 0xff6b81, 0.9);
       return free;
     }
-    return null; // couldn't find open water this time
+
+    return null;
   }
 
   // Schedule a new batch: up to 3 potions with varied spawn patterns
@@ -195,7 +235,8 @@ export class Potions {
     target.hp = Math.min(target.maxHp, target.hp + target.maxHp * POTION.heal);
     p.on = false;
     p.g.visible = false;
-    this.combat.ring(p.x, p.z, 11, 0.6, 0x8dff9a, 0.9);
+    this.combat.ring(p.x, p.z, 14, 0.7, 0x55ff77, 0.95);
+    if (who !== 'player' && target.onHealed) target.onHealed();
     if (this.onClaim) this.onClaim(who, p, target.hp - before, target);
   }
 

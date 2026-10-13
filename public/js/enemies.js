@@ -13,10 +13,10 @@ const angleDiff = (a, b) => ((b - a + Math.PI) % TAU + TAU) % TAU - Math.PI;
 const BAR_W = 5;
 const BAR_H = 0.55;
 
-// Everything a boat must steer around: the islands and the player's safe harbor.
+// Everything a boat must steer around: the islands and the wooden dock.
 const OBSTACLES = [
   ...WORLD.islands.map((i) => ({ x: i.x, z: i.z, r: i.r })),
-  { x: WORLD.safeHarbor.x, z: WORLD.safeHarbor.z, r: WORLD.safeHarbor.r },
+  { x: WORLD.dock.x, z: WORLD.dock.z, r: 8 },
 ];
 
 // A clear spot of open water (inside the sea, away from islands and the harbor).
@@ -61,10 +61,10 @@ export class Director {
   constructor() { this.timer = 0; }
 
   update(dt, enemies, player) {
-    HUNT.k += (clamp(((player.idle || 0) - 1.5) / 6, 0, 1) - HUNT.k) * Math.min(1, dt * 1.5);
+    HUNT.k = 0.6 + clamp(((player.idle || 0) - 1.0) / 4, 0, 0.4);
     this.timer -= dt;
     if (this.timer > 0) return;
-    this.timer = 0.5;
+    this.timer = 0.35;
     let n = 0;
     for (const e of enemies) if (e.alive && e.target && e.target.team === 'player') n++;
     HUNT.n = n;
@@ -114,7 +114,7 @@ export class EnemyBoat {
     this.state = this.boat.state;
     this.radius = ty.radius;
     this.big = ty.scale >= 1.2; // cruiser, gunboat and dreadnought are the heavy boats
-    this.playerBias = rand(0.1, 0.5); // small pull toward the player; distance and opportunity matter more
+    this.playerBias = rand(0.5, 1.1); // strong pull toward engaging the player
     this.hitScale = D.hitbox; // bullets and missiles use a slightly bigger hitbox
     this.maxHp = Math.round(ty.hp * D.hp * (ty.scale >= 1.2 ? D.bigHp : 1)); // big boats carry extra armour
     this.hp = this.maxHp;
@@ -132,8 +132,9 @@ export class EnemyBoat {
     // chance to dodge an incoming missile: nimble boats dodge about half the time, heavy ones a bit more
     this.skill = this.big ? rand(0.4, 0.6) * D.dodge : rand(0.35, 0.55) * D.dodge;
 
-    this.missileVsPlayer = { ...WEAPONS.enemyMissile, dmg: WEAPONS.enemyMissile.dmg * D.dmg };
-    this.missileVsEnemy = { ...WEAPONS.enemyMissile, dmg: WEAPONS.enemyMissile.dmg * D.dmgVsEnemy };
+    const missileDmg = this.big ? (WEAPONS.enemyMissile.dmgBig || 58) : (WEAPONS.enemyMissile.dmgSmall || 50);
+    this.missileVsPlayer = { ...WEAPONS.enemyMissile, dmg: missileDmg * D.dmg };
+    this.missileVsEnemy = { ...WEAPONS.enemyMissile, dmg: missileDmg * D.dmgVsEnemy };
 
     this.resetBrain();
     this.respawnTimer = 0;
@@ -219,28 +220,30 @@ export class EnemyBoat {
     this.gunTimer = 0.6 + Math.random();
     this.burstLeft = ty.gun ? ty.gun.burst : 0;
     this.missTimer = 2 + Math.random() * 3;
+    this.potionTarget = null;
+    this.healPulse = 0;
   }
 
   // Every boat (and every respawn of it) gets its own temperament, so no two fights look the same.
   rollPersonality() {
-    this.aggr = rand(0.2, 1); // how willingly it presses a fight
-    this.fleeHp = rand(AI.fleeHp[0], AI.fleeHp[1]); // health fraction where it starts thinking about running
-    this.grit = rand(0.15, 0.7); // chance to fight on to the end instead of running
-    this.boostLove = rand(0.3, 1.2) * (this.big ? 0.6 : 1);
-    this.grudge = rand(0.3, 1); // how hard it hits back at whoever hurt it
-    this.opp = rand(0.3, 1); // how much it likes weak or distracted targets
+    this.aggr = rand(0.70, 1.0); // aggressive, willing fighters
+    this.fleeHp = rand(AI.fleeHp[0], AI.fleeHp[1]); // only retreats at critically low health (0.10 - 0.22)
+    this.grit = rand(0.55, 0.92); // persistent, rarely gives up
+    this.boostLove = rand(0.65, 1.30) * (this.big ? 0.8 : 1);
+    this.grudge = rand(0.60, 1.0); // fierce retaliation
+    this.opp = rand(0.60, 1.0); // aggressive targeting of vulnerable foes
     this.greed = rand(AI.seekHp[0], AI.seekHp[1]); // goes for a potion below this health
     this.recover = rand(AI.recoverHp[0], AI.recoverHp[1]); // comes back from a retreat above this health
     this.wf = rand(1.6, 3.2); // defensive weave rhythm
     this.wph = rand(0, TAU);
-    this.wamp = rand(0.35, 0.7);
+    this.wamp = rand(0.30, 0.60);
     this.pauseMul = rand(AI.gunPause[0], AI.gunPause[1]);
-    this.sharp = rand(0.7, 1.3); // fondness for steep turns (see steering.js)
-    this.mood = Math.random() < 0.5 + this.aggr * 0.2 ? 'aggressive' : 'defensive'; // swings every few seconds, see pickMood()
+    this.sharp = rand(0.8, 1.3); // fondness for steep turns (see steering.js)
+    this.mood = Math.random() < 0.80 ? 'aggressive' : 'defensive'; // swings every few seconds, see pickMood()
     this.moodT = rand(AI.mood.time[0], AI.mood.time[1]);
     this.helm = new Helmsman(this.sharp);
     this.taste = {};
-    for (const k of TACTICS) this.taste[k] = rand(0.6, 1.4);
+    for (const k of TACTICS) this.taste[k] = rand(0.7, 1.3);
   }
 
   spawnPoint() {
@@ -289,6 +292,12 @@ export class EnemyBoat {
     if (this.hooks.onKilled) this.hooks.onKilled(this, by);
   }
 
+  onHealed() {
+    this.healPulse = 1.2;
+    this.bar.visible = true;
+    this.fill.material.color.setRGB(0.25, 1.0, 0.45);
+  }
+
   respawn() {
     const ctx = EnemyBoat.ctx;
     const p = (ctx && pickRespawn(this, ctx.enemies, ctx.player)) || this.spawnPoint();
@@ -302,8 +311,7 @@ export class EnemyBoat {
   // ------------------------------------------------------------------ helpers
 
   inSafeHarbor(st) {
-    const h = WORLD.safeHarbor;
-    return Math.hypot(st.x - h.x, st.z - h.z) < h.r;
+    return false; // No safe harbor immunity: combat is always live on the water!
   }
 
   pickRival(all) {
@@ -319,7 +327,7 @@ export class EnemyBoat {
     this.wp = null;
     this.wpHunt = false;
     if (Math.random() < AI.roamHunt) {
-      const pool = all.filter((o) => o !== this && o.alive && o.team !== this.team && !(o.team === 'player' && this.inSafeHarbor(o.state)));
+      const pool = all.filter((o) => o !== this && o.alive && o.team !== this.team);
       if (pool.length) {
         const o = (this.rival && this.rival.alive) ? this.rival : pool[Math.floor(Math.random() * pool.length)];
         for (let k = 0; k < 8; k++) {
@@ -351,42 +359,56 @@ export class EnemyBoat {
 
   // ------------------------------------------------------------ target choice
 
-  // Utility scoring: boats prioritize nearby targets, engage rivals, and only up to playerCap boats target player
+  // Utility scoring: treats player and other ships equally, prioritizing whoever is closest
   chooseTarget(player, all, hpR) {
     const s = this.state, ty = this.type;
-    if (this.jitT <= 0) { this.jit = {}; this.jitT = rand(5, 10); }
+    if (this.jitT <= 0) { this.jit = {}; this.jitT = rand(4, 8); }
     let best = null, bs = -Infinity, near = 0;
     for (const t of all) {
       if (t === this || !t.alive || t.team === this.team) continue;
       const isP = t.team === 'player';
-      if (isP && this.inSafeHarbor(t.state)) continue; // the harbor is off limits
-      if (!isP && this.noEnemyTimer > 0) continue;
       const d = Math.hypot(t.state.x - s.x, t.state.z - s.z);
       if (d < 65) near++;
-      // Fair detection reach for both player and enemy boats
-      const baseReach = ty.detect * (isP ? 1.4 : 1.4) * D.detectMul;
-      const reach = (t === this.target ? baseReach * 1.6 : baseReach);
+
+      // Fair distance reach
+      const baseReach = ty.detect * (isP ? 1.3 : 1.5) * D.detectMul;
+      const reach = (t === this.target ? baseReach * 1.5 : baseReach);
       if (d > reach) continue;
-      let sc = AI.wProx * (1 - clamp(d / 280, 0, 1)); // close = interesting
-      sc += AI.wWeak * (1 - t.hp / t.maxHp) * (0.5 + this.opp); // wounded = tempting
-      if (t.target && t.target !== this && t.target.alive) sc += AI.wBusy * this.opp; // busy with someone else = a free hit
-      if (t.target === this) sc += AI.wThreat; // it is coming for me
-      if (t === this.target) sc += AI.wSticky + (this.targetLock > 0 ? 1.4 : 0);
-      if (t.team === this.aggressor && this.aggressorAge < 12) sc += AI.wGrudge * this.grudge * (1 - this.aggressorAge / 12);
+
+      let sc = AI.wProx * (1 - clamp(d / 280, 0, 1));
+
+      // Limit player hunters to playerCap (prevents all boats swarming and congesting on player)
       if (isP) {
-        sc += this.playerBias + HUNT.k * 1.2;
+        sc += this.playerBias;
         const others = HUNT.n - (this.target === t ? 1 : 0);
-        if (others >= (AI.playerCap + Math.round(HUNT.k * 2))) {
-          sc -= 4.0; // soft cap exceeded: strongly prefer enemy vs enemy dogfights
+        if (others >= AI.playerCap) {
+          sc -= 6.0; // soft cap: fight rivals instead so boats do not dogpile player
         }
       } else {
-        sc += 1.0; // base motivation to fight other enemy boats
-        if (t === this.rival) sc += 2.0; // rival dogfight bonus!
+        sc += 2.2; // strong base motivation to dogfight other enemy boats
+        if (t === this.rival) sc += 2.8; // rival dogfight motivation
       }
-      if (t.maxHp > this.maxHp * 1.5 && hpR < 0.5) sc -= 0.5 * (1 - this.aggr); // timid boats avoid giants when hurt
+
+      // Wounded targets
+      sc += AI.wWeak * (1 - t.hp / t.maxHp) * (0.6 + this.opp);
+      if (t.hp / t.maxHp < 0.35 && d < 90) sc += 2.2 * this.opp;
+
+      // Aggressive focus on whoever is attacking or looking at us
+      if (t.target === this) sc += AI.wThreat * 1.4;
+      if (t === this.target) sc += AI.wSticky + (this.targetLock > 0 ? 0.8 : 0);
+
+      // Retaliation if hit
+      if (t.team === this.aggressor && this.aggressorAge < 10) {
+        sc += AI.wGrudge * this.grudge * (1 - this.aggressorAge / 10) * 2.2;
+      }
+
+      if (t.maxHp > this.maxHp * 1.5 && hpR < 0.5) sc -= 0.5 * (1 - this.aggr);
+
+      // Small jitter so boats don't all behave identically
       const key = t.uid == null ? 'p' : t.uid;
-      if (this.jit[key] == null) this.jit[key] = rand(-0.35, 0.35); // so two boats don't always choose alike
+      if (this.jit[key] == null) this.jit[key] = rand(-0.2, 0.2);
       sc += this.jit[key];
+
       if (sc > bs) { bs = sc; best = t; }
     }
     return { target: best, near };
@@ -434,12 +456,12 @@ export class EnemyBoat {
       return;
     }
     const choice = pickWeighted([
-      ['lastStand', 0.4 + this.grit * 1.6],
-      ['home', 0.7 * (1.2 - this.grit)],
-      ['far', 0.3 * (1.2 - this.grit)],
-      ['cover', 0.8],
-      ['kite', 0.6 + this.aggr * 0.4],
-      ['potion', pot ? 1.6 : 0],
+      ['lastStand', 0.3 + this.grit * 1.4],
+      ['home', 0.6 * (1.2 - this.grit)],
+      ['far', 0.25 * (1.2 - this.grit)],
+      ['cover', 0.7],
+      ['kite', 0.5 + this.aggr * 0.4],
+      ['potion', pot ? 3.6 : 0], // eager to grab nearby potions when low on health!
     ]);
     if (choice === 'lastStand') {
       this.lastStandT = rand(AI.lastStand[0], AI.lastStand[1]);
@@ -479,8 +501,12 @@ export class EnemyBoat {
       }
       if (!this.retreatPt) this.fleeStyle = 'home';
     }
-    // not every runner panic-boosts, and not at the same moment
-    if (Math.random() < 0.3 + 0.35 * this.boostLove) this.planBoost('flee', rand(0.2, 1.8), rand(1, 2.4));
+    // boost sprint towards potion or safe vector
+    if (style === 'potion') {
+      if (Math.random() < 0.55 + 0.4 * this.boostLove) this.planBoost('potion', 0, 1.8);
+    } else if (Math.random() < 0.3 + 0.35 * this.boostLove) {
+      this.planBoost('flee', rand(0.2, 1.8), rand(1, 2.4));
+    }
   }
 
   endFlee() {
@@ -619,10 +645,10 @@ export class EnemyBoat {
         }
         if (tdist > pref * 2.3) end(pickWeighted([['rush', 1], ['flank', 0.8], ['circle', 0.5]]));
         break;
-      case 'disengage': // break off, reposition (no shooting at the main target for a moment)
+      case 'disengage': // break off, reposition
         out.yaw = Math.atan2(-tdx, -tdz) + tac.side * 0.9;
         out.speed = spd * 0.9;
-        out.hold = true;
+        out.hold = false;
         break;
       case 'ram': // boosted charge
         out.yaw = icpt;
@@ -663,7 +689,7 @@ export class EnemyBoat {
         const pot = EnemyBoat.potions ? EnemyBoat.potions.nearest(s.x, s.z, POTION.seekRange * 1.5) : null;
         if (!pot) { this.fleeStyle = 'home'; break; }
         out.yaw = Math.atan2(pot.x - s.x, pot.z - s.z);
-        out.speed = spd * 0.95;
+        out.speed = spd * 1.05;
         break;
       }
       case 'cover': { // put an island between us and the chaser, wait a moment, then come back
@@ -722,22 +748,19 @@ export class EnemyBoat {
     return out;
   }
 
-  // The nearest hostile boat sitting in front of our guns (so passing boats trade shots even when
-  // neither has chosen the other as a "target").
+  // The nearest hostile boat sitting in front of our guns (snap shots at ANY passing enemy or player)
   scanFront(all) {
     const s = this.state, ty = this.type;
     let best = null, bd = 1e9;
     for (const o of all) {
       if (o === this || !o.alive || o.team === this.team) continue;
-      if (o.team === 'player') {
-        if (this.inSafeHarbor(o.state)) continue;
-        // snap shots at you obey the same soft cap as targeting: the whole sea does not open up on you at once
-        if (this.target !== o && HUNT.n >= AI.playerCap + Math.round(HUNT.k * 2)) continue;
-      }
       const dx = o.state.x - s.x, dz = o.state.z - s.z;
       const d = Math.hypot(dx, dz);
-      if (d > ty.range * 0.95 || d < 4) continue;
-      if (Math.abs(angleDiff(s.yaw, Math.atan2(dx, dz))) < AI.aimConeOpp && d < bd) { bd = d; best = o; }
+      if (d > ty.range * 1.1 || d < 3) continue;
+      if (Math.abs(angleDiff(s.yaw, Math.atan2(dx, dz))) < AI.aimConeOpp && d < bd) {
+        bd = d;
+        best = o;
+      }
     }
     return best;
   }
@@ -849,7 +872,7 @@ export class EnemyBoat {
     }
     if (this.mode === 'evade' && this.evadeTimer <= 0) this.thinkTimer = 0;
     if (this.moodT <= 0) this.pickMood(this.hp / this.maxHp, this.target && this.target.alive ? this.target : null);
-    if (this.thinkTimer <= 0) { this.think(player, all); this.thinkTimer = rand(0.3, 0.5); }
+    if (this.thinkTimer <= 0) { this.think(player, all); this.thinkTimer = rand(0.12, 0.22); }
 
     const tg = this.target && this.target.alive ? this.target : null;
     const tdx = tg ? tg.state.x - s.x : 0, tdz = tg ? tg.state.z - s.z : 0;
@@ -868,15 +891,33 @@ export class EnemyBoat {
     if (mt) this.dodgeSeen += dt;
     else if (this.dodging) { this.dodging = null; if (this.dodgeOk) this.afterDodge = true; } // dodged it: now turn on whoever fired
 
-    // reactive gunfire dodging: when taking incoming bullet fire, perform a quick snap jink left/right
-    if (pressure >= 1 && this.fireDodgeCd <= 0 && this.fireDodgeTimer <= 0 && this.mode !== 'evade') {
-      const dodgeRoll = (this.big ? 0.35 : 0.62) * D.dodge;
-      if (Math.random() < dodgeRoll) {
-        this.fireDodgeTimer = rand(0.35, 0.52);
-        this.fireDodgeDir = Math.random() < 0.5 ? 1 : -1;
-        this.fireDodgeCd = rand(3.5, 5.5); // cooldown so they don't dodge every single burst
-      } else {
-        this.fireDodgeCd = rand(1.8, 3.0);
+    // reactive gunfire dodging & evasive weave: when taking incoming bullet fire
+    if (pressure >= 1 && this.mode !== 'evade') {
+      if (this.fireDodgeCd <= 0 && this.fireDodgeTimer <= 0) {
+        const dodgeRoll = (this.big ? 0.42 : 0.72) * D.dodge;
+        if (Math.random() < dodgeRoll) {
+          // Check if being pursued from behind
+          const chaser = tg || (player.alive ? player : null);
+          const isBehind = chaser && Math.abs(angleDiff(s.yaw, Math.atan2(chaser.state.x - s.x, chaser.state.z - s.z))) > 1.9;
+          const rollAggro = Math.random();
+
+          if (isBehind && rollAggro < (0.30 + 0.35 * this.aggr) && this.mode === 'attack') {
+            // Aggressive Combat Reversal! Snap turn and fight back with guns blazing
+            this.setTactic(Math.random() < 0.55 ? 'counter' : 'pass');
+            this.fireDodgeCd = rand(2.5, 4.2);
+          } else {
+            // Evasive Weave: snap jink left/right to throw off bullet streams
+            this.fireDodgeTimer = rand(0.42, 0.72);
+            this.fireDodgeDir = Math.random() < 0.5 ? 1 : -1;
+            this.fireDodgeCd = rand(1.5, 2.6); // rapid, rhythmic evasive jinking
+            if (this.bEnergy >= D.boost.min * 1.4 && Math.random() < 0.35 * this.boostLove) {
+              this.startBoost('jink');
+              this.bPlan = { why: 'jink', delay: 0, dur: 0.8 };
+            }
+          }
+        } else {
+          this.fireDodgeCd = rand(1.0, 1.8);
+        }
       }
     }
 
@@ -949,12 +990,17 @@ export class EnemyBoat {
     // hurt boats head for a health potion (it is loot: it pulls fights towards it), unless they are busy breaking away
     const seeking = this.mode !== 'evade' && !(this.mode === 'flee' && this.fleeStyle === 'cover') && this.lastStandT <= 0
       && !(tacName === 'ram' || tacName === 'counter');
-    if (seeking && this.hp / this.maxHp < this.greed && EnemyBoat.potions) {
-      const pot = EnemyBoat.potions.nearest(s.x, s.z, POTION.seekRange);
-      if (pot) {
-        desiredYaw = Math.atan2(pot.x - s.x, pot.z - s.z);
-        desiredSpeed = Math.max(desiredSpeed, spd * 0.95);
+    const pot = EnemyBoat.potions ? EnemyBoat.potions.nearest(s.x, s.z, POTION.seekRange) : null;
+    if (seeking && pot && (this.hp / this.maxHp) < this.greed) {
+      this.potionTarget = pot;
+      desiredYaw = Math.atan2(pot.x - s.x, pot.z - s.z);
+      desiredSpeed = Math.max(desiredSpeed, spd * 1.08); // throttle up to claim potion!
+      if (!this.bOn && this.bEnergy >= D.boost.min && this.bCool <= 0 && Math.random() < 0.45 * this.boostLove) {
+        this.startBoost('potion');
+        this.bPlan = { why: 'potion', delay: 0, dur: 1.6 };
       }
+    } else {
+      this.potionTarget = null;
     }
 
     // dodges override everything else
@@ -963,23 +1009,23 @@ export class EnemyBoat {
       desiredYaw = this.sidestep(Math.sin(m.h), Math.cos(m.h), s.x - m.x, s.z - m.z);
       desiredSpeed = Math.max(desiredSpeed, spd * 0.95);
     } else if (this.fireDodgeTimer > 0) {
-      // quick reactive jink dodging incoming gunfire
-      desiredYaw = s.yaw + this.fireDodgeDir * 1.35;
-      desiredSpeed = Math.max(desiredSpeed, spd * 0.9);
-      turnBoost = 1.35;
+      // dynamic scissors / S-curve jink dodging incoming gunfire
+      const jinkWave = Math.sin(t * 7.5) * 0.35;
+      desiredYaw = s.yaw + this.fireDodgeDir * (0.85 + jinkWave);
+      desiredSpeed = Math.max(desiredSpeed, spd * 0.95);
+      turnBoost = 1.25;
     } else if (rammer) {
       desiredYaw = this.sidestep(rammer.fx, rammer.fz, rammer.rx, rammer.rz);
       desiredSpeed = Math.max(desiredSpeed, spd * 0.95);
     } else if (this.mode === 'attack' || this.mode === 'flee') {
-      // Defence while attacking: when someone is lining us up or shooting at us, weave. This is what
-      // makes a boat dangerous AND hard to hit instead of just running away.
+      // Defence while attacking: when someone is lining us up or shooting at us, weave.
       let aimedAtMe = false;
       if (tg && tdist < ty.range * 1.3 && tdist > 1) {
-        aimedAtMe = ((s.x - tg.state.x) * Math.sin(tg.state.yaw) + (s.z - tg.state.z) * Math.cos(tg.state.yaw)) / tdist > 0.85;
+        aimedAtMe = ((s.x - tg.state.x) * Math.sin(tg.state.yaw) + (s.z - tg.state.z) * Math.cos(tg.state.yaw)) / tdist > 0.82;
       }
-      const defence = clamp(pressure / 3 + (aimedAtMe ? 0.55 : 0) + this.recentDmg * 0.8, 0, 1);
-      let amp = (this.wamp * defence + 0.06) * (this.mood === 'defensive' ? AI.mood.defWeave : AI.mood.atkWeave);
-      if (tacName === 'turnabout' || (tacName === 'counter' && this.tac.phase === 'b')) amp *= 0.4; // swinging round: keep it accurate
+      const defence = clamp(pressure / 2.5 + (aimedAtMe ? 0.65 : 0) + this.recentDmg * 0.9, 0, 1);
+      let amp = (this.wamp * defence + 0.08) * (this.mood === 'defensive' ? AI.mood.defWeave : AI.mood.atkWeave);
+      if (tacName === 'turnabout' || (tacName === 'counter' && this.tac.phase === 'b')) amp *= 0.3; // swinging round: keep it accurate
       desiredYaw += Math.sin(t * this.wf + this.wph) * amp;
     }
 
@@ -1005,22 +1051,25 @@ export class EnemyBoat {
         const w = (margin - d) / margin;
         if (w > 0.3) urgent = true; // an island is close: full turning authority
         const nx = dx / d, nz = dz / d;
-        // push out and slide sideways so we go around instead of bouncing back
-        vx += (nx * 1.7 - nz * this.dir) * w * 2.6;
-        vz += (nz * 1.7 + nx * this.dir) * w * 2.6;
+        // Tangential glide around the obstacle rather than backwards push to maintain forward headway
+        const tx = -nz * this.dir, tz = nx * this.dir;
+        vx += (nx * 1.2 + tx * 2.0) * w * 2.0;
+        vz += (nz * 1.2 + tz * 2.0) * w * 2.0;
       }
     }
+    // Separation between boats (avoid crowding / congestions)
     for (const o of all) {
       if (o === this || !o.alive) continue;
       const dx = s.x - o.state.x, dz = s.z - o.state.z;
       const d = Math.hypot(dx, dz) || 0.001;
-      const margin = this.radius + o.radius + (o === tg ? 6 : SWARM.personalSpace);
+      const margin = this.radius + o.radius + (o === tg ? 7 : Math.max(16, SWARM.personalSpace));
       if (d < margin) {
         const w = (margin - d) / margin;
-        if (w > 0.5) urgent = true;
-        vx += (dx / d) * w * 1.6; vz += (dz / d) * w * 1.6;
+        if (w > 0.45) urgent = true;
+        vx += (dx / d) * w * 1.8; vz += (dz / d) * w * 1.8;
       }
     }
+
     if (this.mode === 'attack' && tg && tg.team !== 'player') {
       const ar = WORLD.arena;
       const mdx = ar.x - s.x, mdz = ar.z - s.z;
@@ -1061,7 +1110,10 @@ export class EnemyBoat {
     });
     s.yaw = hs.yaw;
     s.turnVel = hs.vel;
-    if (!this.bOn) desiredSpeed *= 1 - D.turnDrag * Math.min(1, Math.abs(hs.vel) / 1.8); // hard turns bleed speed, gentle curves don't
+    // Maintain forward headway - NEVER stop dead in water or pivot in place
+    const minHeadway = spd * (D.minCombatSpeed || 0.50);
+    const dragMul = 1 - (D.turnDrag || 0.16) * Math.min(1, Math.abs(hs.vel) / 1.8);
+    desiredSpeed = Math.max(minHeadway, desiredSpeed * dragMul);
     s.speed += (desiredSpeed - s.speed) * (1 - Math.exp(-(this.bOn ? 2.2 : 1.5) * dt));
     s.x += Math.sin(s.yaw) * s.speed * dt;
     s.z += Math.cos(s.yaw) * s.speed * dt;
@@ -1088,7 +1140,7 @@ export class EnemyBoat {
     // that wanders into the front of our guns. Boats passing each other trade shots.
     this.gunTimer -= dt;
     this.missTimer -= dt;
-    const canMain = tg && tdist < ty.range && ((this.mode === 'attack' && !hold) || (this.mode === 'flee' && snap));
+    const canMain = tg && tdist < ty.range * 1.15 && (this.mode === 'attack' || (this.mode === 'flee' && snap));
     let ft = canMain ? tg : null;
     if (!ft && ty.gun) ft = this.scanFront(all);
     if (ft) {
@@ -1096,7 +1148,7 @@ export class EnemyBoat {
       const fdx = ft.state.x - s.x, fdz = ft.state.z - s.z;
       const fdist = Math.hypot(fdx, fdz);
       const bspd = WEAPONS.enemyBullet.speed + Math.max(0, s.speed); // shots inherit our speed
-      const aimQ = vsPlayer ? D.aim + (1 - D.aim) * 0.8 * HUNT.k : D.aim; // idle targets get led perfectly
+      const aimQ = vsPlayer ? 0.85 + 0.15 * HUNT.k : 0.80; // sharp, aggressive lead
       const lead = (fdist / bspd) * aimQ; // aims ahead of a moving target
       const ax = ft.state.x + Math.sin(ft.state.yaw) * ft.state.speed * lead;
       const az = ft.state.z + Math.cos(ft.state.yaw) * ft.state.speed * lead;
@@ -1106,9 +1158,9 @@ export class EnemyBoat {
       const bx = s.x + Math.sin(s.yaw) * bow;
       const bz = s.z + Math.cos(s.yaw) * bow;
 
-      if (ty.gun && fdist < ty.range && aligned && this.gunTimer <= 0) {
+      if (ty.gun && fdist < ty.range * 1.15 && aligned && this.gunTimer <= 0) {
         const g = ty.gun;
-        const spread = (Math.random() - 0.5) * 2 * g.spread * (vsPlayer ? 1 - 0.5 * HUNT.k : 1);
+        const spread = (Math.random() - 0.5) * 2 * g.spread * 0.7;
         const eb = WEAPONS.enemyBullet;
         const dmg = g.dmg * (vsPlayer ? D.dmg * (1 + SWARM.huntDmg * HUNT.k) : D.dmgVsEnemy);
         if (g.twin) {
@@ -1124,25 +1176,30 @@ export class EnemyBoat {
         if (this.burstLeft <= 0) { this.burstLeft = g.burst; this.gunTimer = g.pause * this.pauseMul; }
         else this.gunTimer = g.rate;
       }
-      // missiles only at the main target, on a clean shot, and not while running for our life
-      if (ty.missile && ft === tg && canMain && aligned && fdist > 25 && this.missTimer <= 0 && this.mode !== 'evade') {
+      // missiles: fire at main target or any target in front when aligned and off cooldown
+      if (ty.missile && ft && aligned && fdist > 14 && fdist < ty.range * 1.15 && this.missTimer <= 0 && this.mode !== 'evade') {
         const base = vsPlayer ? this.missileVsPlayer : this.missileVsEnemy;
         const cfg = vsPlayer ? { ...base, dmg: base.dmg * (1 + SWARM.huntDmg * HUNT.k) } : base;
-        this.combat.fireMissile(this.team, bx, bz, aim, Math.max(cfg.speed, s.speed + 10), cfg, tg);
-        this.missTimer = ty.missile.cd * (vsPlayer ? 1 - 0.15 * HUNT.k : 1);
+        this.combat.fireMissile(this.team, bx, bz, aim, Math.max(cfg.speed, s.speed + 10), cfg, ft);
+        this.missTimer = ty.missile.cd * (vsPlayer ? 0.85 : 1);
       }
     }
 
     this.boat.syncModel(dt, t);
 
     // health bar floats above the boat and always faces the camera
-    this.bar.visible = this.hp < this.maxHp || this.mode !== 'roam';
+    this.bar.visible = this.hp < this.maxHp || this.mode !== 'roam' || this.healPulse > 0;
+    if (this.healPulse > 0) this.healPulse = Math.max(0, this.healPulse - dt * 1.5);
     if (this.bar.visible) {
       const f = clamp(this.hp / this.maxHp, 0, 1);
       this.bar.position.set(s.x, this.boat.group.position.y + 4.5 * ty.scale + 1.5, s.z);
       this.bar.quaternion.copy(camera.quaternion);
       this.fill.scale.x = Math.max(f, 0.001);
-      this.fill.material.color.setHSL(0.33 * f, 0.85, 0.55);
+      if (this.healPulse > 0) {
+        this.fill.material.color.setRGB(0.25, 1.0, 0.45);
+      } else {
+        this.fill.material.color.setHSL(0.33 * f, 0.85, 0.55);
+      }
     }
   }
 }

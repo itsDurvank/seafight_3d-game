@@ -62,15 +62,26 @@ export class Helmsman {
       if (this.style === 'snap') this.snapCd = rand(S.snap.cooldown[0], S.snap.cooldown[1]);
       this.pick(o);
     }
-    const style = o.urgent ? 'snap' : this.style;
+    // Prevent continuous snap-turn stall: if urgent and snap is on cooldown, use responsive sweep
+    let style = this.style;
+    if (o.urgent) {
+      if (this.snapCd <= 0 && this.style !== 'snap') {
+        style = 'snap';
+        this.t = rand(S.snap.t[0], S.snap.t[1]);
+      } else if (this.style === 'cruise') {
+        style = 'sweep';
+      }
+    }
     const cfg = S[style];
     let want = desired;
     if (style === 'cruise') want += Math.sin(this.clock * this.rate + this.ph) * S.meander; // gentle drift instead of a ruler-straight line
     let diff = angleDiff(yaw, want);
-    // dead zone: small errors are ignored, which is what gives long straight runs
+    // dead zone: small errors are ignored, giving clean, straight runs
     const dz = cfg.dz;
     diff = Math.abs(diff) <= dz ? 0 : diff - Math.sign(diff) * dz;
-    const cap = o.maxTurn * cfg.factor;
+    // Cap turn rate smoothly: agile without spinning out of control
+    const factor = o.urgent && style === 'sweep' ? Math.min(0.85, cfg.factor * 1.25) : cfg.factor;
+    const cap = o.maxTurn * factor;
     const target = clamp(diff * S.gain, -cap, cap);
     const acc = (style === 'snap' ? S.snapAccel : S.accel) * dt;
     this.vel += clamp(target - this.vel, -acc, acc);
