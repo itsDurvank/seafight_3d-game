@@ -782,66 +782,196 @@ export function makeBeachLounger(def) {
 
 export function makeTreasureChest(def) {
   const g = new THREE.Group();
-  const wood = flat(0x4a2e16);
-  const iron = flat(0x22262a);
+  const wood = flat(0x381e0f); // Dark Caribbean mahogany
+  const gold = flat(0xd4af37, { metalness: 0.85, roughness: 0.25 });
+  const darkIron = flat(0x1e2024);
   const sand = flat(0xe9d8a6);
+  const velvet = flat(0x6a040f); // Crimson velvet lining
 
-  // Sand Mound Base
-  const mound = new THREE.Mesh(new THREE.CylinderGeometry(3.0, 3.8, 0.5, 8), sand);
-  mound.position.y = 0.25;
-  g.add(mound);
+  // 1. Soft Sand Dune Base with ripples
+  const dune = new THREE.Mesh(new THREE.CylinderGeometry(3.8, 4.6, 0.6, 12), sand);
+  dune.position.y = 0.3;
+  g.add(dune);
 
-  // Main Chest Body
-  const body = new THREE.Mesh(new THREE.BoxGeometry(3.2, 1.5, 2.0), wood);
-  body.position.set(0, 1.25, 0);
-  g.add(body);
+  // Decorative Starfish on sand
+  const starfish = new THREE.Mesh(new THREE.ConeGeometry(0.45, 0.15, 5), flat(0xff6b6b));
+  starfish.position.set(2.4, 0.62, 1.8);
+  starfish.rotation.x = Math.PI / 2;
+  g.add(starfish);
 
-  // Iron Edge Bands
-  for (const bx of [-1.55, -0.5, 0.5, 1.55]) {
-    const band = new THREE.Mesh(new THREE.BoxGeometry(0.18, 1.55, 2.05), iron);
-    band.position.set(bx, 1.25, 0);
-    g.add(band);
+  // 2. Main Chest Tub Body
+  const bodyGroup = new THREE.Group();
+  bodyGroup.position.set(0, 1.45, 0);
+
+  // Wooden core tub
+  const outerTub = new THREE.Mesh(new THREE.BoxGeometry(3.6, 1.7, 2.4), wood);
+  bodyGroup.add(outerTub);
+
+  // Crimson velvet interior
+  const innerVelvet = new THREE.Mesh(new THREE.BoxGeometry(3.2, 1.4, 2.0), velvet);
+  innerVelvet.position.y = 0.2;
+  bodyGroup.add(innerVelvet);
+
+  // Gilded Gold Corner Brackets & Riveted Straps
+  for (const bx of [-1.75, -0.6, 0.6, 1.75]) {
+    const strap = new THREE.Mesh(new THREE.BoxGeometry(0.2, 1.75, 2.46), gold);
+    bodyGroup.add(strap);
+  }
+  for (const bz of [-1.15, 1.15]) {
+    const strap = new THREE.Mesh(new THREE.BoxGeometry(3.66, 0.2, 0.2), gold);
+    strap.position.set(0, 0.75, bz);
+    const strapBot = new THREE.Mesh(new THREE.BoxGeometry(3.66, 0.2, 0.2), gold);
+    strapBot.position.set(0, -0.75, bz);
+    bodyGroup.add(strap, strapBot);
   }
 
-  // Front Keyhole Plate
-  const lock = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.5, 0.1), flat(0xffd700));
-  lock.position.set(0, 1.3, 1.05);
-  g.add(lock);
+  // Side Carrying Handles (Iron drop-rings)
+  for (const side of [-1, 1]) {
+    const mount = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.35, 0.35), darkIron);
+    mount.position.set(side * 1.85, 0, 0);
+    const ring = new THREE.Mesh(new THREE.TorusGeometry(0.35, 0.08, 5, 8), darkIron);
+    ring.position.set(side * 1.9, -0.2, 0);
+    ring.rotation.y = Math.PI / 2;
+    bodyGroup.add(mount, ring);
+  }
 
-  // Open Curved Lid tilted back
+  // Front Ornate Skull Medallion Lockplate
+  const lockPlate = new THREE.Mesh(new THREE.BoxGeometry(0.7, 0.7, 0.12), gold);
+  lockPlate.position.set(0, 0.1, 1.25);
+  const skullLock = new THREE.Mesh(new THREE.SphereGeometry(0.22, 6, 6), flat(0xf8f9fa));
+  skullLock.position.set(0, 0.15, 1.34);
+  bodyGroup.add(lockPlate, skullLock);
+
+  g.add(bodyGroup);
+
+  // 3. Arched Heavy Pirate Lid (tilted open 68 degrees)
   const lidGroup = new THREE.Group();
-  lidGroup.position.set(0, 2.0, -1.0);
-  lidGroup.rotation.x = -1.1;
-  const lid = new THREE.Mesh(
-    new THREE.CylinderGeometry(1.0, 1.0, 3.2, 8, 1, false, 0, Math.PI),
+  lidGroup.position.set(0, 2.3, -1.2);
+  lidGroup.rotation.x = -1.2;
+
+  // Wooden half-cylinder vault
+  const lidWood = new THREE.Mesh(
+    new THREE.CylinderGeometry(1.22, 1.22, 3.6, 10, 1, false, 0, Math.PI),
     wood
   );
-  lid.rotation.z = Math.PI / 2;
-  lid.position.set(0, 0, 1.0);
-  lidGroup.add(lid);
+  lidWood.rotation.z = Math.PI / 2;
+  lidWood.position.set(0, 0, 1.2);
+  lidGroup.add(lidWood);
+
+  // Velvet interior lining under lid
+  const lidVelvet = new THREE.Mesh(
+    new THREE.CylinderGeometry(1.08, 1.08, 3.4, 10, 1, false, 0, Math.PI),
+    velvet
+  );
+  lidVelvet.rotation.z = Math.PI / 2;
+  lidVelvet.position.set(0, 0, 1.2);
+  lidGroup.add(lidVelvet);
+
+  // Gilded lid bands
+  for (const bx of [-1.75, -0.6, 0.6, 1.75]) {
+    const archBand = new THREE.Mesh(
+      new THREE.CylinderGeometry(1.26, 1.26, 0.18, 10, 1, false, 0, Math.PI),
+      gold
+    );
+    archBand.rotation.z = Math.PI / 2;
+    archBand.position.set(bx, 0, 1.2);
+    lidGroup.add(archBand);
+  }
+
+  // Lid support chains
+  for (const side of [-1.5, 1.5]) {
+    const chain = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.04, 1.5, 4), gold);
+    chain.position.set(side, -0.5, 0.6);
+    chain.rotation.x = 0.5;
+    lidGroup.add(chain);
+  }
+
   g.add(lidGroup);
 
-  // Sparkling Glowing Gold Treasure Heap Inside
-  const goldPile = new THREE.Mesh(
-    new THREE.SphereGeometry(1.1, 6, 6),
+  // 4. Sparkling Glowing Hoard of Gold & Royal Treasures
+  const goldMound = new THREE.Mesh(
+    new THREE.SphereGeometry(1.3, 8, 8),
     new THREE.MeshStandardMaterial({
       color: 0xffd700,
-      emissive: 0xffa000,
-      emissiveIntensity: 1.4,
-      metalness: 0.9,
+      emissive: 0xffa500,
+      emissiveIntensity: 1.6,
+      metalness: 0.95,
       roughness: 0.2
     })
   );
-  goldPile.scale.set(1.3, 0.65, 0.85);
-  goldPile.position.set(0, 1.85, 0);
-  g.add(goldPile);
+  goldMound.scale.set(1.25, 0.6, 0.85);
+  goldMound.position.set(0, 2.05, 0.1);
+  g.add(goldMound);
 
-  // Loose Ruby & Emerald Gemstones on sand
-  const gem1 = new THREE.Mesh(new THREE.OctahedronGeometry(0.22), flat(0xef233c, { emissive: 0xef233c, emissiveIntensity: 1.2 }));
-  gem1.position.set(1.4, 0.55, 1.2);
-  const gem2 = new THREE.Mesh(new THREE.OctahedronGeometry(0.25), flat(0x06d6a0, { emissive: 0x06d6a0, emissiveIntensity: 1.2 }));
-  gem2.position.set(-1.3, 0.55, 1.3);
-  g.add(gem1, gem2);
+  // Cascading coins spilling over the front lip onto sand
+  for (let i = 0; i < 9; i++) {
+    const coin = new THREE.Mesh(new THREE.CylinderGeometry(0.2, 0.2, 0.06, 6), gold);
+    coin.rotation.x = 0.3 + Math.random() * 0.4;
+    coin.rotation.z = (Math.random() - 0.5) * 0.5;
+    coin.position.set(
+      (Math.random() - 0.5) * 2.2,
+      1.8 - i * 0.14,
+      1.25 + i * 0.12
+    );
+    g.add(coin);
+  }
+
+  // Golden Royal Chalice / Goblet
+  const chaliceStem = new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.18, 0.8, 6), gold);
+  chaliceStem.position.set(0.65, 2.5, 0);
+  const chaliceCup = new THREE.Mesh(new THREE.ConeGeometry(0.35, 0.5, 6), gold);
+  chaliceCup.rotation.x = Math.PI;
+  chaliceCup.position.set(0.65, 2.9, 0);
+  const chaliceGem = new THREE.Mesh(new THREE.OctahedronGeometry(0.12), flat(0xef233c, { emissive: 0xef233c, emissiveIntensity: 2.0 }));
+  chaliceGem.position.set(0.65, 2.9, 0.32);
+  g.add(chaliceStem, chaliceCup, chaliceGem);
+
+  // Pearl Necklace draped over side
+  for (let i = 0; i < 7; i++) {
+    const pearl = new THREE.Mesh(new THREE.SphereGeometry(0.09, 5, 5), flat(0xfffdf0, { roughness: 0.2 }));
+    pearl.position.set(-1.4 - i * 0.08, 2.05 - i * 0.18, 0.5 + i * 0.1);
+    g.add(pearl);
+  }
+
+  // Large Cut Gemstones with Radiant Emissive Glow
+  const gems = [
+    { x: -0.8, y: 2.3, z: 0.4, color: 0x00b4d8, geo: new THREE.OctahedronGeometry(0.28) },
+    { x: 0.1, y: 2.4, z: 0.5, color: 0xef233c, geo: new THREE.OctahedronGeometry(0.32) },
+    { x: -0.3, y: 2.35, z: -0.2, color: 0x10b981, geo: new THREE.DodecahedronGeometry(0.24) },
+    { x: 1.1, y: 2.15, z: 0.3, color: 0xa855f7, geo: new THREE.OctahedronGeometry(0.25) },
+    { x: 1.8, y: 0.65, z: 1.5, color: 0xef233c, geo: new THREE.OctahedronGeometry(0.22) },
+    { x: -1.7, y: 0.65, z: 1.4, color: 0x00b4d8, geo: new THREE.OctahedronGeometry(0.24) }
+  ];
+  for (const gm of gems) {
+    const mesh = new THREE.Mesh(
+      gm.geo,
+      new THREE.MeshStandardMaterial({
+        color: gm.color,
+        emissive: gm.color,
+        emissiveIntensity: 1.8,
+        roughness: 0.1
+      })
+    );
+    mesh.position.set(gm.x, gm.y, gm.z);
+    g.add(mesh);
+  }
+
+  // Weathered Pirate Skull on Sand beside chest
+  const skull = new THREE.Group();
+  skull.position.set(-2.0, 0.75, 1.0);
+  skull.rotation.set(-0.2, 0.6, -0.3);
+  const cranium = new THREE.Mesh(new THREE.SphereGeometry(0.38, 7, 7), flat(0xe2d9cc));
+  cranium.scale.set(1.0, 1.1, 1.15);
+  const jaw = new THREE.Mesh(new THREE.BoxGeometry(0.32, 0.28, 0.32), flat(0xded4c5));
+  jaw.position.set(0, -0.28, 0.15);
+  const eyeL = new THREE.Mesh(new THREE.SphereGeometry(0.09, 4, 4), flat(0x1a1a1a));
+  eyeL.position.set(-0.13, -0.05, 0.36);
+  const eyeR = new THREE.Mesh(new THREE.SphereGeometry(0.09, 4, 4), flat(0x1a1a1a));
+  eyeR.position.set(0.13, -0.05, 0.36);
+  const goldTooth = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.08, 0.06), gold);
+  goldTooth.position.set(0.08, -0.28, 0.32);
+  skull.add(cranium, jaw, eyeL, eyeR, goldTooth);
+  g.add(skull);
 
   return g;
 }
@@ -895,31 +1025,174 @@ export function makeSeaBuoy(def) {
 
 export function makeTent(def) {
   const g = new THREE.Group();
-  const canvas = flat(0x606c38);
-  const darkWood = flat(0x3e2723);
+  const deckWood = flat(0x8a5a36);
+  const canvasCream = flat(0xf4ece1); // Warm ivory wall canvas
+  const canvasRoof = flat(0x406a48);  // Rich forest safari green canopy
+  const canopyFly = flat(0x527958);
+  const darkWood = flat(0x4a2e16);
+  const ropeMat = flat(0xd4a373);
+  const carpetMat = flat(0x9d0208); // Persian crimson rug
 
-  // Triangular Canvas Tent Body
-  const tent = new THREE.Mesh(new THREE.ConeGeometry(3.4, 3.2, 4), canvas);
-  tent.position.y = 1.6;
-  tent.rotation.y = Math.PI / 4;
-  g.add(tent);
+  // 1. Raised Timber Deck Foundation with Front Entry Steps
+  const deck = new THREE.Mesh(new THREE.BoxGeometry(8.6, 0.45, 9.8), deckWood);
+  deck.position.y = 0.3;
+  g.add(deck);
 
-  // Ridge Pole
-  const ridge = new THREE.Mesh(new THREE.BoxGeometry(0.18, 0.18, 3.8), darkWood);
-  ridge.position.y = 3.15;
-  g.add(ridge);
+  // Deck corner foundation footings
+  for (const [fx, fz] of [[-4.0, -4.5], [4.0, -4.5], [-4.0, 4.5], [4.0, 4.5]]) {
+    const footing = new THREE.Mesh(new THREE.BoxGeometry(0.6, 0.5, 0.6), flat(0x3e2723));
+    footing.position.set(fx, 0.1, fz);
+    g.add(footing);
+  }
 
-  // Bedroll inside opening
-  const bedroll = new THREE.Mesh(new THREE.CylinderGeometry(0.45, 0.45, 1.8, 6), flat(0x3d5a80));
-  bedroll.rotation.z = Math.PI / 2;
-  bedroll.position.set(0, 0.35, 1.1);
-  g.add(bedroll);
+  // Front Step
+  const step = new THREE.Mesh(new THREE.BoxGeometry(3.6, 0.22, 1.2), deckWood);
+  step.position.set(0, 0.12, 5.2);
+  g.add(step);
 
-  // Small Camp Crate
-  const crate = new THREE.Mesh(new THREE.BoxGeometry(1.0, 0.8, 1.0), flat(0x8a5a32));
-  crate.position.set(2.4, 0.4, 0.5);
-  g.add(crate);
+  // 2. Main Tent Body (Cabin Wall Tent Architecture)
+  const tentGroup = new THREE.Group();
+  tentGroup.position.set(0, 0.52, -0.8);
 
+  // Vertical Wall Box (Canvas)
+  const sideWalls = new THREE.Mesh(new THREE.BoxGeometry(7.0, 2.6, 6.4), canvasCream);
+  sideWalls.position.y = 1.3;
+  tentGroup.add(sideWalls);
+
+  // High Sloping A-Frame Canvas Roof
+  const roofGeo = new THREE.ConeGeometry(5.4, 3.4, 4);
+  const roof = new THREE.Mesh(roofGeo, canvasRoof);
+  roof.position.y = 2.6 + 1.7;
+  roof.rotation.y = Math.PI / 4;
+  tentGroup.add(roof);
+
+  // Extended Front Porch Rain-Fly Awning
+  const flyAwning = new THREE.Mesh(new THREE.BoxGeometry(7.4, 0.18, 3.2), canopyFly);
+  flyAwning.position.set(0, 3.0, 3.8);
+  flyAwning.rotation.x = -0.25;
+  tentGroup.add(flyAwning);
+
+  // Timber Front Porch Support Columns
+  for (const px of [-3.4, 3.4]) {
+    const col = new THREE.Mesh(new THREE.CylinderGeometry(0.14, 0.16, 3.2, 6), darkWood);
+    col.position.set(px, 1.45, 4.8);
+    tentGroup.add(col);
+  }
+
+  // Timber Center Ridge Beam
+  const ridgeBeam = new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.12, 8.2, 6), darkWood);
+  ridgeBeam.rotation.x = Math.PI / 2;
+  ridgeBeam.position.set(0, 4.35, 0.6);
+  tentGroup.add(ridgeBeam);
+
+  // Front Open Doorway with Rolled-up Canvas Curtains
+  const doorCut = new THREE.Mesh(new THREE.BoxGeometry(2.6, 2.4, 0.3), flat(0x2b2d42));
+  doorCut.position.set(0, 1.2, 3.22);
+  tentGroup.add(doorCut);
+
+  // Rolled Canvas Curtains with leather tie straps
+  for (const cx of [-1.5, 1.5]) {
+    const roll = new THREE.Mesh(new THREE.CylinderGeometry(0.2, 0.2, 2.3, 6), canvasCream);
+    roll.position.set(cx, 1.2, 3.3);
+    const strap = new THREE.Mesh(new THREE.BoxGeometry(0.44, 0.12, 0.44), flat(0x5c3a21));
+    strap.position.set(cx, 1.2, 3.3);
+    tentGroup.add(roll, strap);
+  }
+
+  // Guy Ropes with ground pegs
+  for (const side of [-1, 1]) {
+    for (const rz of [-2.5, 1.5]) {
+      const peg = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.08, 0.6, 4), darkWood);
+      peg.position.set(side * 4.4, 0.15, rz);
+      const rope = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.03, 3.6, 3), ropeMat);
+      rope.position.set(side * 3.9, 1.3, rz);
+      rope.rotation.z = -side * 0.45;
+      tentGroup.add(peg, rope);
+    }
+  }
+
+  // 3. Luxurious Interior (Visible through open door)
+  // Persian Rug
+  const rug = new THREE.Mesh(new THREE.BoxGeometry(2.8, 0.04, 3.6), carpetMat);
+  rug.position.set(0, 0.05, 1.2);
+  tentGroup.add(rug);
+
+  // Expedition Camp Bed (Cot)
+  const bedFrame = new THREE.Mesh(new THREE.BoxGeometry(1.6, 0.45, 2.8), darkWood);
+  bedFrame.position.set(-1.0, 0.3, -0.6);
+  const mattress = new THREE.Mesh(new THREE.BoxGeometry(1.5, 0.25, 2.7), flat(0xffffff));
+  mattress.position.set(-1.0, 0.6, -0.6);
+  const blanket = new THREE.Mesh(new THREE.BoxGeometry(1.52, 0.18, 1.8), flat(0xba181b));
+  blanket.position.set(-1.0, 0.72, -0.3);
+  const pillow = new THREE.Mesh(new THREE.BoxGeometry(1.2, 0.2, 0.6), flat(0xfdf0d5));
+  pillow.position.set(-1.0, 0.75, -1.6);
+  tentGroup.add(bedFrame, mattress, blanket, pillow);
+
+  // 4. Fancy Porch Equipment & Atmosphere
+  // Glowing Brass Hurricane Lantern
+  const lanternHook = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.03, 0.5, 4), flat(0x1a1a1a));
+  lanternHook.position.set(0, 3.4, 4.6);
+  const lanternCap = new THREE.Mesh(new THREE.ConeGeometry(0.28, 0.2, 6), flat(0xd4af37));
+  lanternCap.position.set(0, 3.2, 4.6);
+  const lanternGlass = new THREE.Mesh(
+    new THREE.CylinderGeometry(0.2, 0.2, 0.45, 8),
+    new THREE.MeshStandardMaterial({
+      color: 0xffa200,
+      emissive: 0xff8c00,
+      emissiveIntensity: 2.4,
+      transparent: true,
+      opacity: 0.95
+    })
+  );
+  lanternGlass.position.set(0, 2.9, 4.6);
+  tentGroup.add(lanternHook, lanternCap, lanternGlass);
+
+  // Folding Field Table on Porch
+  const tableTop = new THREE.Mesh(new THREE.BoxGeometry(1.6, 0.14, 1.2), darkWood);
+  tableTop.position.set(2.2, 1.2, 3.6);
+  for (const [tx, tz] of [[-0.6, -0.4], [0.6, -0.4], [-0.6, 0.4], [0.6, 0.4]]) {
+    const leg = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.05, 1.2, 4), darkWood);
+    leg.position.set(2.2 + tx, 0.6, 3.6 + tz);
+    tentGroup.add(leg);
+  }
+  tentGroup.add(tableTop);
+
+  // Unrolled Treasure Map on table
+  const map = new THREE.Mesh(new THREE.PlaneGeometry(0.8, 0.6), flat(0xfefae0));
+  map.position.set(2.2, 1.28, 3.6);
+  map.rotation.x = -Math.PI / 2;
+  map.rotation.z = 0.2;
+  const compass = new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.12, 0.06, 8), flat(0xd4af37));
+  compass.position.set(2.4, 1.32, 3.5);
+  const mug = new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.08, 0.22, 6), flat(0x023e8a));
+  mug.position.set(1.7, 1.38, 3.4);
+  tentGroup.add(map, compass, mug);
+
+  // Safari Director's Chair on Porch
+  const chair = new THREE.Group();
+  chair.position.set(2.2, 0.55, 2.2);
+  chair.rotation.y = -0.4;
+  const seat = new THREE.Mesh(new THREE.BoxGeometry(0.9, 0.08, 0.8), flat(0xd4a373));
+  seat.position.y = 0.6;
+  const backrest = new THREE.Mesh(new THREE.BoxGeometry(0.9, 0.5, 0.08), flat(0xd4a373));
+  backrest.position.set(0, 1.0, -0.38);
+  for (const [cx, cz] of [[-0.4, -0.35], [0.4, -0.35], [-0.4, 0.35], [0.4, 0.35]]) {
+    const leg = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.04, 0.65, 4), darkWood);
+    leg.position.set(cx, 0.3, cz);
+    chair.add(leg);
+  }
+  chair.add(seat, backrest);
+  tentGroup.add(chair);
+
+  // Stack of Split Firewood outside deck
+  for (let i = 0; i < 5; i++) {
+    const log = new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.14, 1.5, 5), flat(0x5e3023));
+    log.rotation.z = Math.PI / 2;
+    log.position.set(-3.2, 0.2 + (i > 2 ? 0.22 : 0), 3.2 + (i % 3) * 0.3);
+    tentGroup.add(log);
+  }
+
+  g.add(tentGroup);
   return g;
 }
 
@@ -1059,36 +1332,188 @@ export function makeAnchor(def) {
 
 export function makeRowboats(def) {
   const g = new THREE.Group();
-  const hullWood = flat(0x7f5539);
-  const benchWood = flat(0xb08968);
-  const oarWood = flat(0xd4a373);
+  const teak = flat(0x6e4425);       // Rich weathered teak hull
+  const creamPaint = flat(0xf4f1ea); // Classic white painted waterline
+  const darkWalnut = flat(0x3e2716); // Walnut gunwales & seats
+  const brass = flat(0xd4af37, { metalness: 0.8, roughness: 0.3 });
+  const sand = flat(0xe9d8a6);
+  const ropeColor = flat(0xd4a373);
+  const oarWood = flat(0xc49a45);
 
-  const b1 = new THREE.Group();
-  b1.position.set(0, 0.7, 0);
-  b1.rotation.y = 0.2;
-  b1.rotation.z = 0.12;
+  // 1. Soft Beach Sand Ground Mound with Ripple Contours
+  const sandBase = new THREE.Mesh(new THREE.CylinderGeometry(5.2, 6.2, 0.5, 12), sand);
+  sandBase.position.y = 0.25;
+  g.add(sandBase);
 
-  const hull = new THREE.Mesh(new THREE.BoxGeometry(2.4, 1.1, 5.8), hullWood);
-  b1.add(hull);
-  const hollow = new THREE.Mesh(new THREE.BoxGeometry(2.0, 0.9, 5.4), flat(0x5c3a21));
-  hollow.position.y = 0.2;
-  b1.add(hollow);
+  // 2. Primary Beached Rowboat (Tilted resting naturally on the sand)
+  const boat = new THREE.Group();
+  boat.position.set(0.6, 0.85, 0.3);
+  boat.rotation.set(0.12, 0.45, 0.22); // Elegant rest tilt
 
-  for (const bz of [-1.5, 0, 1.5]) {
-    const bench = new THREE.Mesh(new THREE.BoxGeometry(2.1, 0.15, 0.65), benchWood);
-    bench.position.set(0, 0.35, bz);
-    b1.add(bench);
+  // Midship Keel & Flat Bottom
+  const bottom = new THREE.Mesh(new THREE.BoxGeometry(2.3, 0.3, 6.4), teak);
+  bottom.position.y = 0.15;
+  boat.add(bottom);
+
+  // White Painted Lower Waterline Band
+  const stripeL = new THREE.Mesh(new THREE.BoxGeometry(0.14, 0.35, 6.4), creamPaint);
+  stripeL.position.set(-1.18, 0.3, 0);
+  const stripeR = new THREE.Mesh(new THREE.BoxGeometry(0.14, 0.35, 6.4), creamPaint);
+  stripeR.position.set(1.18, 0.3, 0);
+  boat.add(stripeL, stripeR);
+
+  // Flared Upper Gunwale Planks (Port & Starboard)
+  const portSide = new THREE.Mesh(new THREE.BoxGeometry(0.16, 0.85, 6.4), teak);
+  portSide.position.set(-1.22, 0.75, 0);
+  portSide.rotation.z = -0.15; // Flared outward
+  const starSide = new THREE.Mesh(new THREE.BoxGeometry(0.16, 0.85, 6.4), teak);
+  starSide.position.set(1.22, 0.75, 0);
+  starSide.rotation.z = 0.15; // Flared outward
+  boat.add(portSide, starSide);
+
+  // Walnut Cap Rails (Gunwales)
+  const railL = new THREE.Mesh(new THREE.BoxGeometry(0.24, 0.16, 6.5), darkWalnut);
+  railL.position.set(-1.3, 1.18, 0);
+  const railR = new THREE.Mesh(new THREE.BoxGeometry(0.24, 0.16, 6.5), darkWalnut);
+  railR.position.set(1.3, 1.18, 0);
+  boat.add(railL, railR);
+
+  // Sharp Pointed Curved Bow Prow (+Z)
+  const stemPost = new THREE.Mesh(new THREE.CylinderGeometry(0.16, 0.2, 1.6, 5), darkWalnut);
+  stemPost.rotation.x = -0.45; // raked stem
+  stemPost.position.set(0, 0.85, 3.4);
+  const bowFillL = new THREE.Mesh(new THREE.BoxGeometry(0.16, 0.9, 1.8), teak);
+  bowFillL.rotation.y = 0.45;
+  bowFillL.position.set(-0.6, 0.75, 3.1);
+  const bowFillR = new THREE.Mesh(new THREE.BoxGeometry(0.16, 0.9, 1.8), teak);
+  bowFillR.rotation.y = -0.45;
+  bowFillR.position.set(0.6, 0.75, 3.1);
+  boat.add(stemPost, bowFillL, bowFillR);
+
+  // Flat Transom Stern (-Z)
+  const transom = new THREE.Mesh(new THREE.BoxGeometry(2.35, 1.15, 0.22), darkWalnut);
+  transom.rotation.x = 0.22; // raked stern
+  transom.position.set(0, 0.8, -3.2);
+  boat.add(transom);
+
+  // Brass Oarlocks (Rowlocks) on Gunwales
+  for (const rx of [-1.3, 1.3]) {
+    for (const rz of [-0.6, 0.8]) {
+      const oarlock = new THREE.Mesh(new THREE.TorusGeometry(0.12, 0.04, 4, 8, Math.PI), brass);
+      oarlock.rotation.x = -Math.PI / 2;
+      oarlock.position.set(rx, 1.3, rz);
+      boat.add(oarlock);
+    }
   }
 
-  const oar1 = new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.08, 5.2, 5), oarWood);
-  oar1.rotation.set(0.2, 0.3, 0.8);
-  oar1.position.set(0.3, 0.7, 0);
-  const oar2 = new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.08, 5.2, 5), oarWood);
-  oar2.rotation.set(-0.2, -0.3, -0.8);
-  oar2.position.set(-0.3, 0.7, 0);
-  b1.add(oar1, oar2);
+  // --- Interior Detail ---
+  // Slatted Floorboard bottom
+  const floorGrid = new THREE.Mesh(new THREE.BoxGeometry(1.8, 0.08, 4.8), darkWalnut);
+  floorGrid.position.set(0, 0.35, -0.2);
+  boat.add(floorGrid);
 
-  g.add(b1);
+  // Curved Hull Ribs (Frames)
+  for (let ribZ = -2.2; ribZ <= 1.8; ribZ += 1.0) {
+    const rib = new THREE.Mesh(new THREE.BoxGeometry(2.25, 0.08, 0.12), darkWalnut);
+    rib.position.set(0, 0.4, ribZ);
+    boat.add(rib);
+  }
+
+  // Walnut Thwarts (Rowing Benches)
+  const bowSeat = new THREE.Mesh(new THREE.ConeGeometry(0.9, 0.16, 3), darkWalnut);
+  bowSeat.rotation.y = Math.PI;
+  bowSeat.position.set(0, 1.0, 2.6);
+  const midThwart = new THREE.Mesh(new THREE.BoxGeometry(2.3, 0.16, 0.7), darkWalnut);
+  midThwart.position.set(0, 0.95, 0.2);
+  const sternSeat = new THREE.Mesh(new THREE.BoxGeometry(2.2, 0.16, 0.85), darkWalnut);
+  sternSeat.position.set(0, 0.95, -2.6);
+  boat.add(bowSeat, midThwart, sternSeat);
+
+  // --- Detailed Wooden Oars with Carved Spoon Blades ---
+  for (const [side, angle] of [[-1, -0.3], [1, 0.3]]) {
+    const oarGroup = new THREE.Group();
+    oarGroup.position.set(side * 0.4, 1.15, -0.2);
+    oarGroup.rotation.set(0.15, angle, side * 0.35);
+
+    const shaft = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.08, 5.8, 6), oarWood);
+    shaft.position.y = 0.5;
+    const blade = new THREE.Mesh(new THREE.BoxGeometry(0.42, 1.5, 0.06), oarWood);
+    blade.position.y = 3.2;
+    const collar = new THREE.Mesh(new THREE.CylinderGeometry(0.09, 0.09, 0.35, 6), flat(0x5c3a21));
+    collar.position.y = 0.8;
+    oarGroup.add(shaft, blade, collar);
+    boat.add(oarGroup);
+  }
+
+  // --- Cargo & Nautical Props inside boat ---
+  const cargoBox = new THREE.Mesh(new THREE.BoxGeometry(0.95, 0.65, 0.85), flat(0x8a5a32));
+  cargoBox.position.set(0.3, 0.75, -1.5);
+  cargoBox.rotation.y = 0.3;
+  boat.add(cargoBox);
+
+  const dittyBag = new THREE.Mesh(new THREE.DodecahedronGeometry(0.4, 0), flat(0x3d5a80));
+  dittyBag.position.set(-0.4, 0.65, -1.6);
+  boat.add(dittyBag);
+
+  // Vintage Red & White Lifebuoy Ring on Stern
+  const lifebuoy = new THREE.Group();
+  lifebuoy.position.set(0, 1.05, -3.35);
+  lifebuoy.rotation.x = -0.22;
+  const redRing = new THREE.Mesh(new THREE.TorusGeometry(0.55, 0.16, 6, 12), flat(0xef233c));
+  lifebuoy.add(redRing);
+  for (let s = 0; s < 4; s++) {
+    const strap = new THREE.Mesh(new THREE.CylinderGeometry(0.18, 0.18, 0.12, 6), flat(0xffffff));
+    strap.rotation.z = Math.PI / 2;
+    strap.rotation.y = (s * Math.PI) / 2;
+    strap.position.set(Math.cos((s * Math.PI) / 2) * 0.55, Math.sin((s * Math.PI) / 2) * 0.55, 0);
+    lifebuoy.add(strap);
+  }
+  boat.add(lifebuoy);
+
+  // Bow Brass Lantern
+  const bowLantern = new THREE.Mesh(
+    new THREE.BoxGeometry(0.32, 0.45, 0.32),
+    new THREE.MeshStandardMaterial({ color: 0xffd166, emissive: 0xffaa00, emissiveIntensity: 1.5 })
+  );
+  bowLantern.position.set(0, 1.35, 3.1);
+  boat.add(bowLantern);
+
+  g.add(boat);
+
+  // 3. Wooden Mooring Bollard & Coiled Hemp Rope on Sand
+  const bollard = new THREE.Mesh(new THREE.CylinderGeometry(0.24, 0.28, 1.8, 6), darkWalnut);
+  bollard.position.set(-2.8, 0.9, 1.8);
+  const bollardCap = new THREE.Mesh(new THREE.SphereGeometry(0.32, 6, 6), darkWalnut);
+  bollardCap.position.set(-2.8, 1.8, 1.8);
+  g.add(bollard, bollardCap);
+
+  for (let r = 1; r <= 3; r++) {
+    const ropeCoil = new THREE.Mesh(new THREE.TorusGeometry(r * 0.32, 0.08, 4, 12), ropeColor);
+    ropeCoil.rotation.x = Math.PI / 2;
+    ropeCoil.position.set(-2.8, 0.55 + (r === 2 ? 0.06 : 0), 1.8);
+    g.add(ropeCoil);
+  }
+
+  const hawser = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.06, 3.8, 4), ropeColor);
+  hawser.position.set(-1.4, 1.0, 2.4);
+  hawser.rotation.set(0.3, -0.6, -1.2);
+  g.add(hawser);
+
+  // 4. Companion Small Beached Canoe beside it
+  const canoe = new THREE.Group();
+  canoe.position.set(-3.2, 0.6, -1.4);
+  canoe.rotation.set(0.1, -0.7, -0.2);
+  const canoeHull = new THREE.Mesh(new THREE.CylinderGeometry(0.9, 0.7, 4.2, 7), teak);
+  canoeHull.rotation.x = Math.PI / 2;
+  canoeHull.scale.set(1.2, 0.55, 1.0);
+  canoe.add(canoeHull);
+  const canoeHollow = new THREE.Mesh(new THREE.CylinderGeometry(0.75, 0.6, 3.8, 7), flat(0x3e2716));
+  canoeHollow.rotation.x = Math.PI / 2;
+  canoeHollow.scale.set(1.1, 0.5, 1.0);
+  canoeHollow.position.y = 0.12;
+  canoe.add(canoeHollow);
+  g.add(canoe);
+
   return g;
 }
 
