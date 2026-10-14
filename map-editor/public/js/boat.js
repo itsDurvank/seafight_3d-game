@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { BOAT, WORLD } from './config.js?v=speed7_clean';
+import { BOAT, WORLD } from './config.js?v=speed7_boostzoom75';
 import { waveHeight } from './waves.js';
 import { buildHeroBoat } from './heroBoat.js';
 import { buildClassicBoat } from './classicBoat.js';

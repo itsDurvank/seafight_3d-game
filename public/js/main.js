@@ -1,17 +1,17 @@
 import * as THREE from 'three';
 import './mapLoader.js'; // loads public/maps/default.json into WORLD before game initializes
-import { WORLD, BOAT, PLAYER, WEAPONS, COLORS, SWARM, KILL_REWARD, POTION } from './config.js?v=speed7_clean';
+import { WORLD, BOAT, PLAYER, WEAPONS, COLORS, SWARM, KILL_REWARD, POTION } from './config.js?v=speed7_boostzoom75';
 import { createWater } from './waves.js';
 import { createSky } from './sky.js';
 import { createWorld, resolveCollisions } from './world.js';
-import { Boat, PLAYER_STYLE } from './boat.js?v=speed7_clean';
+import { Boat, PLAYER_STYLE } from './boat.js?v=speed7_boostzoom75';
 import { Wake } from './wake.js';
 import { Minimap } from './minimap.js';
 import { createInput } from './input.js';
 import { createHud } from './hud.js';
 import { Combat } from './combat.js';
 import { Potions } from './potions.js';
-import { EnemyBoat, Director, HUNT } from './enemies.js?v=speed7_clean';
+import { EnemyBoat, Director, HUNT } from './enemies.js?v=speed7_boostzoom75';
 import { audio } from './audio.js';
 
 // ---------- renderer, scene, camera ----------
@@ -376,7 +376,8 @@ function updateCamera(dt) {
   );
   camera.lookAt(look);
 
-  const fov = BASE_FOV + Math.min(1.0, Math.max(0, s.speed) / BOAT.topCap) * 8 + (boat.boosting ? 5 : 0); // subtle zoom-out for speed feel without losing the action
+  // Boost zoom-out reduced by 25% (from 5 to 3.75)
+  const fov = BASE_FOV + Math.min(1.0, Math.max(0, s.speed) / BOAT.topCap) * 8 + (boat.boosting ? 3.75 : 0);
   if (Math.abs(camera.fov - fov) > 0.05) {
     camera.fov += (fov - camera.fov) * Math.min(1, dt * 4);
     camera.updateProjectionMatrix();
