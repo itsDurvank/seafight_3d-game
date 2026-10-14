@@ -79,13 +79,13 @@ export class Helmsman {
     // dead zone: 0 during urgent avoidance for instant tracking
     const dz = o.urgent ? 0 : cfg.dz;
     diff = Math.abs(diff) <= dz ? 0 : diff - Math.sign(diff) * dz;
-    // Full turning authority during obstacle glide
-    const factor = o.urgent ? 1.2 : (style === 'sweep' ? Math.min(0.85, cfg.factor * 1.25) : cfg.factor);
+    // Full turning authority during obstacle glide and urgent avoidance
+    const factor = o.urgent ? 1.5 : (style === 'sweep' ? Math.min(0.85, cfg.factor * 1.25) : cfg.factor);
     const cap = o.maxTurn * factor;
     const target = clamp(diff * S.gain, -cap, cap);
-    const acc = (o.urgent || style === 'snap' ? S.snapAccel * 1.5 : S.accel) * dt;
+    const acc = (o.urgent ? S.snapAccel * 2.8 : (style === 'snap' ? S.snapAccel * 1.5 : S.accel)) * dt;
     this.vel += clamp(target - this.vel, -acc, acc);
-    this.vel = clamp(this.vel, -o.maxTurn * (o.urgent ? 1.25 : 1.0), o.maxTurn * (o.urgent ? 1.25 : 1.0));
+    this.vel = clamp(this.vel, -o.maxTurn * (o.urgent ? 1.5 : 1.0), o.maxTurn * (o.urgent ? 1.5 : 1.0));
     return { yaw: yaw + this.vel * dt, vel: this.vel, style };
   }
 }
