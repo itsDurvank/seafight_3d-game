@@ -23,7 +23,7 @@
     #title small { display:block; font-weight:400; font-size:12px; opacity:.7; }
 
     /* ship health: glossy blue gauge in a wooden frame */
-    #hp { position:fixed; top:18px; left:16px; width:min(380px,46vw); height:38px; }
+    #hp { position:fixed; top:18px; left:70px; width:min(340px,42vw); height:38px; }
     .hp-frame { position:absolute; inset:0; z-index:2; padding:4px; border-radius:12px; border:3px solid #2e1b10;
       background:linear-gradient(#bd7647,#8f4f2a);
       box-shadow:inset 0 2px 0 rgba(255,214,170,.55), 0 3px 0 #5a2f16, 0 8px 16px rgba(0,60,90,.3); }
@@ -91,13 +91,105 @@
     #flash { position:fixed; inset:0; pointer-events:none; opacity:0;
       background:radial-gradient(ellipse at center, rgba(255,60,60,0) 55%, rgba(255,60,60,.65) 100%); }
 
-    @media (max-width:700px){ #minimap{width:130px;height:130px} #controls{display:none} .slot{width:70px} }
+    #settings-btn { position:fixed; top:16px; left:16px; width:42px; height:42px; padding:0; border-radius:12px;
+      font:inherit; font-size:22px; color:var(--ink); cursor:pointer; display:flex; align-items:center; justify-content:center;
+      z-index:10; transition:transform .08s ease, background .15s ease, box-shadow .15s ease; }
+    #settings-btn:hover { background:#fff0c4; transform:scale(1.05); }
+    #settings-btn:active { transform:translateY(2px); box-shadow:0 2px 0 var(--wood-dark), 0 6px 12px rgba(0,70,100,.25); }
+
+    #settings-modal { top:68px; left:16px; width:min(380px,92vw); padding:16px; z-index:50;
+      display:flex; flex-direction:column; gap:14px; animation:popIn 0.16s cubic-bezier(0.18, 0.89, 0.32, 1.25); }
+    #settings-modal.hidden { display:none; }
+    @keyframes popIn {
+      from { opacity:0; transform:scale(0.92) translateY(-6px); }
+      to { opacity:1; transform:scale(1) translateY(0); }
+    }
+    .settings-header { display:flex; align-items:center; justify-content:space-between; }
+    .settings-title { font-size:18px; font-weight:700; color:var(--ink); display:flex; align-items:center; gap:6px; }
+    .close-btn { width:30px; height:30px; border-radius:50%; font-size:14px; font-weight:700; cursor:pointer;
+      display:flex; align-items:center; justify-content:center; color:var(--ink); background:#fff3de;
+      border:2px solid #e8a35a; box-shadow:0 2px 0 var(--wood-dark); transition:transform .08s ease, background .15s ease; }
+    .close-btn:hover { background:#ffd9a0; transform:scale(1.08); }
+    .close-btn:active { transform:translateY(1px); }
+
+    .settings-section { display:flex; flex-direction:column; gap:10px; }
+    .settings-subtitle { font-size:13px; font-weight:700; color:#8f4f2a; text-transform:uppercase; letter-spacing:0.5px; }
+
+    .skin-picker { display:flex; flex-direction:column; gap:9px; }
+    .skin-card { position:relative; display:flex; align-items:center; gap:12px; padding:10px 12px;
+      background:#fff; border:2.5px solid #e3d0b3; border-radius:14px; cursor:pointer;
+      transition:transform .1s ease, border-color .15s ease, box-shadow .15s ease, background .15s ease; }
+    .skin-card:hover { border-color:#f2a33a; background:#fffbf3; transform:translateY(-1px); }
+    .skin-card.active { border-color:#ff8a3d; background:#fff8eb; box-shadow:0 0 0 2px #ff8a3d, 0 4px 12px rgba(255,138,61,0.28); }
+
+    .skin-badge { position:absolute; top:-8px; right:12px; font-size:9px; font-weight:700; padding:1px 7px;
+      border-radius:8px; text-transform:uppercase; color:#fff; letter-spacing:0.5px; }
+    .skin-badge.hot { background:linear-gradient(135deg, #ff5722, #ff9800); box-shadow:0 2px 5px rgba(255,87,34,0.4); }
+    .skin-badge.og { background:linear-gradient(135deg, #1fd1c9, #0d9488); box-shadow:0 2px 5px rgba(13,148,136,0.4); }
+
+    .skin-icon { font-size:24px; width:38px; height:38px; border-radius:10px; background:#f7ede0;
+      display:flex; align-items:center; justify-content:center; flex-shrink:0; }
+    .skin-card.active .skin-icon { background:#ffe3ca; }
+
+    .skin-info { flex:1; min-width:0; }
+    .skin-name { font-size:14px; font-weight:700; color:var(--ink); line-height:1.2; }
+    .skin-desc { font-size:11px; color:#8c674b; line-height:1.3; margin-top:2px; }
+
+    .skin-status { font-size:11px; font-weight:700; padding:4px 9px; border-radius:8px; background:#eadecc;
+      color:#7b593f; transition:all .15s ease; white-space:nowrap; }
+    .skin-card.active .skin-status { background:#ff8a3d; color:#fff; box-shadow:0 2px 6px rgba(255,138,61,0.35); }
+
+    .settings-footer { display:flex; flex-direction:column; gap:8px; padding-top:4px; border-top:1px dashed #e4cfb2; }
+    .settings-btn-action { background:#fff; border:2px solid #e3d0b3; border-radius:10px; padding:7px 10px;
+      font:inherit; font-size:12.5px; font-weight:600; color:var(--ink); cursor:pointer; display:flex;
+      align-items:center; justify-content:center; gap:6px; transition:all .1s ease; }
+    .settings-btn-action:hover { background:#fff5e3; border-color:#e8a35a; }
+    .settings-tip { font-size:11px; text-align:center; color:#8c674b; }
+
+    @media (max-width:700px){ #minimap{width:130px;height:130px} #controls{display:none} .slot{width:70px} #hp{width:min(260px,50vw)} }
   </style>
 </head>
 <body>
   <canvas id="game"></canvas>
   <div id="flash"></div>
   <div id="hitmarker"></div>
+  <button id="settings-btn" class="panel ui-btn" title="Settings">⚙️</button>
+
+  <div id="settings-modal" class="panel ui-btn hidden">
+    <div class="settings-header">
+      <div class="settings-title">⚙️ Settings</div>
+      <button id="settings-close" class="close-btn" title="Close">✕</button>
+    </div>
+    <div class="settings-section">
+      <div class="settings-subtitle">⛵ Boat Skin</div>
+      <div class="skin-picker">
+        <div class="skin-card" data-skin="hero" id="skin-card-hero">
+          <div class="skin-badge hot">NEW</div>
+          <div class="skin-icon">🔥</div>
+          <div class="skin-info">
+            <div class="skin-name">Sunfire Hero</div>
+            <div class="skin-desc">Lofted body • Dual autocannons • Afterburner</div>
+          </div>
+          <div class="skin-status" id="status-hero">Equip</div>
+        </div>
+        <div class="skin-card" data-skin="classic" id="skin-card-classic">
+          <div class="skin-badge og">OG</div>
+          <div class="skin-icon">⛵</div>
+          <div class="skin-info">
+            <div class="skin-name">Classic OG Boat</div>
+            <div class="skin-desc">Original cruiser • Twin guns • Roof rocket pod</div>
+          </div>
+          <div class="skin-status" id="status-classic">Equip</div>
+        </div>
+      </div>
+    </div>
+    <div class="settings-footer">
+      <button id="settings-audio-btn" class="settings-btn-action">
+        <span id="settings-audio-icon">🔊</span> <span id="settings-audio-text">Sound: On (M)</span>
+      </button>
+      <div class="settings-tip">Tip: Press <kbd>O</kbd> in-game to switch skins instantly!</div>
+    </div>
+  </div>
 
   <div id="title" class="panel">💥 Boom Boats<small>Battle Sailing</small></div>
 
@@ -164,7 +256,7 @@
     <kbd>Left click</kbd> fire (hold for gun)<br />
     <kbd>Shift</kbd> toggle boost (8s, refills) &mdash; ram!<br />
     <kbd>Space</kbd> brake (easier steering)<br />
-    <kbd>H</kbd> sail home &nbsp; <kbd>M</kbd> sound on/off
+    <kbd>H</kbd> sail home &nbsp; <kbd>O</kbd> boat skin &nbsp; <kbd>M</kbd> sound on/off
   </div>
   <div id="minimap-wrap" class="panel"><canvas id="minimap" width="200" height="200"></canvas></div>
 

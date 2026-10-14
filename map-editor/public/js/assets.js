@@ -1,4 +1,15 @@
 import * as THREE from 'three';
+import { AQUA_MAKERS } from './new_assets/assetsAqua_life and decoration.js';
+import { EXTRA_MAKERS } from './new_assets/assetsExtra.js';
+import { HAUNTED_MAKERS } from './new_assets/assetsHaunted.js';
+import { PIRATE_MAKERS } from './new_assets/assetsPirate.js';
+import { buildCozyChest } from './new_assets/pinkchest.js';
+import { buildSapphireChest } from './new_assets/sapphireChest.js';
+import { buildFloatingTreasure as buildSapphireTreasure } from './new_assets/treasure.js';
+import { buildFloatingTreasure as buildEmeraldTreasure } from './new_assets/treasure_emerald.js';
+import { buildTrophy } from './new_assets/trophy.js';
+import { buildBigBoat, buildSmallBoat } from './new_assets/boatsExtra.js';
+import { buildHeroBoat } from './heroBoat.js';
 
 // Low-poly flat shading helper
 const flat = (color, extra = {}) =>
@@ -1517,6 +1528,39 @@ export function makeRowboats(def) {
   return g;
 }
 
+// Boat asset helper builders for the world editor
+const EXTRA_BOAT_STYLES = {
+  pod: { hull: 0xff7aa8, accent: 0xfff0f5, cabin: 0xffc2d6, roof: 0xe84a82, flag: 0xffffff, look: 'pod' },
+  twin: { hull: 0x1fb36b, accent: 0xfff3b0, cabin: 0xc8f5dc, roof: 0x0b7d49, flag: 0xfff3b0, look: 'twin' },
+  dread: { hull: 0xff6b4a, accent: 0xffd166, cabin: 0xffc9a8, roof: 0xb23a24, flag: 0xffd166, look: 'dread' },
+  sail: { hull: 0xffa62b, accent: 0xffffff, cabin: 0xffe0a3, roof: 0xff7a1a, flag: 0xffffff, look: 'sail' },
+  raider: { hull: 0x8e6bff, accent: 0x39e6ff, cabin: 0xd9ccff, roof: 0x5b3fd1, flag: 0x39e6ff, look: 'raider' }
+};
+
+function makeExtraBoatAsset(look, def = {}) {
+  const style = EXTRA_BOAT_STYLES[look] || EXTRA_BOAT_STYLES.pod;
+  const isBig = look === 'pod' || look === 'twin' || look === 'dread';
+  const g = isBig ? buildBigBoat(style) : buildSmallBoat(style);
+  const mockBoat = { state: { speed: 8, turnVel: 0 } };
+  g.userData.tick = (t, dt = 0.016) => {
+    g.position.y = Math.sin(t * 1.6) * 0.08;
+    g.rotation.z = Math.sin(t * 1.2) * 0.025;
+    if (g.userData.update) g.userData.update(dt, t, mockBoat);
+  };
+  return g;
+}
+
+function makeHeroBoatAsset(def = {}) {
+  const g = buildHeroBoat();
+  const mockBoat = { state: { speed: 6, turnVel: 0 }, boosting: false };
+  g.userData.tick = (t, dt = 0.016) => {
+    g.position.y = Math.sin(t * 1.8) * 0.08;
+    g.rotation.z = Math.sin(t * 1.3) * 0.025;
+    if (g.userData.update) g.userData.update(dt, t, mockBoat);
+  };
+  return g;
+}
+
 // Master Dispatcher: builds 3D group for any asset definition
 export function makeAsset(def) {
   const root = new THREE.Group();
@@ -1526,85 +1570,281 @@ export function makeAsset(def) {
   root.scale.set(s, s, s);
 
   let visual;
-  switch (def.type) {
-    case 'sea_castle':
-      visual = makeSeaCastle(def);
-      break;
-    case 'tiki_bar':
-      visual = makeTikiBar(def);
-      break;
-    case 'beach_lounger':
-      visual = makeBeachLounger(def);
-      break;
-    case 'treasure_chest':
-      visual = makeTreasureChest(def);
-      break;
-    case 'sea_buoy':
-      visual = makeSeaBuoy(def);
-      break;
-    case 'tent':
-      visual = makeTent(def);
-      break;
-    case 'totem':
-      visual = makeTotem(def);
-      break;
-    case 'stone_ruins':
-      visual = makeStoneRuins(def);
-      break;
-    case 'anchor':
-      visual = makeAnchor(def);
-      break;
-    case 'rowboats':
-      visual = makeRowboats(def);
-      break;
-    case 'billboard':
-      visual = makeBillboard(def);
-      break;
-    case 'lighthouse':
-      visual = makeLighthouse(def);
-      break;
-    case 'watchtower':
-      visual = makeWatchtower(def);
-      break;
-    case 'cannon':
-      visual = makeCannon(def);
-      break;
-    case 'barrels':
-      visual = makeBarrels(def);
-      break;
-    case 'crates':
-      visual = makeCrates(def);
-      break;
-    case 'sea_mine':
-      visual = makeSeaMine(def);
-      break;
-    case 'shipwreck':
-      visual = makeShipwreck(def);
-      break;
-    case 'palm_grove':
-      visual = makePalmGrove(def);
-      break;
-    case 'sea_rocks':
-      visual = makeSeaRocks(def);
-      break;
-    case 'campfire':
-      visual = makeCampfire(def);
-      break;
-    case 'pier':
-      visual = makePier(def);
-      break;
-    default:
-      visual = makeBillboard(def);
+  if (AQUA_MAKERS[def.type]) {
+    visual = AQUA_MAKERS[def.type](def);
+  } else if (EXTRA_MAKERS[def.type]) {
+    visual = EXTRA_MAKERS[def.type](def);
+  } else if (HAUNTED_MAKERS[def.type]) {
+    visual = HAUNTED_MAKERS[def.type](def);
+  } else if (PIRATE_MAKERS[def.type]) {
+    visual = PIRATE_MAKERS[def.type](def);
+  } else {
+    switch (def.type) {
+      case 'sea_castle':
+        visual = makeSeaCastle(def);
+        break;
+      case 'tiki_bar':
+        visual = makeTikiBar(def);
+        break;
+      case 'beach_lounger':
+        visual = makeBeachLounger(def);
+        break;
+      case 'treasure_chest':
+        visual = makeTreasureChest(def);
+        break;
+      case 'sea_buoy':
+        visual = makeSeaBuoy(def);
+        break;
+      case 'tent':
+        visual = makeTent(def);
+        break;
+      case 'totem':
+        visual = makeTotem(def);
+        break;
+      case 'stone_ruins':
+        visual = makeStoneRuins(def);
+        break;
+      case 'anchor':
+        visual = makeAnchor(def);
+        break;
+      case 'rowboats':
+        visual = makeRowboats(def);
+        break;
+      case 'billboard':
+        visual = makeBillboard(def);
+        break;
+      case 'lighthouse':
+        visual = makeLighthouse(def);
+        break;
+      case 'watchtower':
+        visual = makeWatchtower(def);
+        break;
+      case 'cannon':
+        visual = makeCannon(def);
+        break;
+      case 'barrels':
+        visual = makeBarrels(def);
+        break;
+      case 'crates':
+        visual = makeCrates(def);
+        break;
+      case 'sea_mine':
+        visual = makeSeaMine(def);
+        break;
+      case 'shipwreck':
+        visual = makeShipwreck(def);
+        break;
+      case 'palm_grove':
+        visual = makePalmGrove(def);
+        break;
+      case 'sea_rocks':
+        visual = makeSeaRocks(def);
+        break;
+      case 'campfire':
+        visual = makeCampfire(def);
+        break;
+      case 'pier':
+        visual = makePier(def);
+        break;
+
+      // Chests & Trophies from new assets
+      case 'pink_chest_sea':
+        visual = buildCozyChest({ float: true });
+        break;
+      case 'pink_chest_land':
+        visual = buildCozyChest({ float: false });
+        break;
+      case 'sapphire_chest_sea':
+        visual = buildSapphireChest({ float: true });
+        break;
+      case 'sapphire_chest_land':
+        visual = buildSapphireChest({ float: false });
+        break;
+      case 'treasure_sea':
+        visual = buildSapphireTreasure({ float: true });
+        break;
+      case 'treasure_land':
+        visual = buildSapphireTreasure({ float: false });
+        break;
+      case 'emerald_treasure_sea':
+        visual = buildEmeraldTreasure({ float: true });
+        break;
+      case 'emerald_treasure_land':
+        visual = buildEmeraldTreasure({ float: false });
+        break;
+      case 'trophy_sea':
+        visual = buildTrophy({ carried: false });
+        break;
+      case 'trophy_pedestal':
+        visual = buildTrophy({ carried: true });
+        break;
+
+      // Boats from new assets
+      case 'boat_cruiser':
+        visual = makeExtraBoatAsset('pod', def);
+        break;
+      case 'boat_gunboat':
+        visual = makeExtraBoatAsset('twin', def);
+        break;
+      case 'boat_dreadnought':
+        visual = makeExtraBoatAsset('dread', def);
+        break;
+      case 'boat_skiff':
+        visual = makeExtraBoatAsset('sail', def);
+        break;
+      case 'boat_raider':
+        visual = makeExtraBoatAsset('raider', def);
+        break;
+      case 'hero_boat_prop':
+        visual = makeHeroBoatAsset(def);
+        break;
+
+      default:
+        visual = makeBillboard(def);
+    }
   }
 
   root.add(visual);
   root.userData.isAsset = true;
   root.userData.assetDef = def;
+  if (visual && visual.userData && visual.userData.tick) {
+    root.userData.tick = (t, dt) => visual.userData.tick(t, dt);
+  }
   return root;
 }
 
 // Catalog of available assets for the UI Palette
 export const ASSET_CATALOG = [
+  // --- New Assets Categorized by Source File Name ---
+  {
+    category: 'assetsAqua_life and decoration.js',
+    items: [
+      { type: 'coral_reef', name: 'Coral Reef', icon: '🪸', desc: 'Branching, brain, fan and tube corals on a sandy reef with rocks', defaultProps: { scale: 1.0, seed: 21 }, water: true },
+      { type: 'kelp_forest', name: 'Kelp Forest', icon: '🌿', desc: 'Swaying green kelp ribbons with floats around mossy rocks', defaultProps: { scale: 1.0, seed: 22 }, water: true },
+      { type: 'anemone_clownfish', name: 'Anemone & Clownfish', icon: '🐠', desc: 'Wavy anemone on a rock with two clownfish swimming around it', defaultProps: { scale: 1.0, seed: 33 }, water: true },
+      { type: 'giant_clam', name: 'Giant Clam & Pearl', icon: '🦪', desc: 'Ribbed clam that slowly opens and shuts around a glowing pearl', defaultProps: { scale: 1.0 }, water: true },
+      { type: 'bubble_vent', name: 'Bubble Vent', icon: '🫧', desc: 'Rocky vent with a glowing rim, tube worms and rising bubbles', defaultProps: { scale: 1.0 }, water: true },
+      { type: 'fish_school', name: 'Fish School', icon: '🐟', desc: 'Fourteen colourful fish circling in a school with ripples', defaultProps: { scale: 1.0, seed: 24 }, water: true },
+      { type: 'jellyfish_swarm', name: 'Jellyfish Swarm', icon: '🪼', desc: 'Four glowing, pulsing jellyfish drifting with trailing tentacles', defaultProps: { scale: 1.0 }, water: true },
+      { type: 'sea_turtle', name: 'Sea Turtle', icon: '🐢', desc: 'Friendly green turtle paddling along the surface', defaultProps: { scale: 1.0 }, water: true },
+      { type: 'manta_ray', name: 'Manta Ray', icon: '🦈', desc: 'Gliding manta with flapping wings, white spots and a long tail', defaultProps: { scale: 1.0 }, water: true },
+      { type: 'seahorse_pair', name: 'Seahorse Pair', icon: '🐴', desc: 'Two bobbing seahorses among seagrass on a sandy patch', defaultProps: { scale: 1.0 }, water: true },
+      { type: 'pufferfish', name: 'Pufferfish', icon: '🐡', desc: 'Round spiky pufferfish that puffs up and down', defaultProps: { scale: 1.0 }, water: true },
+      { type: 'whale', name: 'Blue Whale', icon: '🐋', desc: 'Giant smiling whale with a water spout and waving tail flukes', defaultProps: { scale: 1.0 }, water: true },
+      { type: 'dolphin_pair', name: 'Leaping Dolphins', icon: '🐬', desc: 'Two dolphins arcing out of the water with splash rings', defaultProps: { scale: 1.0 }, water: true },
+      { type: 'shark', name: 'Patrol Shark', icon: '🦈', desc: 'Grey shark with a fin circling its patch of sea, leaving a wake', defaultProps: { scale: 1.0 }, water: true },
+      { type: 'octopus', name: 'Cheerful Octopus', icon: '🐙', desc: 'Orange octopus with big eyes and curling tentacles on a rock', defaultProps: { scale: 1.0 }, water: true },
+      { type: 'seal_rock', name: 'Seal on a Rock', icon: '🦭', desc: 'Sleepy seal on a rock balancing a bouncing beach ball', defaultProps: { scale: 1.0 }, water: true },
+      { type: 'starfish_cluster', name: 'Starfish Beach', icon: '⭐', desc: 'Six colourful starfish, shells and pebbles on the sand', defaultProps: { scale: 1.0, seed: 30 } },
+      { type: 'giant_crab', name: 'Giant Crab', icon: '🦀', desc: 'Big red crab with snapping claws and wobbling eyestalks', defaultProps: { scale: 1.0 } },
+      { type: 'tide_pool', name: 'Tide Pool', icon: '🏝️', desc: 'Rock-ringed pool with a starfish, tiny crab, shells and seaweed', defaultProps: { scale: 1.0, seed: 35 } },
+      { type: 'lily_pond', name: 'Lily Pond', icon: '🪷', desc: 'Round pond with lily pads, lotus flowers, a frog and cattails', defaultProps: { scale: 1.0, seed: 34 } }
+    ]
+  },
+  {
+    category: 'assetsExtra.js',
+    items: [
+      { type: 'windmill', name: 'Island Windmill', icon: '🌬️', desc: 'Stone tower windmill with thatched roof and slowly turning sails', defaultProps: { scale: 1.0 } },
+      { type: 'fountain', name: 'Plaza Fountain', icon: '⛲', desc: 'Two-tier stone fountain with animated water jets', defaultProps: { scale: 1.0 } },
+      { type: 'market_stall', name: 'Market Stall', icon: '🍎', desc: 'Striped-awning stall with crates of fruit and a swaying lantern', defaultProps: { scale: 1.0 } },
+      { type: 'tiki_torches', name: 'Tiki Torch Row', icon: '🔥', desc: 'Three bamboo torches with flickering flames', defaultProps: { scale: 1.0 } },
+      { type: 'flower_garden', name: 'Flower Garden', icon: '🌸', desc: 'Round stone-bordered bed of colourful flowers and bushes', defaultProps: { scale: 1.0, seed: 7 } },
+      { type: 'crystal_cluster', name: 'Glowing Crystals', icon: '💎', desc: 'Pulsing violet and cyan crystal spires on a rocky base', defaultProps: { scale: 1.0, seed: 3 } }
+    ]
+  },
+  {
+    category: 'assetsHaunted.js',
+    items: [
+      { type: 'skeleton_fort', name: 'Skeleton Fort', icon: '💀', desc: 'Bone-spiked stone fortress with a giant skull gate, green-flame towers and a skull-pile bonfire', defaultProps: { scale: 1.0 } },
+      { type: 'bone_throne', name: 'Bone Throne', icon: '👑', desc: "Rib-fan throne topped by a red-eyed skull in a captain's hat, with candles and skulls", defaultProps: { scale: 1.0 } },
+      { type: 'reaper_totem', name: 'Reaper Totem', icon: '☠️', desc: 'Tall pole of glowing skulls with a horned reaper head, tattered banners and hooks', defaultProps: { scale: 1.0 } },
+      { type: 'graveyard', name: 'Pirate Graveyard', icon: '🪦', desc: 'Fenced cemetery with tombstones, a glowing open coffin, a rising skeleton hand and creeping fog', defaultProps: { scale: 1.0, seed: 7 } },
+      { type: 'haunted_tree', name: 'Haunted Tree', icon: '🌳', desc: 'Dead tree with a glowing face, swinging ghost lanterns, hanging skulls and crows', defaultProps: { scale: 1.0, seed: 9 } },
+      { type: 'gibbet_cages', name: 'Gibbet Cages', icon: '⛓️', desc: 'Gallows frame with three swinging cages of skeletons, chains and watching crows', defaultProps: { scale: 1.0 } },
+      { type: 'siren_shrine', name: 'Siren Shrine', icon: '🧜', desc: 'Eerie stone siren on a flooded altar with glowing teal runes, orbiting pearls and a floating orb', defaultProps: { scale: 1.0 } },
+      { type: 'volcano', name: 'Erupting Volcano', icon: '🌋', desc: 'Smoking volcano with glowing lava streams, flying fireballs and obsidian spikes', defaultProps: { scale: 1.0 } },
+      { type: 'ghost_ship', name: 'Ghost Ship Wreck', icon: '👻', desc: 'Half-sunk spectral ship with torn sails, green lanterns, a skeleton helmsman and drifting mist', defaultProps: { scale: 1.0 }, water: true },
+      { type: 'maelstrom', name: 'Maelstrom', icon: '🌀', desc: 'Swirling whirlpool with foaming spiral arms, a glowing abyss and debris spiralling in', defaultProps: { scale: 1.0 }, water: true }
+    ]
+  },
+  {
+    category: 'assetsPirate.js',
+    items: [
+      { type: 'jolly_roger', name: 'Jolly Roger Pole', icon: '🏴‍☠️', desc: 'Stone-based mast flying a waving skull-and-crossbones flag, guarded by skulls', defaultProps: { scale: 1.0 } },
+      { type: 'skull_cave', name: 'Skull Cave', icon: '💀', desc: 'Giant skull-shaped rock with a cave mouth and flickering green eyes', defaultProps: { scale: 1.0 } },
+      { type: 'dig_spot', name: 'X Marks the Spot', icon: '❌', desc: 'Red X in the sand, shovel, dirt mound, treasure map and a hole glinting with gold', defaultProps: { scale: 1.0 } },
+      { type: 'gold_hoard', name: 'Gold Hoard', icon: '🪙', desc: 'Heap of gold coins, gems, goblets and bars on a stone slab', defaultProps: { scale: 1.0, seed: 4 } },
+      { type: 'golden_idol', name: 'Golden Idol Shrine', icon: '🗿', desc: 'Stepped stone shrine with four torches and a glowing, spinning golden idol', defaultProps: { scale: 1.0 } },
+      { type: 'cannonball_stack', name: 'Cannonball Pyramid', icon: '⚫', desc: 'Neat pyramid of iron cannonballs in a wooden frame with a ramrod', defaultProps: { scale: 1.0 } },
+      { type: 'powder_magazine', name: 'Powder Magazine', icon: '🧨', desc: 'Domed stone bunker with iron door, DANGER sign, sandbags and powder kegs', defaultProps: { scale: 1.0 } },
+      { type: 'tnt_crates', name: 'TNT Crates', icon: '💥', desc: 'Stacked TNT crates, dynamite bundle, sparking fuse and a plunger detonator', defaultProps: { scale: 1.0 } },
+      { type: 'spike_barricade', name: 'Spike Barricade', icon: '🛡️', desc: 'Wooden hedgehogs, sharpened stakes, barbed rope and sandbags', defaultProps: { scale: 1.0 } },
+      { type: 'palisade_gate', name: 'Palisade Gate', icon: '🚪', desc: 'Log wall with a double iron-banded gate, skull-topped towers and torches', defaultProps: { scale: 1.0 } },
+      { type: 'burning_wreck', name: 'Burning Wreck', icon: '🔥', desc: 'Smashed ship hull with torn sail, roaring flames, smoke and flying embers', defaultProps: { scale: 1.0 } },
+      { type: 'pirate_shack', name: 'Pirate Shack', icon: '🏚️', desc: 'Ramshackle stilt tavern with a Grog & Gold sign, lantern and rum barrels', defaultProps: { scale: 1.0 } },
+      { type: 'crows_nest_mast', name: "Crow's Nest Mast", icon: '🔭', desc: 'Tall mast with rope ratlines, a barrel lookout and a skull pennant', defaultProps: { scale: 1.0 } },
+      { type: 'harbor_crane', name: 'Harbor Crane', icon: '🏗️', desc: 'Wooden cargo crane swinging a crate on a rope', defaultProps: { scale: 1.0 } },
+      { type: 'supply_drop', name: 'Supply Air Drop', icon: '🪂', desc: 'Parachuted loot crate with a red signal flare and golden light column', defaultProps: { scale: 1.0 } },
+      { type: 'loot_beacon', name: 'Loot Beacon', icon: '✨', desc: 'Pedestal with a spinning golden gem, rings, sparks and a tall light beam', defaultProps: { scale: 1.0 } },
+      { type: 'zone_marker', name: 'Storm Zone Marker', icon: '⚠️', desc: 'Ring of hazard pylons with spinning red rings and a pulsing danger wall', defaultProps: { scale: 1.0 } },
+      { type: 'floating_wreckage', name: 'Floating Wreckage', icon: '🪵', desc: 'Bobbing planks, barrel, mast piece, ring buoy and crate with foam rings', defaultProps: { scale: 1.0, seed: 15 }, water: true },
+      { type: 'kraken_tentacles', name: 'Kraken', icon: '🐙', desc: 'Giant purple kraken head with six writhing suckered tentacles', defaultProps: { scale: 1.0 }, water: true },
+      { type: 'sea_serpent', name: 'Sea Serpent', icon: '🐉', desc: 'Long finned serpent weaving in and out of the waves', defaultProps: { scale: 1.0 }, water: true }
+    ]
+  },
+  {
+    category: 'pinkchest.js',
+    items: [
+      { type: 'pink_chest_sea', name: 'Cozy Gift Chest (Floating)', icon: '🎀', desc: 'Pastel peach & rose chest with butter-yellow bow, heart latch, pillow life-ring and fairy lights', defaultProps: { scale: 1.0, float: true }, water: true },
+      { type: 'pink_chest_land', name: 'Cozy Gift Chest (Land)', icon: '🎁', desc: 'Pastel peach & rose chest with quilted lid, heart stamps, fairy lights and cocoa base', defaultProps: { scale: 1.0, float: false } }
+    ]
+  },
+  {
+    category: 'sapphireChest.js',
+    items: [
+      { type: 'sapphire_chest_sea', name: 'Royal Ruby Chest (Floating)', icon: '💎', desc: 'Royal ruby-red chest with gold brackets, red straps, life ring and radiant glints', defaultProps: { scale: 1.0, float: true }, water: true },
+      { type: 'sapphire_chest_land', name: 'Royal Ruby Chest (Land)', icon: '👑', desc: 'Royal ruby-red chest with gold corner caps, teal studs and recessed diamond emblems', defaultProps: { scale: 1.0, float: false } }
+    ]
+  },
+  {
+    category: 'treasure.js',
+    items: [
+      { type: 'treasure_sea', name: 'Sapphire Treasure Chest (Floating)', icon: '📦', desc: 'Blue-violet wood chest with gold corner caps, teal studs, life ring and radiant gold seam', defaultProps: { scale: 1.0, float: true }, water: true },
+      { type: 'treasure_land', name: 'Sapphire Treasure Chest (Land)', icon: '🧰', desc: 'Blue-violet chest with gold emblems, corner brackets and arched lid', defaultProps: { scale: 1.0, float: false } }
+    ]
+  },
+  {
+    category: 'treasure_emerald.js',
+    items: [
+      { type: 'emerald_treasure_sea', name: 'Emerald Treasure Chest (Floating)', icon: '💚', desc: 'Deep emerald chest with gold corner caps, keyhole, life ring and green glints', defaultProps: { scale: 1.0, float: true }, water: true },
+      { type: 'emerald_treasure_land', name: 'Emerald Treasure Chest (Land)', icon: '❇️', desc: 'Deep emerald chest with gold caps, keyhole and emerald studs', defaultProps: { scale: 1.0, float: false } }
+    ]
+  },
+  {
+    category: 'trophy.js',
+    items: [
+      { type: 'trophy_sea', name: 'Championship Trophy (Floating Sea)', icon: '🏆', desc: 'Gold hexagon trophy with raised star, stacked wings, navy pedestal and golden light beam', defaultProps: { scale: 1.0, carried: false }, water: true },
+      { type: 'trophy_pedestal', name: 'Championship Trophy (Pedestal)', icon: '🥇', desc: 'Gold championship trophy on navy pedestal with white name plate', defaultProps: { scale: 1.0, carried: true } }
+    ]
+  },
+  {
+    category: 'boatsExtra.js',
+    items: [
+      { type: 'boat_cruiser', name: 'Cruiser Gunboat', icon: '🚢', desc: 'Heavy pink-and-white cruiser with missile launcher, revolving radar and bow cannons', defaultProps: { scale: 1.0, boatLook: 'pod' }, water: true },
+      { type: 'boat_gunboat', name: 'Twin Gunboat', icon: '🛥️', desc: 'Green naval gunboat with twin turret cannons and smokestack', defaultProps: { scale: 1.0, boatLook: 'twin' }, water: true },
+      { type: 'boat_dreadnought', name: 'Dreadnought Warship', icon: '⚓', desc: 'Armored crimson flagship with triple turret, dual smokestacks and heavy bow guns', defaultProps: { scale: 1.0, boatLook: 'dread' }, water: true },
+      { type: 'boat_skiff', name: 'Catamaran Patrol Skiff', icon: '⛵', desc: 'Twin-pontoon orange skiff with striped sail, swivel gun and tyre fenders', defaultProps: { scale: 1.0, boatLook: 'sail' }, water: true },
+      { type: 'boat_raider', name: 'Raider Dart Boat', icon: '⚡', desc: 'Purple angular dart with glowing cyan visor, swept tail fins and twin gun pods', defaultProps: { scale: 1.0, boatLook: 'raider' }, water: true }
+    ]
+  },
+  {
+    category: 'heroBoat.js',
+    items: [
+      { type: 'hero_boat_prop', name: 'Sunfire Hero Boat', icon: '🚤', desc: 'Two-tone hydrofoil hero boat with cream deck, orange rub rail, cyan canopy and turbo engines', defaultProps: { scale: 1.0 }, water: true }
+    ]
+  },
+
+  // --- Classic Core Assets ---
   {
     category: 'Structures & Landmarks',
     items: [
@@ -1790,3 +2030,4 @@ export const ASSET_CATALOG = [
     ]
   }
 ];
+

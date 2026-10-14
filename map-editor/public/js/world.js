@@ -265,11 +265,21 @@ function makeButterflies(scene) {
 export function createWorld(scene) {
   scene.add(makeDock());
   for (const def of WORLD.islands) scene.add(makeIsland(def));
+  const animatedAssets = [];
   if (Array.isArray(WORLD.assets)) {
-    for (const a of WORLD.assets) scene.add(makeAsset(a));
+    for (const a of WORLD.assets) {
+      const m = makeAsset(a);
+      scene.add(m);
+      if (m.userData && m.userData.tick) animatedAssets.push(m);
+    }
   }
   const flutter = makeButterflies(scene);
-  return { update: (t) => flutter(t) };
+  return {
+    update: (t) => {
+      flutter(t);
+      for (const m of animatedAssets) m.userData.tick(t);
+    }
+  };
 }
 
 // Soft collisions: bumping into things nudges the boat away, never hurts it.

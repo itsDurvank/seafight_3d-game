@@ -187,6 +187,18 @@ function buildAssetMesh(def) {
   const g = makeAsset(def);
   g.userData.id = def.id;
   g.userData.isAsset = true;
+
+  // Add an invisible pick proxy cylinder so thin/decal/animated assets can be clicked and dragged effortlessly
+  const r = Math.max(3.5, 4.2 * (def.scale || 1.0));
+  const pickProxy = new THREE.Mesh(
+    new THREE.CylinderGeometry(r, r, 8.0, 14),
+    new THREE.MeshBasicMaterial({ transparent: true, opacity: 0, depthWrite: false })
+  );
+  pickProxy.position.y = 4.0;
+  pickProxy.userData.id = def.id;
+  pickProxy.userData.isAsset = true;
+  g.add(pickProxy);
+
   scene.add(g);
   assetGroups.set(def.id, g);
 }
@@ -354,6 +366,46 @@ window.addEventListener('keydown', (e) => {
     return;
   }
 
+  // Arrow keys to nudge selected asset or island!
+  if (selected || selectedAsset) {
+    const target = selectedAsset || selected;
+    const isAsset = !!selectedAsset;
+    const step = e.shiftKey ? (snapSize > 0 ? snapSize * 5 : 10) : (snapSize > 0 ? snapSize : 2);
+    let moved = false;
+
+    if (e.key === 'ArrowLeft') {
+      target.x -= step;
+      moved = true;
+    } else if (e.key === 'ArrowRight') {
+      target.x += step;
+      moved = true;
+    } else if (e.key === 'ArrowUp') {
+      target.z -= step;
+      moved = true;
+    } else if (e.key === 'ArrowDown') {
+      target.z += step;
+      moved = true;
+    }
+
+    if (moved) {
+      e.preventDefault();
+      recordState();
+      if (isAsset) {
+        const grp = assetGroups.get(target.id);
+        if (grp) grp.position.set(target.x, target.y || 0, target.z);
+        marker.position.set(target.x, 0.25 + (target.y || 0), target.z);
+        renderAssetInspectorPos();
+      } else {
+        const grp = groups.get(target.id);
+        if (grp) grp.position.set(target.x, 0, target.z);
+        marker.position.set(target.x, 0.35, target.z);
+        renderInspectorPos();
+        checkOverlaps();
+      }
+      return;
+    }
+  }
+
   // WASD Flight (only active when not typing)
   const k = e.key.toLowerCase();
   if (k === 'w') keys.w = true;
@@ -443,30 +495,55 @@ renderer.domElement.addEventListener('pointerdown', (e) => {
   if (e.button !== 0) return;
   aim(e);
 
-  const allMeshes = [...groups.values(), ...assetGroups.values()];
-  const hit = ray.intersectObjects(allMeshes, true)[0];
-  let o = hit?.object;
-  while (o && o.userData.id === undefined) o = o.parent;
-  if (!o) return;
-
   const p = new THREE.Vector3();
-  ray.ray.intersectPlane(groundPlane, p);
+  if (!ray.ray.intersectPlane(groundPlane, p)) return;
 
   recordState();
 
-  if (o.userData.isAsset) {
-    const aDef = assets.find((a) => a.id === o.userData.id);
-    if (!aDef) return;
-    drag = { isAsset: true, def: aDef, dx: aDef.x - p.x, dz: aDef.z - p.z };
-    selectAsset(aDef);
-  } else {
-    const def = islands.find((i) => i.id === o.userData.id);
-    if (!def) return;
-    drag = { isAsset: false, def, dx: def.x - p.x, dz: def.z - p.z };
-    select(def);
+  // 1. If an asset is already selected and user clicks on or near its selection radius, drag it immediately!
+  if (selectedAsset) {
+    const selDist = Math.hypot(p.x - selectedAsset.x, p.z - selectedAsset.z);
+    const selRadius = Math.max(5.5, 5.5 * (selectedAsset.scale || 1.0));
+    if (selDist <= selRadius) {
+      drag = { isAsset: true, def: selectedAsset, dx: selectedAsset.x - p.x, dz: selectedAsset.z - p.z };
+      renderer.domElement.setPointerCapture(e.pointerId);
+      return;
+    }
   }
 
-  renderer.domElement.setPointerCapture(e.pointerId);
+  // 2. Test assets first with top priority (so props on islands or in water are never blocked by island terrain)
+  const assetMeshes = [...assetGroups.values()];
+  const assetHits = ray.intersectObjects(assetMeshes, true);
+  if (assetHits.length > 0) {
+    let o = assetHits[0].object;
+    while (o && o.userData.id === undefined) o = o.parent;
+    if (o && o.userData.id) {
+      const aDef = assets.find((a) => a.id === o.userData.id);
+      if (aDef) {
+        drag = { isAsset: true, def: aDef, dx: aDef.x - p.x, dz: aDef.z - p.z };
+        selectAsset(aDef);
+        renderer.domElement.setPointerCapture(e.pointerId);
+        return;
+      }
+    }
+  }
+
+  // 3. Test islands second (only if no asset was clicked)
+  const islandMeshes = [...groups.values()];
+  const islandHits = ray.intersectObjects(islandMeshes, true);
+  if (islandHits.length > 0) {
+    let o = islandHits[0].object;
+    while (o && o.userData.id === undefined) o = o.parent;
+    if (o && o.userData.id) {
+      const def = islands.find((i) => i.id === o.userData.id);
+      if (def) {
+        drag = { isAsset: false, def, dx: def.x - p.x, dz: def.z - p.z };
+        select(def);
+        renderer.domElement.setPointerCapture(e.pointerId);
+        return;
+      }
+    }
+  }
 });
 
 renderer.domElement.addEventListener('pointermove', (e) => {
@@ -772,6 +849,15 @@ function renderInspector(force = false) {
         </div>
       </div>
       <div class="form-row">
+        <label>Nudge Move</label>
+        <div style="display: flex; gap: 4px; width: 150px;">
+          <button class="tool-btn" id="btn-nudge-left" style="flex: 1; text-align: center; padding: 4px 2px;" title="Move Left (← / ArrowLeft)">◀</button>
+          <button class="tool-btn" id="btn-nudge-right" style="flex: 1; text-align: center; padding: 4px 2px;" title="Move Right (→ / ArrowRight)">▶</button>
+          <button class="tool-btn" id="btn-nudge-up" style="flex: 1; text-align: center; padding: 4px 2px;" title="Move Forward (↑ / ArrowUp)">▲</button>
+          <button class="tool-btn" id="btn-nudge-down" style="flex: 1; text-align: center; padding: 4px 2px;" title="Move Back (↓ / ArrowDown)">▼</button>
+        </div>
+      </div>
+      <div class="form-row">
         <label>Height (Y)</label>
         <div class="range-wrap">
           <input type="range" id="asset-pos-y" min="-5" max="30" step="0.5" value="${a.y || 0}">
@@ -844,6 +930,20 @@ function renderInspector(force = false) {
       marker.position.z = a.z;
     };
     $('asset-pos-z').onchange = () => { recordState(); };
+
+    const nudge = (dx, dz) => {
+      recordState();
+      a.x += dx;
+      a.z += dz;
+      const grp = assetGroups.get(a.id);
+      if (grp) grp.position.set(a.x, a.y || 0, a.z);
+      marker.position.set(a.x, 0.25 + (a.y || 0), a.z);
+      renderAssetInspectorPos();
+    };
+    if ($('btn-nudge-left')) $('btn-nudge-left').onclick = () => nudge(-(snapSize > 0 ? snapSize : 2), 0);
+    if ($('btn-nudge-right')) $('btn-nudge-right').onclick = () => nudge(snapSize > 0 ? snapSize : 2, 0);
+    if ($('btn-nudge-up')) $('btn-nudge-up').onclick = () => nudge(0, -(snapSize > 0 ? snapSize : 2));
+    if ($('btn-nudge-down')) $('btn-nudge-down').onclick = () => nudge(0, snapSize > 0 ? snapSize : 2);
 
     $('asset-pos-y').oninput = (e) => {
       $('val-asset-y').textContent = `${e.target.value}m`;
@@ -1140,6 +1240,7 @@ function renderHierarchy() {
       item.onclick = () => {
         selectAsset(a);
         focusSelected();
+        switchTab('inspector');
       };
       list.appendChild(item);
     }
@@ -1249,11 +1350,18 @@ resize();
 const clock = new THREE.Clock();
 renderer.setAnimationLoop(() => {
   const dt = clock.getDelta();
+  const t = clock.getElapsedTime();
   updateCameraFlight(dt);
   controls.update();
 
   if (marker.visible) {
     marker.rotation.y += dt * 0.8;
+  }
+
+  for (const g of assetGroups.values()) {
+    if (g.userData && g.userData.tick) {
+      g.userData.tick(t, dt);
+    }
   }
 
   renderer.render(scene, camera);

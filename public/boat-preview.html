@@ -1,0 +1,166 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Harbor Comet Boat Preview</title>
+  <style>
+    * { box-sizing: border-box; }
+    html, body { margin: 0; height: 100%; overflow: hidden; background: #78d9e9; font-family: system-ui, sans-serif; color: #2b241d; }
+    #preview { position: fixed; inset: 0; display: block; }
+    .hud {
+      position: fixed; left: 18px; top: 16px; width: min(340px, calc(100vw - 36px));
+      padding: 12px 14px; background: rgba(255, 245, 226, 0.92); border: 2px solid #d88c4a;
+      border-radius: 8px; box-shadow: 0 8px 22px rgba(16, 74, 90, 0.24); font-size: 14px; line-height: 1.35;
+    }
+    .hud strong { display: block; font-size: 16px; margin-bottom: 4px; }
+    .controls { opacity: 0.78; }
+    button {
+      appearance: none; border: 2px solid #9a5a2a; border-radius: 8px; background: #fff1c7; color: #2b241d;
+      padding: 7px 10px; margin-top: 10px; font: inherit; font-weight: 700; cursor: pointer;
+    }
+    button:hover { background: #ffe39b; }
+  </style>
+</head>
+<body>
+  <canvas id="preview"></canvas>
+  <div class="hud">
+    <strong>Harbor Comet</strong>
+    Standalone preview only. This page does not change the live game boat.
+    <div class="controls">Drag to orbit, wheel to zoom, click Boost to preview engine flames.</div>
+    <button id="boost">Boost Preview</button>
+  </div>
+  <script type="importmap">
+    { "imports": { "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js" } }
+  </script>
+  <script type="module">
+    import * as THREE from 'three';
+    import { buildHarborCometBoat } from './js/harborCometBoat.js';
+
+    const canvas = document.getElementById('preview');
+    const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
+    renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+    renderer.outputColorSpace = THREE.SRGBColorSpace;
+
+    const scene = new THREE.Scene();
+    scene.background = new THREE.Color(0x78d9e9);
+    scene.fog = new THREE.Fog(0x78d9e9, 28, 80);
+
+    const camera = new THREE.PerspectiveCamera(50, 1, 0.1, 120);
+    let yaw = 0.72;
+    let pitch = 0.34;
+    let dist = 11;
+    const target = new THREE.Vector3(0, 1.1, 0);
+
+    scene.add(new THREE.HemisphereLight(0xe8fcff, 0x4cb0d0, 1.0));
+    const sun = new THREE.DirectionalLight(0xfff2c8, 2.1);
+    sun.position.set(-6, 9, 7);
+    scene.add(sun);
+    const rim = new THREE.DirectionalLight(0x69fff0, 0.9);
+    rim.position.set(6, 4, -8);
+    scene.add(rim);
+
+    const boat = buildHarborCometBoat({ scale: 1.06 });
+    boat.rotation.y = -0.3;
+    scene.add(boat);
+
+    const water = new THREE.Mesh(
+      new THREE.PlaneGeometry(90, 90, 80, 80),
+      new THREE.MeshStandardMaterial({ color: 0x32b8d0, roughness: 0.72, metalness: 0.02, flatShading: true })
+    );
+    water.rotation.x = -Math.PI / 2;
+    water.position.y = -0.18;
+    scene.add(water);
+
+    const grid = new THREE.GridHelper(90, 45, 0xe8fffb, 0x1f91a8);
+    grid.position.y = -0.15;
+    grid.material.opacity = 0.18;
+    grid.material.transparent = true;
+    scene.add(grid);
+
+    const wakeMat = new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.34, depthWrite: false });
+    const wakes = [];
+    for (let i = 0; i < 12; i++) {
+      const ring = new THREE.Mesh(new THREE.RingGeometry(0.4 + i * 0.14, 0.45 + i * 0.14, 24), wakeMat.clone());
+      ring.rotation.x = -Math.PI / 2;
+      ring.scale.set(1.8, 0.55, 1);
+      ring.position.set(0, -0.13, -2.8 - i * 0.38);
+      scene.add(ring);
+      wakes.push(ring);
+    }
+
+    let dragging = false;
+    let lastX = 0;
+    let lastY = 0;
+    canvas.addEventListener('pointerdown', (event) => {
+      dragging = true;
+      lastX = event.clientX;
+      lastY = event.clientY;
+      canvas.setPointerCapture(event.pointerId);
+    });
+    canvas.addEventListener('pointerup', () => { dragging = false; });
+    canvas.addEventListener('pointermove', (event) => {
+      if (!dragging) return;
+      yaw -= (event.clientX - lastX) * 0.008;
+      pitch = clamp(pitch + (event.clientY - lastY) * 0.006, -0.05, 0.9);
+      lastX = event.clientX;
+      lastY = event.clientY;
+    });
+    canvas.addEventListener('wheel', (event) => {
+      event.preventDefault();
+      dist = clamp(dist + event.deltaY * 0.01, 6, 19);
+    }, { passive: false });
+
+    const clock = new THREE.Clock();
+    let boostUntil = 0;
+    document.getElementById('boost').addEventListener('click', () => { boostUntil = clock.elapsedTime + 2.5; });
+
+    function clamp(v, min, max) {
+      return Math.max(min, Math.min(max, v));
+    }
+
+    function resize() {
+      renderer.setSize(innerWidth, innerHeight);
+      camera.aspect = innerWidth / innerHeight;
+      camera.updateProjectionMatrix();
+    }
+    addEventListener('resize', resize);
+    resize();
+
+    function frame() {
+      const dt = Math.min(clock.getDelta(), 0.05);
+      const t = clock.elapsedTime;
+      const boosting = t < boostUntil;
+      const previewState = {
+        state: { speed: boosting ? 125 : 72 + Math.sin(t * 0.7) * 18, turnVel: Math.sin(t * 0.9) * 0.9 },
+        boosting,
+      };
+      boat.userData.update?.(dt, t, previewState);
+      boat.position.y = Math.sin(t * 1.7) * 0.07;
+      boat.rotation.z = Math.sin(t * 1.3) * 0.045;
+      boat.rotation.x = Math.sin(t * 1.9) * 0.035;
+
+      const wave = water.geometry.attributes.position;
+      for (let i = 0; i < wave.count; i++) {
+        const x = wave.getX(i);
+        const y = wave.getY(i);
+        wave.setZ(i, Math.sin(x * 0.28 + t * 1.5) * 0.08 + Math.cos(y * 0.22 + t * 1.1) * 0.07);
+      }
+      wave.needsUpdate = true;
+      water.geometry.computeVertexNormals();
+
+      wakes.forEach((ring, i) => {
+        ring.position.z = -2.4 - ((t * (boosting ? 1.3 : 0.75) + i * 0.42) % 5.0);
+        ring.material.opacity = Math.max(0, 0.32 - i * 0.018) + (boosting ? 0.12 : 0);
+      });
+
+      const cp = Math.cos(pitch);
+      camera.position.set(Math.sin(yaw) * cp * dist, target.y + Math.sin(pitch) * dist, Math.cos(yaw) * cp * dist);
+      camera.lookAt(target);
+      renderer.render(scene, camera);
+      requestAnimationFrame(frame);
+    }
+    frame();
+  </script>
+</body>
+</html>

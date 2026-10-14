@@ -47,7 +47,7 @@ export function createInput() {
 
   // left mouse button = fire
   addEventListener('pointerdown', (e) => {
-    if (e.target && e.target.closest && e.target.closest('.ui-btn, #controls')) return; // clicking the ? button is not a shot
+    if (e.target && e.target.closest && e.target.closest('.ui-btn, #controls, #settings-modal, #settings-btn')) return; // UI clicks are not shots
     if (e.button === 0) state.fire = true;
   });
   const release = (e) => { if (e.button === 0) state.fire = false; };

@@ -1,6 +1,8 @@
 import * as THREE from 'three';
 import { BOAT, WORLD } from './config.js';
 import { waveHeight } from './waves.js';
+import { buildHeroBoat } from './heroBoat.js';
+import { buildClassicBoat } from './classicBoat.js';
 
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 
@@ -9,12 +11,29 @@ function mat(color) {
 }
 
 export const PLAYER_STYLE = {
-  hull: 0xfff4e0, accent: 0xff7a59, cabin: 0xffd9a0, roof: 0xff8a3d, flag: 0xffe066, look: 'player', scale: 1,
+  hull: 0xfff4e0,
+  chine: 0xdce5e8,
+  accent: 0xff7a59,
+  cabin: 0xfff4e0,
+  roof: 0xd9803f,
+  flag: 0xffe066,
+  dark: 0x2b3440,
+  neon: 0x1fd1c9,
+  look: 'player',
+  scale: 1,
+  isPlayer: true,
 };
 
 // One model builder for every boat. `style.look` changes the silhouette so
 // each island's boat is easy to tell apart.
 function buildModel(style) {
+  const isPlayer = !!(style.isPlayer || style.look === 'player');
+  if (isPlayer) {
+    if (style.skin === 'classic') {
+      return buildClassicBoat(style);
+    }
+    return buildHeroBoat(style);
+  }
   const g = new THREE.Group();
   g.rotation.order = 'YXZ';
   const add = (mesh, x, y, z) => { mesh.position.set(x, y, z); g.add(mesh); return mesh; };
@@ -124,14 +143,48 @@ function buildModel(style) {
 
 export class Boat {
   constructor(scene, style = PLAYER_STYLE, spawn = WORLD.boatSpawn) {
+    this.scene = scene;
+    this.style = { ...style };
+    this.isPlayer = !!(style.isPlayer || style.look === 'player');
+
+    if (this.isPlayer) {
+      let savedSkin = 'hero';
+      try { savedSkin = localStorage.getItem('boom_boats_skin') || style.skin || 'hero'; } catch {}
+      this.currentSkin = savedSkin;
+      this.group = buildModel({ ...this.style, skin: this.currentSkin, isPlayer: true });
+    } else {
+      // Enemy boats & other small boats always keep their original models & skins
+      this.currentSkin = 'original';
+      this.group = buildModel({ ...this.style, isPlayer: false });
+    }
+
     this.scale = style.scale || 1;
     this.top = BOAT.baseTop; // current top speed (grows while you sail flat out)
     this.boostEnergy = BOAT.boostTime; // seconds of boost left in the meter
     this.boostOn = false; // Shift toggles this
     this.boostIdle = 0; // seconds since boost was last on
     this.state = { x: spawn.x, z: spawn.z, yaw: spawn.yaw, speed: 0, turnVel: 0 };
-    this.group = buildModel(style);
     scene.add(this.group);
+  }
+
+  setSkin(skinName) {
+    if (!this.isPlayer) return this.currentSkin;
+    if (skinName !== 'hero' && skinName !== 'classic') return this.currentSkin;
+    this.currentSkin = skinName;
+    try { localStorage.setItem('boom_boats_skin', skinName); } catch {}
+    if (this.group && this.scene) {
+      this.scene.remove(this.group);
+    }
+    this.group = buildModel({ ...this.style, skin: this.currentSkin, isPlayer: true });
+    this.scene.add(this.group);
+    this.group.position.set(this.state.x, 0, this.state.z);
+    this.group.rotation.y = this.state.yaw;
+    return this.currentSkin;
+  }
+
+  toggleSkin() {
+    if (!this.isPlayer) return this.currentSkin;
+    return this.setSkin(this.currentSkin === 'hero' ? 'classic' : 'hero');
   }
 
   get boosting() { return this.boostOn; }
@@ -225,6 +278,10 @@ export class Boat {
     g.rotation.y = s.yaw;
     g.rotation.x += (pitchT - g.rotation.x) * k;
     g.rotation.z += (rollT - g.rotation.z) * k;
+
+    if (g.userData && typeof g.userData.update === 'function') {
+      g.userData.update(dt, t, this);
+    }
   }
 
   teleport(x, z, yaw) {

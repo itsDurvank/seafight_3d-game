@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import './mapLoader.js'; // loads public/maps/default.json into WORLD.islands before anything else reads it
+import './mapLoader.js'; // loads public/maps/default.json into WORLD before game initializes
 import { WORLD, BOAT, PLAYER, WEAPONS, COLORS, SWARM, KILL_REWARD, POTION } from './config.js';
 import { createWater } from './waves.js';
 import { createSky } from './sky.js';
@@ -18,6 +18,7 @@ import { audio } from './audio.js';
 const canvas = document.getElementById('game');
 const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
 renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+renderer.outputColorSpace = THREE.SRGBColorSpace;
 
 const scene = new THREE.Scene();
 scene.fog = new THREE.Fog(COLORS.horizon, 110, 380);
@@ -62,6 +63,87 @@ const boat = new Boat(scene);
 const wake = new Wake(scene, 60);
 const minimap = new Minimap(document.getElementById('minimap'));
 
+// ---------- settings & skin selection ----------
+const settingsBtn = document.getElementById('settings-btn');
+const settingsModal = document.getElementById('settings-modal');
+const settingsClose = document.getElementById('settings-close');
+const skinHeroCard = document.getElementById('skin-card-hero');
+const skinClassicCard = document.getElementById('skin-card-classic');
+const statusHero = document.getElementById('status-hero');
+const statusClassic = document.getElementById('status-classic');
+const settingsAudioBtn = document.getElementById('settings-audio-btn');
+const settingsAudioIcon = document.getElementById('settings-audio-icon');
+const settingsAudioText = document.getElementById('settings-audio-text');
+
+function updateSettingsUI() {
+  const current = boat.currentSkin;
+  if (skinHeroCard && skinClassicCard) {
+    skinHeroCard.classList.toggle('active', current === 'hero');
+    skinClassicCard.classList.toggle('active', current === 'classic');
+    if (statusHero) statusHero.textContent = current === 'hero' ? 'Equipped' : 'Select';
+    if (statusClassic) statusClassic.textContent = current === 'classic' ? 'Equipped' : 'Select';
+  }
+}
+
+function applySkin(skinName, toast = true) {
+  const applied = boat.setSkin(skinName);
+  updateSettingsUI();
+  if (toast) {
+    audio.click();
+    const label = applied === 'hero' ? '🔥 Sunfire Hero Boat' : '⛵ Classic OG Boat';
+    hud.toast(`Equipped ${label}!`, 1800);
+  }
+}
+
+if (settingsBtn && settingsModal) {
+  const toggleSettings = () => {
+    updateSettingsUI();
+    settingsModal.classList.toggle('hidden');
+    audio.click();
+  };
+  settingsBtn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    toggleSettings();
+  });
+  if (settingsClose) {
+    settingsClose.addEventListener('click', (e) => {
+      e.stopPropagation();
+      settingsModal.classList.add('hidden');
+      audio.click();
+    });
+  }
+  addEventListener('click', (e) => {
+    if (!settingsModal.classList.contains('hidden') && !settingsModal.contains(e.target) && e.target !== settingsBtn) {
+      settingsModal.classList.add('hidden');
+    }
+  });
+  addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && !settingsModal.classList.contains('hidden')) {
+      settingsModal.classList.add('hidden');
+    }
+  });
+}
+
+if (skinHeroCard) skinHeroCard.addEventListener('click', () => applySkin('hero'));
+if (skinClassicCard) skinClassicCard.addEventListener('click', () => applySkin('classic'));
+
+// Quick toggle with 'O' key
+input.onPress('KeyO', () => {
+  const next = boat.currentSkin === 'hero' ? 'classic' : 'hero';
+  applySkin(next);
+});
+
+if (settingsAudioBtn) {
+  settingsAudioBtn.addEventListener('click', () => {
+    const isMuted = audio.toggleMute();
+    if (settingsAudioIcon) settingsAudioIcon.textContent = isMuted ? '🔇' : '🔊';
+    if (settingsAudioText) settingsAudioText.textContent = isMuted ? 'Sound: Muted (M)' : 'Sound: On (M)';
+    hud.toast(isMuted ? '🔇 Sound off (M)' : '🔊 Sound on (M)', 1200);
+  });
+}
+
+updateSettingsUI();
+
 let kills = 0;
 let warned = false;
 let shake = 0;
@@ -96,6 +178,7 @@ const player = {
     this.sinceHit = 0;
     audio.hurt();
     hud.flash(Math.min(0.9, 0.25 + n / 60));
+    if (boat.group?.userData?.hit) boat.group.userData.hit();
     if (this.hp <= 0) sink(by);
   },
 };
@@ -173,6 +256,7 @@ function respawnPlayer() {
   boat.teleport(WORLD.boatSpawn.x, WORLD.boatSpawn.z, WORLD.boatSpawn.yaw);
   boat.top = BOAT.baseTop;
   boat.cancelBoost();
+  boat.group.visible = true;
   player.hp = player.maxHp;
   player.alive = true;
   audio.respawn();
