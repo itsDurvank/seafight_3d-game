@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { WORLD, WEAPONS } from './config.js?v=firm_guns_20261015';
+import { WORLD, WEAPONS } from './config.js';
 import { audio } from './audio.js';
 
 const Y = 1.7; // projectile flight height

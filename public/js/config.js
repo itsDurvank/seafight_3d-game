@@ -100,7 +100,7 @@ export const PLAYER = {
 };
 
 export const WEAPONS = {
-  gun: { rate: 14, speed: 155, life: 1.4, dmg: 4, spread: 0.004, assistCone: 0, assist: 0, hitPad: 0.6 }, // Natural, firm bullet stream: firm speed (155) minimizes hose lag, zero aimbot snap (assistCone: 0), tight parallel spread (0.004), extended 1.4s life (prevents disappearing mid-air), and realistic 0.6m hitPad
+  gun: { rate: 14, speed: 280, life: 1.2, dmg: 4, spread: 0.002, turnLead: 0.10, assistCone: 0.16, assist: 0.45, hitPad: 0.8 }, // High velocity (280) + turn-rate compensation (turnLead: 0.10) keeps bullet stream firm and centered while circling/turning, tight parallel spread (0.002), and subtle micro-assist (0.16 rad / 45%) for clean hits without aimbot snapping
   // 56 dps if every shot lands (about half do), so ~2-10 s to sink a boat
   // Our missile works like a fighter-jet missile: it locks onto the boat nearest your crosshair when you
   // fire (inside `lockCone` radians either side of your heading, within `lockRange`), steers at it for

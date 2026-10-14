@@ -415,13 +415,15 @@ function respawnPlayer() {
 const angleDiff = (a, b) => ((b - a + Math.PI) % (Math.PI * 2) + Math.PI * 2) % (Math.PI * 2) - Math.PI;
 
 // Machine-gun aim assist. Bullets fly straight, so while you steer they trail behind your nose like a hose and miss.
-// If a boat is near your nose, bend the shot toward where that boat will be when the bullet arrives.
+// Compensating for turn rate (turnLead) keeps the stream centered with your nose while turning, and micro-assists targets in crosshairs.
 function gunAim(s) {
   const G = WEAPONS.gun;
-  if (!G.assistCone || !G.assist) return s.yaw;
+  const turnLead = (s.turnVel || 0) * (G.turnLead || 0);
+  const baseAngle = s.yaw + turnLead;
+  if (!G.assistCone || !G.assist) return baseAngle;
   const bs = G.speed + Math.max(0, s.speed);
   const reach = bs * G.life * 0.9;
-  let best = null, bestOff = G.assistCone, bestAng = s.yaw;
+  let best = null, bestOff = G.assistCone, bestAng = baseAngle;
   const pool = (mp && mp.mode === 'online') ? mp.getTargets() : enemies;
   for (const e of pool) {
     if (!e.alive) continue;
@@ -435,10 +437,10 @@ function gunAim(s) {
     }
     if (d > reach || d < 4) continue;
     const ang = Math.atan2(px - s.x, pz - s.z);
-    const off = angleDiff(s.yaw, ang);
-    if (Math.abs(off) < bestOff) { bestOff = Math.abs(off); best = e; bestAng = s.yaw + off; }
+    const off = angleDiff(baseAngle, ang);
+    if (Math.abs(off) < bestOff) { bestOff = Math.abs(off); best = e; bestAng = baseAngle + off; }
   }
-  return best ? s.yaw + (bestAng - s.yaw) * G.assist : s.yaw;
+  return best ? baseAngle + (bestAng - baseAngle) * G.assist : baseAngle;
 }
 
 // Fighter-jet style: the missile locks onto the boat closest to your nose (inside a cone, within range) at launch,
