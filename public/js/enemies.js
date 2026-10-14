@@ -34,30 +34,7 @@ function freeSpot(x, z, margin = 28) {
   return getObstacles().every((o) => Math.hypot(x - o.x, z - o.z) > o.r + margin);
 }
 
-// Check if a direct line between (x1, z1) and (x2, z2) is blocked by an island
-function findBlockingIsland(x1, z1, x2, z2, margin = 20) {
-  const dx = x2 - x1, dz = z2 - z1;
-  const lenSq = dx * dx + dz * dz;
-  if (lenSq < 9) return null;
-  const obs = getObstacles();
-  let closest = null, closestD = 1e9;
-  for (let i = 0; i < obs.length; i++) {
-    const o = obs[i];
-    const toX = o.x - x1, toZ = o.z - z1;
-    const t = clamp((toX * dx + toZ * dz) / lenSq, 0, 1);
-    const px = x1 + dx * t, pz = z1 + dz * t;
-    const r = o.r + margin;
-    const dSq = (px - o.x) * (px - o.x) + (pz - o.z) * (pz - o.z);
-    if (dSq < r * r) {
-      const d = Math.hypot(toX, toZ);
-      if (d < closestD) {
-        closestD = d;
-        closest = o;
-      }
-    }
-  }
-  return closest;
-}
+
 
 // How hard the swarm is hunting you right now (0..1): rises while you sit still.
 // HUNT.n = how many boats are currently going after you (used to keep the whole sea from piling on you).
@@ -631,27 +608,6 @@ export class EnemyBoat {
     const end = (next) => { tac.t = 0; tac.next = next; };
     const afterSwing = () => pickWeighted([['rush', 0.5 + this.aggr], ['circle', 0.8], ['pass', 0.6], ['flank', 0.4 * this.opp]]);
 
-    // Island awareness: check if an island blocks our direct path/line-of-sight to the target
-    const blk = findBlockingIsland(s.x, s.z, tg.state.x, tg.state.z, 22);
-    if (blk) {
-      // Smoothly flank and curve around the island to re-engage target on the other side
-      const toIslandX = s.x - blk.x, toIslandZ = s.z - blk.z;
-      const dIsl = Math.hypot(toIslandX, toIslandZ) || 1;
-      const inx = toIslandX / dIsl, inz = toIslandZ / dIsl;
-      const Rorb = blk.r + this.radius + 24;
-
-      const p1x = blk.x + (-inz * Rorb + inx * 8), p1z = blk.z + (inx * Rorb + inz * 8);
-      const p2x = blk.x + (inz * Rorb + inx * 8), p2z = blk.z + (-inx * Rorb + inz * 8);
-
-      const d1 = Math.hypot(p1x - tg.state.x, p1z - tg.state.z);
-      const d2 = Math.hypot(p2x - tg.state.x, p2z - tg.state.z);
-      const bestP = d1 <= d2 ? { x: p1x, z: p1z } : { x: p2x, z: p2z };
-
-      out.yaw = Math.atan2(bestP.x - s.x, bestP.z - s.z);
-      out.turn = 1.35;
-      out.speed = Math.max(spd * 0.80, Math.min(this.maxRun, tsp + 12));
-      return out;
-    }
 
     switch (tac.name) {
       case 'circle': { // classic orbit at our preferred range
@@ -1106,26 +1062,27 @@ export class EnemyBoat {
     const curSpd = Math.max(0, s.speed);
     const obstacles = getObstacles();
 
-    // 1. Predictive Island and Harbor Avoidance with Smooth Tangential Gliding
-    const islandLookAhead = Math.max(85, curSpd * 2.5);
+    // 1. Natural Island & Harbor Shore Avoidance
+    // Repels outward into open water without forcing an artificial circular orbit trap
+    const islandLookAhead = Math.max(45, curSpd * 1.6);
     for (const o of obstacles) {
       const toX = o.x - s.x, toZ = o.z - s.z;
       const d = Math.hypot(toX, toZ) || 0.001;
-      const safeRadius = o.r + this.radius + 22;
+      const safeRadius = o.r + this.radius + 12;
 
-      // Proximity check: active when approaching island boundary
-      const proxZone = safeRadius + 40;
+      // Proximity check: active only when nearing shoreline
+      const proxZone = safeRadius + 14;
       let proxW = 0;
       if (d < proxZone) {
-        proxW = clamp((proxZone - d) / 40, 0, 1);
+        proxW = clamp((proxZone - d) / 14, 0, 1);
       }
 
-      // Predictive forward raycast look-ahead
+      // Predictive forward look-ahead along current heading
       let rayW = 0;
       const forwardProj = toX * fx + toZ * fz;
       if (forwardProj > 0 && forwardProj < islandLookAhead + o.r) {
         const perpDist = Math.abs(toX * fz - toZ * fx);
-        const corridor = safeRadius + 20;
+        const corridor = safeRadius + 10;
         if (perpDist < corridor) {
           const fwdFactor = 1 - forwardProj / (islandLookAhead + o.r);
           const latFactor = 1 - perpDist / corridor;
@@ -1135,38 +1092,33 @@ export class EnemyBoat {
 
       const avoidWeight = Math.max(proxW, rayW);
       if (avoidWeight > 0) {
-        if (avoidWeight > 0.12) urgent = true;
+        if (avoidWeight > 0.2) urgent = true;
 
-        // Outward normal pushing away from island
+        // Outward normal pushing away from island into open sea
         const nx = -toX / d, nz = -toZ / d;
 
-        // Compute tangential gliding vectors
+        // Gentle tangential deflection to prevent head-on stalls
         const t1x = -nz, t1z = nx;
         const t2x = nz, t2z = -nx;
-
-        // Pick tangent: prefer one that leads toward target around the island or continues current turn
         let tx = t1x, tz = t1z;
         if (tg) {
           const toTgX = tg.state.x - s.x, toTgZ = tg.state.z - s.z;
-          const score1 = t1x * toTgX + t1z * toTgZ;
-          const score2 = t2x * toTgX + t2z * toTgZ;
-          if (score2 > score1) { tx = t2x; tz = t2z; }
+          if (t2x * toTgX + t2z * toTgZ > t1x * toTgX + t1z * toTgZ) { tx = t2x; tz = t2z; }
         } else {
-          const dot1 = t1x * fx + t1z * fz;
-          const dot2 = t2x * fx + t2z * fz;
-          if (dot2 > dot1) { tx = t2x; tz = t2z; }
+          if (t2x * fx + t2z * fz > t1x * fx + t1z * fz) { tx = t2x; tz = t2z; }
         }
 
-        // Throttle control: ease speed when heading toward an island so turn radius is tight and clean
-        if (forwardProj > 0 && avoidWeight > 0.18) {
-          const safeTurnSpd = Math.max(36, spd * (0.50 + 0.35 * (1 - avoidWeight)));
+        // Throttle control: ease speed when heading into shore so turns are smooth
+        if (forwardProj > 0 && avoidWeight > 0.25) {
+          const safeTurnSpd = Math.max(36, spd * (0.60 + 0.30 * (1 - avoidWeight)));
           desiredSpeed = Math.min(desiredSpeed, safeTurnSpd);
-          if (this.bOn && avoidWeight > 0.25) this.stopBoost();
+          if (this.bOn && avoidWeight > 0.35) this.stopBoost();
         }
 
-        const normFactor = 1.6 + proxW * 2.2;
-        const tangFactor = 3.2;
-        const push = avoidWeight * 5.0;
+        // Dominant outward repulsion + subtle deflection (NO centrifuge spin trap)
+        const normFactor = 2.6 + proxW * 1.4;
+        const tangFactor = 0.7;
+        const push = avoidWeight * 2.2;
         vx += (nx * normFactor + tx * tangFactor) * push;
         vz += (nz * normFactor + tz * tangFactor) * push;
       }
@@ -1177,11 +1129,12 @@ export class EnemyBoat {
       if (o === this || !o.alive) continue;
       const dx = s.x - o.state.x, dz = s.z - o.state.z;
       const d = Math.hypot(dx, dz) || 0.001;
-      const margin = this.radius + o.radius + (o === tg ? 7 : Math.max(16, SWARM.personalSpace));
+      const margin = this.radius + o.radius + (o === tg ? 8 : Math.max(20, SWARM.personalSpace + 6));
       if (d < margin) {
         const w = (margin - d) / margin;
-        if (w > 0.4) urgent = true;
-        vx += (dx / d) * w * 1.8; vz += (dz / d) * w * 1.8;
+        if (w > 0.35) urgent = true;
+        const pushW = w * 2.2;
+        vx += (dx / d) * pushW; vz += (dz / d) * pushW;
       }
     }
 
