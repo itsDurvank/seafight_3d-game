@@ -1,17 +1,17 @@
 import * as THREE from 'three';
 import './mapLoader.js'; // loads public/maps/default.json into WORLD before game initializes
-import { WORLD, BOAT, PLAYER, WEAPONS, COLORS, SWARM, KILL_REWARD, POTION } from './config.js?v=speed7_boostzoom75';
+import { WORLD, BOAT, PLAYER, WEAPONS, COLORS, SWARM, KILL_REWARD, POTION } from './config.js?v=speed7_boosttight2';
 import { createWater } from './waves.js';
 import { createSky } from './sky.js';
 import { createWorld, resolveCollisions } from './world.js';
-import { Boat, PLAYER_STYLE } from './boat.js?v=speed7_boostzoom75';
+import { Boat, PLAYER_STYLE } from './boat.js?v=speed7_boosttight2';
 import { Wake } from './wake.js';
 import { Minimap } from './minimap.js';
 import { createInput } from './input.js';
 import { createHud } from './hud.js';
 import { Combat } from './combat.js';
 import { Potions } from './potions.js';
-import { EnemyBoat, Director, HUNT } from './enemies.js?v=speed7_boostzoom75';
+import { EnemyBoat, Director, HUNT } from './enemies.js?v=speed7_boosttight2';
 import { audio } from './audio.js';
 
 // ---------- renderer, scene, camera ----------
@@ -362,11 +362,11 @@ function updateCamera(dt) {
   camFar += ((boat.boosting ? 0.35 : 1) - camFar) * Math.min(1, dt * 4);
   const speedFrac = Math.min(1.0, Math.max(0, s.speed) / BOAT.topCap) * camFar;
   camYaw += angleDiff(camYaw, s.yaw) * Math.min(1, dt * (boat.boosting ? 4.5 : 2.5)); // keeps up with fast turns
-  camZoom += ((boat.boosting ? 0.94 : 1) - camZoom) * Math.min(1, dt * 4);
+  camZoom += ((boat.boosting ? 0.90 : 1) - camZoom) * Math.min(1, dt * 4);
   const fx = Math.sin(camYaw), fz = Math.cos(camYaw);
   const back = (14 + speedFrac * 2.5) * camZoom; // stays close: only a small pull-back at speed
   camTarget.set(s.x - fx * back, (7 + speedFrac * 1.2) * camZoom, s.z - fz * back);
-  camera.position.lerp(camTarget, 1 - Math.exp(-dt * 4.5));
+  camera.position.lerp(camTarget, 1 - Math.exp(-dt * (boat.boosting ? 5.5 : 4.5)));
 
   shake = Math.max(0, shake - dt * 2.5);
   look.set(
@@ -376,8 +376,8 @@ function updateCamera(dt) {
   );
   camera.lookAt(look);
 
-  // Boost zoom-out reduced by 25% (from 5 to 3.75)
-  const fov = BASE_FOV + Math.min(1.0, Math.max(0, s.speed) / BOAT.topCap) * 8 + (boat.boosting ? 3.75 : 0);
+  // Boost zoom-out reduced 25% more (from 3.75 to 2.5)
+  const fov = BASE_FOV + Math.min(1.0, Math.max(0, s.speed) / BOAT.topCap) * 8 + (boat.boosting ? 2.5 : 0);
   if (Math.abs(camera.fov - fov) > 0.05) {
     camera.fov += (fov - camera.fov) * Math.min(1, dt * 4);
     camera.updateProjectionMatrix();
