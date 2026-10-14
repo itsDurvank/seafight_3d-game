@@ -4,7 +4,9 @@
   "description": "Boom Boats: a 3D browser battle-sailing game.",
   "main": "server/index.js",
   "scripts": {
-    "start": "node server/index.js"
+    "start": "node server/index.js",
+    "map:animated": "node -e \"const fs=require('fs'); fs.copyFileSync('backup_maps/NEW_MAP_WITH_ANIMATIONS/default.json', 'public/maps/default.json'); fs.copyFileSync('backup_maps/NEW_MAP_WITH_ANIMATIONS/default.json', 'map-editor/public/maps/default.json'); console.log('Loaded full animated 188-asset map for localhost!');\"",
+    "map:clean": "node -e \"const fs=require('fs'); fs.copyFileSync('backup_maps/LAST_MAP_NO_HEAVY_ANIMATION/default.json', 'public/maps/default.json'); fs.copyFileSync('backup_maps/LAST_MAP_NO_HEAVY_ANIMATION/default.json', 'map-editor/public/maps/default.json'); console.log('Restored clean 81-asset map for production/Vercel!');\""
   },
   "engines": {
     "node": ">=18"
