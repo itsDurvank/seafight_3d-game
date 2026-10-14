@@ -100,7 +100,7 @@ export const PLAYER = {
 };
 
 export const WEAPONS = {
-  gun: { rate: 14, speed: 280, life: 1.2, dmg: 4, spread: 0.002, turnLead: 0.10, assistCone: 0.16, assist: 0.45, hitPad: 0.8 }, // High velocity (280) + turn-rate compensation (turnLead: 0.10) keeps bullet stream firm and centered while circling/turning, tight parallel spread (0.002), and subtle micro-assist (0.16 rad / 45%) for clean hits without aimbot snapping
+  gun: { rate: 12, speed: 280, life: 1.2, dmg: 2.4, spread: 0.002, turnLead: 0.10, assistCone: 0.16, assist: 0.45, hitPad: 0.8 }, // Twin cannons: both left & right barrels fire simultaneously every shot, firm velocity (280) + turnLead (0.10), tight parallel spread (0.002), and balanced 2.4 dmg per barrel (~57 DPS total)
   // 56 dps if every shot lands (about half do), so ~2-10 s to sink a boat
   // Our missile works like a fighter-jet missile: it locks onto the boat nearest your crosshair when you
   // fire (inside `lockCone` radians either side of your heading, within `lockRange`), steers at it for

@@ -512,15 +512,18 @@ export class MultiplayerManager {
       const yaw = Number(msg.yaw ?? msg.heading) || 0;
 
       if (msg.weapon === 'gun') {
-        this.combat.fireBullet(
-          id,
-          msg.x,
-          msg.z,
-          yaw,
-          msg.speed || WEAPONS.gun.speed,
-          WEAPONS.gun.dmg,
-          WEAPONS.gun.life
-        );
+        const lx = Math.cos(yaw), lz = -Math.sin(yaw);
+        for (const side of [-1, 1]) {
+          this.combat.fireBullet(
+            id,
+            msg.x + lx * side * 0.55,
+            msg.z + lz * side * 0.55,
+            yaw,
+            msg.speed || WEAPONS.gun.speed,
+            WEAPONS.gun.dmg,
+            WEAPONS.gun.life
+          );
+        }
       } else if (msg.weapon === 'missile') {
         // Resolve target if targeted
         let lockTarget = null;

@@ -682,18 +682,20 @@ function frame() {
       gunFiring = true;
       if (gunTimer <= 0) {
         gunTimer = 1 / WEAPONS.gun.rate;
-        gunSide = -gunSide;
         const fx = Math.sin(s.yaw), fz = Math.cos(s.yaw);
         const lx = Math.cos(s.yaw), lz = -Math.sin(s.yaw);
         const ang = gunAim(s) + (Math.random() - 0.5) * 2 * WEAPONS.gun.spread;
-        const bx = s.x + fx * 3.6 + lx * gunSide * 0.55;
-        const bz = s.z + fz * 3.6 + lz * gunSide * 0.55;
-        combat.fireBullet('player', bx, bz,
-          ang, WEAPONS.gun.speed + Math.max(0, s.speed), WEAPONS.gun.dmg, WEAPONS.gun.life);
+        const bspd = WEAPONS.gun.speed + Math.max(0, s.speed);
+        // Fire both left & right barrels simultaneously so twin parallel streams are always visible
+        for (const side of [-1, 1]) {
+          const bx = s.x + fx * 3.6 + lx * side * 0.55;
+          const bz = s.z + fz * 3.6 + lz * side * 0.55;
+          combat.fireBullet('player', bx, bz, ang, bspd, WEAPONS.gun.dmg, WEAPONS.gun.life);
+        }
         if (boat.fpv?.userData?.fire) boat.fpv.userData.fire();
 
         if (isOnline) {
-          mp.broadcastLocalFire('gun', { x: bx, z: bz, yaw: ang, speed: WEAPONS.gun.speed + Math.max(0, s.speed) });
+          mp.broadcastLocalFire('gun', { x: s.x + fx * 3.6, z: s.z + fz * 3.6, yaw: ang, speed: bspd });
         }
       }
     }
