@@ -1,17 +1,17 @@
 import * as THREE from 'three';
 import './mapLoader.js'; // loads public/maps/default.json into WORLD before game initializes
-import { WORLD, BOAT, PLAYER, WEAPONS, COLORS, SWARM, KILL_REWARD, POTION } from './config.js?v=speed10';
+import { WORLD, BOAT, PLAYER, WEAPONS, COLORS, SWARM, KILL_REWARD, POTION } from './config.js?v=speed7_cam';
 import { createWater } from './waves.js';
 import { createSky } from './sky.js';
 import { createWorld, resolveCollisions } from './world.js';
-import { Boat, PLAYER_STYLE } from './boat.js?v=speed10';
+import { Boat, PLAYER_STYLE } from './boat.js?v=speed7_cam';
 import { Wake } from './wake.js';
 import { Minimap } from './minimap.js';
 import { createInput } from './input.js';
 import { createHud } from './hud.js';
 import { Combat } from './combat.js';
 import { Potions } from './potions.js';
-import { EnemyBoat, Director, HUNT } from './enemies.js?v=speed10';
+import { EnemyBoat, Director, HUNT } from './enemies.js?v=speed7_cam';
 import { audio } from './audio.js';
 
 // ---------- renderer, scene, camera ----------
@@ -360,25 +360,29 @@ camera.position.set(boat.state.x, 7.5, boat.state.z - 15);
 function updateCamera(dt) {
   const s = boat.state;
   camFar += ((boat.boosting ? 0.35 : 1) - camFar) * Math.min(1, dt * 4);
-  // Reference speed 114 locks camera maxing and closing distance to the exact original values before 20%
-  const speedFrac = Math.min(1.0, Math.max(0, s.speed) / 114) * camFar;
-  camYaw += angleDiff(camYaw, s.yaw) * Math.min(1, dt * (boat.boosting ? 4.5 : 2.5)); // keeps up with fast turns
-  camZoom += ((boat.boosting ? 0.94 : 1) - camZoom) * Math.min(1, dt * 4);
+  const speedFrac = Math.min(1.0, Math.max(0, s.speed) / 122) * camFar;
+  camYaw += angleDiff(camYaw, s.yaw) * Math.min(1, dt * (boat.boosting ? 5.0 : 3.0)); // keeps up smoothly with turns
+  camZoom += ((boat.boosting ? 0.88 : 1) - camZoom) * Math.min(1, dt * 4);
   const fx = Math.sin(camYaw), fz = Math.cos(camYaw);
-  const back = (14 + speedFrac * 2.5) * camZoom; // stays close: only a small pull-back at speed
-  camTarget.set(s.x - fx * back, (7 + speedFrac * 1.2) * camZoom, s.z - fz * back);
-  camera.position.lerp(camTarget, 1 - Math.exp(-dt * 4.5));
+
+  // Keep camera closer to the boat both normally and in boost (tight, cinematic framing)
+  const back = (11.5 + speedFrac * 1.5) * camZoom;
+  const height = (5.8 + speedFrac * 0.8) * camZoom;
+  camTarget.set(s.x - fx * back, height, s.z - fz * back);
+
+  // Snappy tracking (stiffness 14) prevents camera from dragging far behind at high speeds
+  camera.position.lerp(camTarget, 1 - Math.exp(-dt * 14));
 
   shake = Math.max(0, shake - dt * 2.5);
   look.set(
-    s.x + fx * 4 + (Math.random() - 0.5) * shake,
-    1.5 + (Math.random() - 0.5) * shake,
-    s.z + fz * 4 + (Math.random() - 0.5) * shake
+    s.x + fx * 3 + (Math.random() - 0.5) * shake,
+    1.3 + (Math.random() - 0.5) * shake,
+    s.z + fz * 3 + (Math.random() - 0.5) * shake
   );
   camera.lookAt(look);
 
-  // Reference speed 114 keeps FOV angle maxing and closing to exact original values before 20%
-  const fov = BASE_FOV + Math.min(1.0, Math.max(0, s.speed) / 114) * 8 + (boat.boosting ? 5 : 0);
+  // Subtle FOV expansion (+4 normal, +2 boost) prevents fisheye lens zoom-out
+  const fov = BASE_FOV + Math.min(1.0, Math.max(0, s.speed) / 122) * 4 + (boat.boosting ? 2 : 0);
   if (Math.abs(camera.fov - fov) > 0.05) {
     camera.fov += (fov - camera.fov) * Math.min(1, dt * 4);
     camera.updateProjectionMatrix();
