@@ -4,7 +4,7 @@
 // combat broadcast/hits, server-driven health orbs, and match state.
 
 import * as THREE from 'three';
-import { MP, BOAT, PLAYER, WEAPONS, POTION, KILL_REWARD, WORLD } from './config.js';
+import { MP, BOAT, PLAYER, WEAPONS, POTION, KILL_REWARD, WORLD } from './config.js?v=firm_guns_20261015';
 import { buildMultiplayerBoat } from './multiplayerBoats.js';
 import { Wake } from './wake.js';
 import { makePotion, glowTexture } from './potions.js';

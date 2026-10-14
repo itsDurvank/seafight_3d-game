@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { WORLD, WEAPONS } from './config.js';
+import { WORLD, WEAPONS } from './config.js?v=firm_guns_20261015';
 import { audio } from './audio.js';
 
 const Y = 1.7; // projectile flight height
@@ -357,7 +357,8 @@ export class Combat {
         for (const t of targets) {
           if (t.team === b.owner || !t.alive) continue;
           const dx = t.state.x - b.x, dz = t.state.z - b.z;
-          const hr = t.radius * (t.hitScale || 1) + (b.owner === 'player' ? WEAPONS.gun.hitPad || 0 : 0);
+          const isPlayerBullet = b.owner === 'player' || !String(b.owner).startsWith('enemy:');
+          const hr = t.radius * (t.hitScale || 1) + (isPlayerBullet ? WEAPONS.gun.hitPad || 0 : 0);
           if (dx * dx + dz * dz < hr * hr) {
             t.takeDamage(b.dmg, b.owner);
             if (b.owner === 'player' && this.onPlayerHit) this.onPlayerHit(t);

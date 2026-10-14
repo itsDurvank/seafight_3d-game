@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import './mapLoader.js'; // loads public/maps/default.json into WORLD before game initializes
-import { WORLD, BOAT, PLAYER, WEAPONS, COLORS, SWARM, KILL_REWARD, POTION, MP } from './config.js?v=orig_boost_formula';
+import { WORLD, BOAT, PLAYER, WEAPONS, COLORS, SWARM, KILL_REWARD, POTION, MP } from './config.js?v=firm_guns_20261015';
 import { createWater } from './waves.js';
 import { createSky } from './sky.js';
 import { createWorld, resolveCollisions } from './world.js';
@@ -9,12 +9,12 @@ import { Wake } from './wake.js';
 import { Minimap } from './minimap.js';
 import { createInput } from './input.js';
 import { createHud } from './hud.js';
-import { Combat } from './combat.js';
+import { Combat } from './combat.js?v=firm_guns_20261015';
 import { Potions } from './potions.js';
 import { EnemyBoat, Director, HUNT } from './enemies.js?v=orig_boost_formula';
 import { audio } from './audio.js';
 import { NetworkClient } from './net.js?v=sg_20261015';
-import { MultiplayerManager } from './multiplayer.js?v=sg_20261015';
+import { MultiplayerManager } from './multiplayer.js?v=firm_guns_20261015';
 import { MultiplayerHUD } from './mpHud.js';
 
 // ---------- renderer, scene, camera ----------
@@ -412,6 +412,8 @@ function respawnPlayer() {
   }
 }
 
+const angleDiff = (a, b) => ((b - a + Math.PI) % (Math.PI * 2) + Math.PI * 2) % (Math.PI * 2) - Math.PI;
+
 // Machine-gun aim assist. Bullets fly straight, so while you steer they trail behind your nose like a hose and miss.
 // If a boat is near your nose, bend the shot toward where that boat will be when the bullet arrives.
 function gunAim(s) {
@@ -578,7 +580,6 @@ function tutorial() {
 }
 
 // ---------- camera follow ----------
-const angleDiff = (a, b) => ((b - a + Math.PI) % (Math.PI * 2) + Math.PI * 2) % (Math.PI * 2) - Math.PI;
 const camTarget = new THREE.Vector3();
 const look = new THREE.Vector3();
 camera.position.set(boat.state.x, 7.5, boat.state.z - 15);
