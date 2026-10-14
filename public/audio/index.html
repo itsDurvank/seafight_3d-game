@@ -1,0 +1,485 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Boom Boats — Missile Audio Review & Approval Board</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg: #0b1320;
+      --card-bg: rgba(18, 30, 49, 0.75);
+      --card-border: rgba(56, 189, 248, 0.22);
+      --card-hover: rgba(56, 189, 248, 0.35);
+      --primary: #38bdf8;
+      --accent: #f59e0b;
+      --danger: #ef4444;
+      --success: #10b981;
+      --text: #f1f5f9;
+      --text-dim: #94a3b8;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      background: radial-gradient(circle at 50% 10%, #152744 0%, var(--bg) 85%);
+      color: var(--text);
+      font-family: 'Outfit', sans-serif;
+      min-height: 100vh;
+      padding: 32px 20px 80px;
+    }
+
+    .container {
+      max-width: 1080px;
+      margin: 0 auto;
+    }
+
+    header {
+      text-align: center;
+      margin-bottom: 40px;
+    }
+
+    .badge {
+      display: inline-block;
+      background: rgba(56, 189, 248, 0.15);
+      color: var(--primary);
+      border: 1px solid rgba(56, 189, 248, 0.3);
+      padding: 6px 14px;
+      border-radius: 999px;
+      font-size: 0.85rem;
+      font-weight: 600;
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+      margin-bottom: 12px;
+    }
+
+    h1 {
+      font-size: 2.5rem;
+      font-weight: 800;
+      letter-spacing: -0.02em;
+      background: linear-gradient(135deg, #fff 40%, var(--primary) 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      margin-bottom: 10px;
+    }
+
+    p.subtitle {
+      color: var(--text-dim);
+      font-size: 1.05rem;
+      max-width: 650px;
+      margin: 0 auto;
+    }
+
+    .section-title {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      font-size: 1.5rem;
+      font-weight: 700;
+      margin: 40px 0 20px;
+      padding-bottom: 10px;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    }
+
+    .section-title span.ico {
+      font-size: 1.7rem;
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+      gap: 18px;
+    }
+
+    .audio-card {
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      border-radius: 16px;
+      padding: 20px;
+      backdrop-filter: blur(12px);
+      transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+      position: relative;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+    }
+
+    .audio-card:hover {
+      border-color: var(--card-hover);
+      transform: translateY(-2px);
+      box-shadow: 0 12px 28px rgba(0, 0, 0, 0.35);
+    }
+
+    .audio-card.playing {
+      border-color: var(--primary);
+      box-shadow: 0 0 20px rgba(56, 189, 248, 0.35);
+    }
+
+    .card-top {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      margin-bottom: 12px;
+    }
+
+    .category-tag {
+      font-size: 0.72rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      padding: 4px 8px;
+      border-radius: 6px;
+      letter-spacing: 0.04em;
+    }
+
+    .tag-hybrid { background: rgba(245, 158, 11, 0.2); color: #fbbf24; border: 1px solid rgba(245, 158, 11, 0.4); }
+    .tag-voice { background: rgba(56, 189, 248, 0.2); color: #7dd3fc; border: 1px solid rgba(56, 189, 248, 0.4); }
+    .tag-sfx { background: rgba(239, 68, 68, 0.2); color: #fca5a5; border: 1px solid rgba(239, 68, 68, 0.4); }
+
+    .card-title {
+      font-size: 1.15rem;
+      font-weight: 700;
+      margin-bottom: 6px;
+      color: #fff;
+    }
+
+    .card-desc {
+      font-size: 0.88rem;
+      color: var(--text-dim);
+      margin-bottom: 16px;
+      line-height: 1.4;
+    }
+
+    .quote {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.85rem;
+      color: #38bdf8;
+      background: rgba(0, 0, 0, 0.3);
+      padding: 6px 10px;
+      border-radius: 6px;
+      margin-bottom: 14px;
+      display: inline-block;
+      border-left: 3px solid var(--primary);
+    }
+
+    .controls {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .play-btn {
+      background: linear-gradient(135deg, #0284c7, #0ea5e9);
+      color: #fff;
+      border: none;
+      width: 44px;
+      height: 44px;
+      border-radius: 50%;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.1rem;
+      transition: transform 0.15s, box-shadow 0.15s;
+      flex-shrink: 0;
+    }
+
+    .play-btn:hover {
+      transform: scale(1.08);
+      box-shadow: 0 0 16px rgba(14, 165, 233, 0.6);
+    }
+
+    .file-name {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.75rem;
+      color: #64748b;
+      word-break: break-all;
+    }
+
+    .nav-actions {
+      text-align: center;
+      margin-top: 50px;
+      padding-top: 30px;
+      border-top: 1px solid rgba(255, 255, 255, 0.1);
+    }
+
+    .btn-game {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      background: linear-gradient(135deg, #10b981, #059669);
+      color: #fff;
+      text-decoration: none;
+      font-weight: 700;
+      padding: 12px 28px;
+      border-radius: 12px;
+      font-size: 1rem;
+      transition: transform 0.15s, box-shadow 0.15s;
+    }
+
+    .btn-game:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 8px 24px rgba(16, 185, 129, 0.4);
+    }
+  </style>
+</head>
+<body>
+
+  <div class="container">
+    <header>
+      <div class="badge">Audio Assets Suite</div>
+      <h1>Missile Voice & SFX Review Board</h1>
+      <p class="subtitle">Click any sound below to listen and test the audio in your browser. All audio files are generated and stored in <code style="color:#38bdf8">/public/audio/</code> and <code style="color:#38bdf8">/audio/</code>.</p>
+    </header>
+
+    <!-- SECTION 1: MISSILE LAUNCH -->
+    <div class="section-title">
+      <span class="ico">🚀</span>
+      <span>Missile Launch Audio Candidates</span>
+    </div>
+
+    <div class="grid">
+      <!-- Hybrid 1 -->
+      <div class="audio-card">
+        <div>
+          <div class="card-top">
+            <span class="category-tag tag-hybrid">⭐ Hybrid (SFX + Voice)</span>
+          </div>
+          <div class="card-title">Launch Hybrid — Fox Two</div>
+          <div class="card-desc">Cinematic rocket motor ignition & whoosh blended with crisp tactical radio callout.</div>
+          <div class="quote">"Fox two! Missile away!"</div>
+        </div>
+        <div class="controls">
+          <button class="play-btn" onclick="playAudio('/audio/hybrid_missile_launch_fox2.wav', this)">▶</button>
+          <div class="file-name">hybrid_missile_launch_fox2.wav</div>
+        </div>
+      </div>
+
+      <!-- Hybrid 2 -->
+      <div class="audio-card">
+        <div>
+          <div class="card-top">
+            <span class="category-tag tag-hybrid">⭐ Hybrid (SFX + Voice)</span>
+          </div>
+          <div class="card-title">Launch Hybrid — Zira (Copilot)</div>
+          <div class="card-desc">Solid rocket launch roar combined with female copilot tactical tracking callout.</div>
+          <div class="quote">"Missile launched! Tracking target."</div>
+        </div>
+        <div class="controls">
+          <button class="play-btn" onclick="playAudio('/audio/hybrid_missile_launch_zira.wav', this)">▶</button>
+          <div class="file-name">hybrid_missile_launch_zira.wav</div>
+        </div>
+      </div>
+
+      <!-- Pure SFX -->
+      <div class="audio-card">
+        <div>
+          <div class="card-top">
+            <span class="category-tag tag-sfx">Pure Sound Effect</span>
+          </div>
+          <div class="card-title">Cinematic Launch SFX</div>
+          <div class="card-desc">Tube pneumatic thoomp, solid rocket ignition rumble, and high-velocity flyoff whoosh.</div>
+          <div class="quote">SFX: Thoomp + Roar + Whoosh</div>
+        </div>
+        <div class="controls">
+          <button class="play-btn" onclick="playAudio('/audio/sfx_missile_launch.wav', this)">▶</button>
+          <div class="file-name">sfx_missile_launch.wav</div>
+        </div>
+      </div>
+
+      <!-- Radio Voice 1 -->
+      <div class="audio-card">
+        <div>
+          <div class="card-top">
+            <span class="category-tag tag-voice">VHF Radio Voice</span>
+          </div>
+          <div class="card-title">Radio: Fox Two (David)</div>
+          <div class="card-desc">Male commander with VHF radio squelch chirp, bandpass comms EQ, and mic release click.</div>
+          <div class="quote">"Fox two! Missile away!"</div>
+        </div>
+        <div class="controls">
+          <button class="play-btn" onclick="playAudio('/audio/radio_launch_fox_two_david.wav', this)">▶</button>
+          <div class="file-name">radio_launch_fox_two_david.wav</div>
+        </div>
+      </div>
+
+      <!-- Radio Voice 2 -->
+      <div class="audio-card">
+        <div>
+          <div class="card-top">
+            <span class="category-tag tag-voice">VHF Radio Voice</span>
+          </div>
+          <div class="card-title">Radio: Missile Away (David)</div>
+          <div class="card-desc">Authentic pilot comms filter with radio chirp.</div>
+          <div class="quote">"Missile launched! Tracking target."</div>
+        </div>
+        <div class="controls">
+          <button class="play-btn" onclick="playAudio('/audio/radio_launch_missile_away_david.wav', this)">▶</button>
+          <div class="file-name">radio_launch_missile_away_david.wav</div>
+        </div>
+      </div>
+
+      <!-- Radio Voice 3 -->
+      <div class="audio-card">
+        <div>
+          <div class="card-top">
+            <span class="category-tag tag-voice">VHF Radio Voice</span>
+          </div>
+          <div class="card-title">Radio: Target Locked (David)</div>
+          <div class="card-desc">Direct engagement firing declaration with comms radio squelch.</div>
+          <div class="quote">"Target locked, firing missile!"</div>
+        </div>
+        <div class="controls">
+          <button class="play-btn" onclick="playAudio('/audio/radio_launch_firing_david.wav', this)">▶</button>
+          <div class="file-name">radio_launch_firing_david.wav</div>
+        </div>
+      </div>
+    </div>
+
+
+    <!-- SECTION 2: MISSILE IMPACT -->
+    <div class="section-title">
+      <span class="ico">💥</span>
+      <span>Missile Impact Audio Candidates</span>
+    </div>
+
+    <div class="grid">
+      <!-- Hybrid Impact 1 -->
+      <div class="audio-card">
+        <div>
+          <div class="card-top">
+            <span class="category-tag tag-hybrid">⭐ Hybrid (SFX + Voice)</span>
+          </div>
+          <div class="card-title">Impact Hybrid — Direct Hit</div>
+          <div class="card-desc">Heavy sub-bass blast detonation + rolling shockwave + captain radio callout.</div>
+          <div class="quote">"Direct hit! Target splashed!"</div>
+        </div>
+        <div class="controls">
+          <button class="play-btn" onclick="playAudio('/audio/hybrid_missile_impact_direct_hit.wav', this)">▶</button>
+          <div class="file-name">hybrid_missile_impact_direct_hit.wav</div>
+        </div>
+      </div>
+
+      <!-- Hybrid Impact 2 -->
+      <div class="audio-card">
+        <div>
+          <div class="card-top">
+            <span class="category-tag tag-hybrid">⭐ Hybrid (SFX + Voice)</span>
+          </div>
+          <div class="card-title">Impact Hybrid — Target Destroyed</div>
+          <div class="card-desc">Deep explosive shockwave thump + female copilot kill confirmation.</div>
+          <div class="quote">"Target destroyed! Good hit!"</div>
+        </div>
+        <div class="controls">
+          <button class="play-btn" onclick="playAudio('/audio/hybrid_missile_impact_zira.wav', this)">▶</button>
+          <div class="file-name">hybrid_missile_impact_zira.wav</div>
+        </div>
+      </div>
+
+      <!-- Pure Impact SFX -->
+      <div class="audio-card">
+        <div>
+          <div class="card-top">
+            <span class="category-tag tag-sfx">Pure Sound Effect</span>
+          </div>
+          <div class="card-title">Cinematic Detonation SFX</div>
+          <div class="card-desc">Supersonic crack, deep 26Hz sub-bass punch, metal hull crunch, and rolling sea echo.</div>
+          <div class="quote">SFX: Crack + 26Hz Boom + Hull Crunch</div>
+        </div>
+        <div class="controls">
+          <button class="play-btn" onclick="playAudio('/audio/sfx_missile_impact.wav', this)">▶</button>
+          <div class="file-name">sfx_missile_impact.wav</div>
+        </div>
+      </div>
+
+      <!-- Radio Impact 1 -->
+      <div class="audio-card">
+        <div>
+          <div class="card-top">
+            <span class="category-tag tag-voice">VHF Radio Voice</span>
+          </div>
+          <div class="card-title">Radio: Direct Hit (David)</div>
+          <div class="card-desc">Tactical radio confirmation with walkie-talkie squelch.</div>
+          <div class="quote">"Direct hit! Target splashed!"</div>
+        </div>
+        <div class="controls">
+          <button class="play-btn" onclick="playAudio('/audio/radio_impact_direct_hit_david.wav', this)">▶</button>
+          <div class="file-name">radio_impact_direct_hit_david.wav</div>
+        </div>
+      </div>
+
+      <!-- Radio Impact 2 -->
+      <div class="audio-card">
+        <div>
+          <div class="card-top">
+            <span class="category-tag tag-voice">VHF Radio Voice</span>
+          </div>
+          <div class="card-title">Radio: Target Destroyed (David)</div>
+          <div class="card-desc">Victory callout on sinking an enemy ship.</div>
+          <div class="quote">"Target destroyed! Good hit!"</div>
+        </div>
+        <div class="controls">
+          <button class="play-btn" onclick="playAudio('/audio/radio_impact_destroyed_david.wav', this)">▶</button>
+          <div class="file-name">radio_impact_destroyed_david.wav</div>
+        </div>
+      </div>
+
+      <!-- Radio Impact 3 -->
+      <div class="audio-card">
+        <div>
+          <div class="card-top">
+            <span class="category-tag tag-voice">VHF Radio Voice</span>
+          </div>
+          <div class="card-title">Radio: Impact Confirmed (David)</div>
+          <div class="card-desc">Tactical confirmation on hostile elimination.</div>
+          <div class="quote">"Impact confirmed! Hostile down!"</div>
+        </div>
+        <div class="controls">
+          <button class="play-btn" onclick="playAudio('/audio/radio_impact_confirmed_david.wav', this)">▶</button>
+          <div class="file-name">radio_impact_confirmed_david.wav</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="nav-actions">
+      <a href="/" class="btn-game">⚓ Return to Boom Boats Game</a>
+    </div>
+  </div>
+
+  <script>
+    let currentAudio = null;
+    let currentBtn = null;
+
+    function playAudio(src, btn) {
+      if (currentAudio) {
+        currentAudio.pause();
+        if (currentBtn) {
+          currentBtn.textContent = '▶';
+          currentBtn.closest('.audio-card').classList.remove('playing');
+        }
+        if (currentAudio.src.endsWith(src)) {
+          currentAudio = null;
+          currentBtn = null;
+          return;
+        }
+      }
+
+      const audio = new Audio(src);
+      currentAudio = audio;
+      currentBtn = btn;
+      btn.textContent = '⏸';
+      const card = btn.closest('.audio-card');
+      card.classList.add('playing');
+
+      audio.play().catch(e => console.error(e));
+
+      audio.onended = () => {
+        btn.textContent = '▶';
+        card.classList.remove('playing');
+        currentAudio = null;
+        currentBtn = null;
+      };
+    }
+  </script>
+</body>
+</html>
