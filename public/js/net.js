@@ -33,8 +33,8 @@ export class NetworkClient {
       return `${protocol}//${window.location.host}`;
     }
 
-    // Vercel / External hosts: connect to the live Render multiplayer game server
-    return 'wss://seafight-3d-game.onrender.com';
+    // Vercel / External hosts: connect to the live Render multiplayer game server (Singapore)
+    return 'wss://boomboats3dgame.onrender.com';
   }
 
   connect() {
