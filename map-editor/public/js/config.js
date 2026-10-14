@@ -61,13 +61,13 @@ export const WORLD = {
 };
 
 export const BOAT = {
-  baseTop: 76, // normal top speed
-  topCap: 114, // normal top speed: it climbs from baseTop to this while you sail flat out
-  topGain: 3.2, // top speed gained per second while sailing flat out (about 12 s from 76 to 114)
-  topDecay: 1.5, // top speed lost per second when you let go of W
+  baseTop: 91, // normal top speed (+20%: 76 -> 91 km/h)
+  topCap: 137, // normal top speed: climbs from baseTop to this flat out (+20%: 114 -> 137 km/h)
+  topGain: 3.8, // top speed gained per second while sailing flat out (about 12 s from 91 to 137)
+  topDecay: 1.8, // top speed lost per second when you let go of W
   pull: 0.8, // how quickly speed catches up to the top speed
-  maxReverse: 5,
-  accel: 9,
+  maxReverse: 6,
+  accel: 11,
   drag: 0.5,
   turnRate: 1.5, // radians per second at full grip
   radius: 2.4, // collision radius
@@ -77,13 +77,13 @@ export const BOAT = {
   boostRefillTime: 4, // seconds to refill a completely empty boost meter
   boostMin: 0.6, // minimum energy (seconds) needed to switch the boost on
   boostMul: 1.3, // top speed multiplier while boosting
-  boostAdd: 12, // flat extra speed on top of that (70 x 1.3 + 12 = 103 at the start, 105 x 1.3 + 12 = 148 flat out)
-  boostPull: 1.5, // how fast speed ramps up into the boost: lower = a longer, smoother surge (no sudden jump)
+  boostAdd: 12,
+  boostPull: 1.6, // smooth, exciting surge into the boost
   brakeMin: 12, // Space slows you down to about this speed
-  brakeDecel: 90, // how fast Space slows you (speed units per second)
+  brakeDecel: 100, // how fast Space slows you (speed units per second)
   brakeTurnMul: 1.6, // steering is much easier while braking
   boostTurnMul: 1.5, // extra steering authority while boosting
-  boostMax: 160, // absolute speed limit while boosting
+  boostMax: 192, // absolute speed limit while boosting (+20%: 160 -> 192 km/h)
   // ramming while boosting (percent of each boat's MAX health)
   boostRamSelfPct: 0.10,
   boostRamEnemyPct: 0.30,
@@ -98,23 +98,23 @@ export const PLAYER = {
 };
 
 export const WEAPONS = {
-  gun: { rate: 14, speed: 120, life: 1.1, dmg: 4, spread: 0.012, assistCone: 0.24, assist: 0.88, hitPad: 1.2 }, // spread = random cone (rad). assistCone/assist = gentle aim assist: shots bend toward a boat within this many rad of your nose (0 = off). hitPad = extra hit radius for your bullets.
+  gun: { rate: 14, speed: 135, life: 1.1, dmg: 4, spread: 0.012, assistCone: 0.24, assist: 0.88, hitPad: 1.2 }, // spread = random cone (rad). assistCone/assist = gentle aim assist: shots bend toward a boat within this many rad of your nose (0 = off). hitPad = extra hit radius for your bullets.
   // 56 dps if every shot lands (about half do), so ~2-10 s to sink a boat
   // Our missile works like a fighter-jet missile: it locks onto the boat nearest your crosshair when you
   // fire (inside `lockCone` radians either side of your heading, within `lockRange`), steers at it for
   // `track` seconds, then goes ballistic. It also loses the lock if the target slips outside `loseCone`
   // (it can't turn that hard). A dodged missile just flies on and blows up on whatever island is in the way.
-  missile: { cooldown: 5, speed: 60, maxSpeed: 220, accel: 70, turn: 1.9, homing: true, track: 2.4, loseCone: 1.9, lockCone: 0.75, lockRange: 340, dmg: 70, blast: 11, life: 5 }, // burst weapon
-  enemyBullet: { speed: 115, life: 1.3 }, // shots inherit boat speed
+  missile: { cooldown: 5, speed: 70, maxSpeed: 250, accel: 80, turn: 2.0, homing: true, track: 2.4, loseCone: 1.9, lockCone: 0.75, lockRange: 350, dmg: 70, blast: 11, life: 5 }, // burst weapon
+  enemyBullet: { speed: 130, life: 1.3 }, // shots inherit boat speed
   // Enemy missile: small boats 50 DMG (50% player HP), big boats 58 DMG (heavy hit)
-  enemyMissile: { speed: 58, maxSpeed: 205, accel: 68, turn: 1.75, homing: true, track: 2.2, loseCone: 1.8, dmg: 50, dmgSmall: 50, dmgBig: 58, blast: 10, life: 5 },
+  enemyMissile: { speed: 68, maxSpeed: 235, accel: 78, turn: 1.85, homing: true, track: 2.2, loseCone: 1.8, dmg: 50, dmgSmall: 50, dmgBig: 58, blast: 10, life: 5 },
 };
 
 // One enemy boat type per island.
 // Stats tuned to be exactly 10% less than the player:
 // - HP: average ~90 HP (player: 100 HP)
 // - Machine gun: 3.6 DMG per bullet (player: 4.0 DMG)
-// - Speeds: cruise 68.4 km/h (player: 76), chase 102.6 km/h (player: 114), boost 144 km/h (player: 160)
+// - Speeds (+20%): cruise 82 km/h (player: 91), chase 123 km/h (player: 137), boost 173 km/h (player: 192)
 export const ENEMY_TYPES = {
   skiff: {
     name: 'Mango Skiff', boost: 1.75, hp: 76, speed: 28, turn: 2.3, scale: 0.85, radius: 2.4,
@@ -153,14 +153,14 @@ export const ENEMY_TYPES = {
   },
 };
 
-// Enemy speed: exactly 10% less than the player across all phases
-// Player: cruise 76, top throttle 114, boost 160
-// Enemy: cruise 68.4, top chase 102.6 (68.4 * 1.5), boost 144
+// Enemy speed: exactly 10% less than the player across all phases (+20% overall)
+// Player: cruise 91, top throttle 137, boost 192
+// Enemy: cruise 82, top chase 123 (82 * 1.5), boost 173
 export const ENEMY_SPEED = {
-  cruise: 68.4,
-  run: 1.50, // 68.4 * 1.5 = 102.6 km/h (10% less than player's 114)
-  boost: 144, // 10% less than player's 160 boost
-  bigMul: 0.85, // heavy boats: cruise ~58, run ~87, boost ~122
+  cruise: 82,
+  run: 1.50, // 82 * 1.5 = 123 km/h (10% less than player's 137)
+  boost: 173, // 10% less than player's 192 boost
+  bigMul: 0.85, // heavy boats: cruise ~70, run ~105, boost ~147
   circle: 0.72,
   roam: 0.85, // active cruising towards action
   backoff: 0.80,

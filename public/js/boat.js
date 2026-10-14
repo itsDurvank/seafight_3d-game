@@ -228,7 +228,8 @@ export class Boat {
       if (s.speed > BOAT.brakeMin) s.speed = Math.max(BOAT.brakeMin, s.speed - BOAT.brakeDecel * dt);
       this.top = Math.max(BOAT.baseTop, this.top - 25 * dt);
     } else if (boosting) {
-      const goal = Math.min(BOAT.boostMax, Math.max(this.top, BOAT.baseTop) * BOAT.boostMul + BOAT.boostAdd);
+      if (input.forward) this.top = Math.min(BOAT.topCap, this.top + BOAT.topGain * 2 * dt);
+      const goal = BOAT.boostMax;
       s.speed += (goal - s.speed) * (1 - Math.exp(-BOAT.boostPull * dt));
     } else if (input.forward) {
       if (s.speed > this.top * 0.88) this.top = Math.min(BOAT.topCap, this.top + BOAT.topGain * dt);
