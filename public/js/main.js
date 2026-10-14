@@ -1,17 +1,17 @@
 import * as THREE from 'three';
 import './mapLoader.js'; // loads public/maps/default.json into WORLD before game initializes
-import { WORLD, BOAT, PLAYER, WEAPONS, COLORS, SWARM, KILL_REWARD, POTION } from './config.js';
+import { WORLD, BOAT, PLAYER, WEAPONS, COLORS, SWARM, KILL_REWARD, POTION } from './config.js?v=speed20_v2';
 import { createWater } from './waves.js';
 import { createSky } from './sky.js';
 import { createWorld, resolveCollisions } from './world.js';
-import { Boat, PLAYER_STYLE } from './boat.js';
+import { Boat, PLAYER_STYLE } from './boat.js?v=speed20_v2';
 import { Wake } from './wake.js';
 import { Minimap } from './minimap.js';
 import { createInput } from './input.js';
 import { createHud } from './hud.js';
 import { Combat } from './combat.js';
 import { Potions } from './potions.js';
-import { EnemyBoat, Director, HUNT } from './enemies.js';
+import { EnemyBoat, Director, HUNT } from './enemies.js?v=speed20_v2';
 import { audio } from './audio.js';
 
 // ---------- renderer, scene, camera ----------
@@ -360,7 +360,8 @@ camera.position.set(boat.state.x, 7.5, boat.state.z - 15);
 function updateCamera(dt) {
   const s = boat.state;
   camFar += ((boat.boosting ? 0.35 : 1) - camFar) * Math.min(1, dt * 4);
-  const speedFrac = Math.min(1.0, Math.max(0, s.speed) / BOAT.topCap) * camFar;
+  // Reference speed 114 locks camera maxing and closing distance to the exact original values before 20%
+  const speedFrac = Math.min(1.0, Math.max(0, s.speed) / 114) * camFar;
   camYaw += angleDiff(camYaw, s.yaw) * Math.min(1, dt * (boat.boosting ? 4.5 : 2.5)); // keeps up with fast turns
   camZoom += ((boat.boosting ? 0.94 : 1) - camZoom) * Math.min(1, dt * 4);
   const fx = Math.sin(camYaw), fz = Math.cos(camYaw);
@@ -376,7 +377,8 @@ function updateCamera(dt) {
   );
   camera.lookAt(look);
 
-  const fov = BASE_FOV + Math.min(1.0, Math.max(0, s.speed) / BOAT.topCap) * 8 + (boat.boosting ? 5 : 0); // subtle zoom-out for speed feel without losing the action
+  // Reference speed 114 keeps FOV angle maxing and closing to exact original values before 20%
+  const fov = BASE_FOV + Math.min(1.0, Math.max(0, s.speed) / 114) * 8 + (boat.boosting ? 5 : 0);
   if (Math.abs(camera.fov - fov) > 0.05) {
     camera.fov += (fov - camera.fov) * Math.min(1, dt * 4);
     camera.updateProjectionMatrix();

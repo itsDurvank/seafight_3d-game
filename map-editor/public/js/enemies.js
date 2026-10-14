@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { ENEMY_TYPES, WEAPONS, WORLD, DIFFICULTY as D, SWARM, ENEMY_SPEED, POTION, AI } from './config.js';
+import { ENEMY_TYPES, WEAPONS, WORLD, DIFFICULTY as D, SWARM, ENEMY_SPEED, POTION, AI } from './config.js?v=speed20_v2';
 import { Boat } from './boat.js';
 import { audio } from './audio.js';
 import { resolveCollisions } from './world.js';
