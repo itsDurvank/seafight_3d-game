@@ -1,17 +1,17 @@
 import * as THREE from 'three';
 import './mapLoader.js'; // loads public/maps/default.json into WORLD before game initializes
-import { WORLD, BOAT, PLAYER, WEAPONS, COLORS, SWARM, KILL_REWARD, POTION } from './config.js?v=speed7_camzoom';
+import { WORLD, BOAT, PLAYER, WEAPONS, COLORS, SWARM, KILL_REWARD, POTION } from './config.js?v=speed7_origcam';
 import { createWater } from './waves.js';
 import { createSky } from './sky.js';
 import { createWorld, resolveCollisions } from './world.js';
-import { Boat, PLAYER_STYLE } from './boat.js?v=speed7_camzoom';
+import { Boat, PLAYER_STYLE } from './boat.js?v=speed7_origcam';
 import { Wake } from './wake.js';
 import { Minimap } from './minimap.js';
 import { createInput } from './input.js';
 import { createHud } from './hud.js';
 import { Combat } from './combat.js';
 import { Potions } from './potions.js';
-import { EnemyBoat, Director, HUNT } from './enemies.js?v=speed7_camzoom';
+import { EnemyBoat, Director, HUNT } from './enemies.js?v=speed7_origcam';
 import { audio } from './audio.js';
 
 // ---------- renderer, scene, camera ----------
@@ -63,11 +63,6 @@ const boat = new Boat(scene);
 const wake = new Wake(scene, 60);
 const minimap = new Minimap(document.getElementById('minimap'));
 
-// ---------- camera zoom persistence (0.55 = close up, 1.0 = standard, 1.65 = wide POV) ----------
-const savedCamZoom = parseFloat(localStorage.getItem('seafight_cam_zoom'));
-let targetUserZoom = (!isNaN(savedCamZoom) && savedCamZoom >= 0.55 && savedCamZoom <= 1.65) ? savedCamZoom : 1.0;
-let userZoom = targetUserZoom;
-
 // ---------- settings & skin selection ----------
 const settingsBtn = document.getElementById('settings-btn');
 const settingsModal = document.getElementById('settings-modal');
@@ -79,8 +74,6 @@ const statusClassic = document.getElementById('status-classic');
 const settingsAudioBtn = document.getElementById('settings-audio-btn');
 const settingsAudioIcon = document.getElementById('settings-audio-icon');
 const settingsAudioText = document.getElementById('settings-audio-text');
-const settingsCamBtn = document.getElementById('settings-cam-btn');
-const settingsCamText = document.getElementById('settings-cam-text');
 
 function updateSettingsUI() {
   const current = boat.currentSkin;
@@ -89,10 +82,6 @@ function updateSettingsUI() {
     skinClassicCard.classList.toggle('active', current === 'classic');
     if (statusHero) statusHero.textContent = current === 'hero' ? 'Equipped' : 'Select';
     if (statusClassic) statusClassic.textContent = current === 'classic' ? 'Equipped' : 'Select';
-  }
-  if (settingsCamText) {
-    const pct = Math.round(targetUserZoom * 100);
-    settingsCamText.textContent = `Camera Zoom: ${pct}% (Click to Reset)`;
   }
 }
 
@@ -150,16 +139,6 @@ if (settingsAudioBtn) {
     if (settingsAudioIcon) settingsAudioIcon.textContent = isMuted ? '🔇' : '🔊';
     if (settingsAudioText) settingsAudioText.textContent = isMuted ? 'Sound: Muted (M)' : 'Sound: On (M)';
     hud.toast(isMuted ? '🔇 Sound off (M)' : '🔊 Sound on (M)', 1200);
-  });
-}
-
-if (settingsCamBtn) {
-  settingsCamBtn.addEventListener('click', () => {
-    targetUserZoom = 1.0;
-    try { localStorage.setItem('seafight_cam_zoom', '1.00'); } catch (_) {}
-    updateSettingsUI();
-    audio.click();
-    hud.toast('Camera zoom reset to 100%!', 1500);
   });
 }
 
@@ -372,56 +351,32 @@ function tutorial() {
   }
 }
 
-// ---------- camera follow & zoom ----------
+// ---------- camera follow ----------
 const angleDiff = (a, b) => ((b - a + Math.PI) % (Math.PI * 2) + Math.PI * 2) % (Math.PI * 2) - Math.PI;
 const camTarget = new THREE.Vector3();
 const look = new THREE.Vector3();
 camera.position.set(boat.state.x, 7.5, boat.state.z - 15);
 
-// Mouse scroll wheel adjusts camera distance and expands/contracts POV in real-time
-// (wheel up = zoom near; wheel down = expand POV; persists until adjusted again)
-addEventListener('wheel', (e) => {
-  if (e.target && e.target.closest && e.target.closest('#settings-modal, .scrollable')) return;
-  e.preventDefault();
-  const delta = THREE.MathUtils.clamp(e.deltaY * 0.0012, -0.07, 0.07);
-  targetUserZoom = THREE.MathUtils.clamp(targetUserZoom + delta, 0.55, 1.65);
-  try { localStorage.setItem('seafight_cam_zoom', targetUserZoom.toFixed(2)); } catch (_) {}
-  updateSettingsUI();
-}, { passive: false });
-
 function updateCamera(dt) {
   const s = boat.state;
-  // Smoothly interpolate userZoom toward targetUserZoom
-  userZoom += (targetUserZoom - userZoom) * Math.min(1, dt * 10);
-
   camFar += ((boat.boosting ? 0.35 : 1) - camFar) * Math.min(1, dt * 4);
   const speedFrac = Math.min(1.0, Math.max(0, s.speed) / BOAT.topCap) * camFar;
   camYaw += angleDiff(camYaw, s.yaw) * Math.min(1, dt * (boat.boosting ? 4.5 : 2.5)); // keeps up with fast turns
   camZoom += ((boat.boosting ? 0.94 : 1) - camZoom) * Math.min(1, dt * 4);
   const fx = Math.sin(camYaw), fz = Math.cos(camYaw);
-
-  // userZoom scales base camera distance & height smoothly.
-  // In boost mode, camera pulls back dynamically with speed physics, but stays locked
-  // proportionally to the user's chosen zoom level ("as much as they zoomed in till there the boost cam can go").
-  const back = (14 + speedFrac * 2.5) * camZoom * userZoom;
-  const height = Math.max(3.5, (7 + speedFrac * 1.2) * camZoom * userZoom);
-  camTarget.set(s.x - fx * back, height, s.z - fz * back);
+  const back = (14 + speedFrac * 2.5) * camZoom; // stays close: only a small pull-back at speed
+  camTarget.set(s.x - fx * back, (7 + speedFrac * 1.2) * camZoom, s.z - fz * back);
   camera.position.lerp(camTarget, 1 - Math.exp(-dt * 4.5));
 
   shake = Math.max(0, shake - dt * 2.5);
-  const lookDist = 2.0 + 2.0 * userZoom;
-  const lookHeight = 1.2 + 0.3 * userZoom;
   look.set(
-    s.x + fx * lookDist + (Math.random() - 0.5) * shake,
-    lookHeight + (Math.random() - 0.5) * shake,
-    s.z + fz * lookDist + (Math.random() - 0.5) * shake
+    s.x + fx * 4 + (Math.random() - 0.5) * shake,
+    1.5 + (Math.random() - 0.5) * shake,
+    s.z + fz * 4 + (Math.random() - 0.5) * shake
   );
   camera.lookAt(look);
 
-  // POV expansion: zooming in narrows FOV slightly for focused action; scrolling out expands POV.
-  // Dynamic boost surge (+5) and speed sensation (+8) remain fully active on top.
-  const userFovOffset = (userZoom - 1.0) * 16;
-  const fov = (BASE_FOV + userFovOffset) + Math.min(1.0, Math.max(0, s.speed) / BOAT.topCap) * 8 + (boat.boosting ? 5 : 0);
+  const fov = BASE_FOV + Math.min(1.0, Math.max(0, s.speed) / BOAT.topCap) * 8 + (boat.boosting ? 5 : 0); // subtle zoom-out for speed feel without losing the action
   if (Math.abs(camera.fov - fov) > 0.05) {
     camera.fov += (fov - camera.fov) * Math.min(1, dt * 4);
     camera.updateProjectionMatrix();
