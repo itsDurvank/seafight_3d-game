@@ -19,8 +19,22 @@ export class NetworkClient {
 
   getServerUrl() {
     if (this.serverOverride) return this.serverOverride;
+
+    const hostname = window.location.hostname;
     const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-    return `${protocol}//${window.location.host}`;
+
+    // Local development: connect to local dev server
+    if (hostname === 'localhost' || hostname === '127.0.0.1') {
+      return `${protocol}//${window.location.host}`;
+    }
+
+    // Running directly on Render: connect to itself
+    if (hostname.endsWith('onrender.com')) {
+      return `${protocol}//${window.location.host}`;
+    }
+
+    // Vercel / External hosts: connect to the live Render multiplayer game server
+    return 'wss://seafight-3d-game.onrender.com';
   }
 
   connect() {
