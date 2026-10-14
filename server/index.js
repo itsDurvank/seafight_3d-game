@@ -68,7 +68,10 @@ const server = http.createServer((req, res) => {
         // Clean up any older/irrelevant files in Mapchanges, keeping only current_map.json and last_version_fallback.json
         for (const file of fs.readdirSync(MAPCHANGES_DIR)) {
           if (file !== 'current_map.json' && file !== 'last_version_fallback.json') {
-            try { fs.unlinkSync(path.join(MAPCHANGES_DIR, file)); } catch {}
+            const p = path.join(MAPCHANGES_DIR, file);
+            try {
+              if (!fs.statSync(p).isDirectory()) fs.unlinkSync(p);
+            } catch {}
           }
         }
 
