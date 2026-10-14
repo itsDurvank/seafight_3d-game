@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import './mapLoader.js'; // loads public/maps/default.json into WORLD before game initializes
-import { WORLD, BOAT, PLAYER, WEAPONS, COLORS, SWARM, KILL_REWARD, POTION, MP } from './config.js?v=firm_guns_20261015';
+import { WORLD, BOAT, PLAYER, WEAPONS, COLORS, SWARM, KILL_REWARD, POTION, MP } from './config.js?v=pure_manual_guns_20261015';
 import { createWater } from './waves.js';
 import { createSky } from './sky.js';
 import { createWorld, resolveCollisions } from './world.js';
@@ -9,7 +9,7 @@ import { Wake } from './wake.js';
 import { Minimap } from './minimap.js';
 import { createInput } from './input.js';
 import { createHud } from './hud.js';
-import { Combat } from './combat.js?v=firm_guns_20261015';
+import { Combat } from './combat.js?v=pure_manual_guns_20261015';
 import { Potions } from './potions.js';
 import { EnemyBoat, Director, HUNT } from './enemies.js?v=orig_boost_formula';
 import { audio } from './audio.js';
@@ -414,35 +414,6 @@ function respawnPlayer() {
 
 const angleDiff = (a, b) => ((b - a + Math.PI) % (Math.PI * 2) + Math.PI * 2) % (Math.PI * 2) - Math.PI;
 
-// Machine-gun aim assist. Bullets fly straight, so while you steer they trail behind your nose like a hose and miss.
-// Compensating for turn rate (turnLead) keeps the stream centered with your nose while turning, and micro-assists targets in crosshairs.
-function gunAim(s) {
-  const G = WEAPONS.gun;
-  const turnLead = (s.turnVel || 0) * (G.turnLead || 0);
-  const baseAngle = s.yaw + turnLead;
-  if (!G.assistCone || !G.assist) return baseAngle;
-  const bs = G.speed + Math.max(0, s.speed);
-  const reach = bs * G.life * 0.9;
-  let best = null, bestOff = G.assistCone, bestAng = baseAngle;
-  const pool = (mp && mp.mode === 'online') ? mp.getTargets() : enemies;
-  for (const e of pool) {
-    if (!e.alive) continue;
-    let px = e.state.x, pz = e.state.z;
-    const evx = Math.sin(e.state.yaw) * e.state.speed, evz = Math.cos(e.state.yaw) * e.state.speed;
-    let d = Math.hypot(px - s.x, pz - s.z);
-    for (let k = 0; k < 3; k++) { // predict where it will be when the bullet gets there
-      const tt = d / bs;
-      px = e.state.x + evx * tt; pz = e.state.z + evz * tt;
-      d = Math.hypot(px - s.x, pz - s.z);
-    }
-    if (d > reach || d < 4) continue;
-    const ang = Math.atan2(px - s.x, pz - s.z);
-    const off = angleDiff(baseAngle, ang);
-    if (Math.abs(off) < bestOff) { bestOff = Math.abs(off); best = e; bestAng = baseAngle + off; }
-  }
-  return best ? baseAngle + (bestAng - baseAngle) * G.assist : baseAngle;
-}
-
 // Fighter-jet style: the missile locks onto the boat closest to your nose (inside a cone, within range) at launch,
 // tracks it for a short time, then flies on. No boat in the cone = no lock, it flies straight.
 function acquireLock() {
@@ -684,7 +655,7 @@ function frame() {
         gunTimer = 1 / WEAPONS.gun.rate;
         const fx = Math.sin(s.yaw), fz = Math.cos(s.yaw);
         const lx = Math.cos(s.yaw), lz = -Math.sin(s.yaw);
-        const ang = gunAim(s) + (Math.random() - 0.5) * 2 * WEAPONS.gun.spread;
+        const ang = s.yaw + (Math.random() - 0.5) * 2 * (WEAPONS.gun.spread || 0);
         const bspd = WEAPONS.gun.speed + Math.max(0, s.speed);
         // Fire both left & right barrels simultaneously so twin parallel streams are always visible
         for (const side of [-1, 1]) {

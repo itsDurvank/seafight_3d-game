@@ -357,8 +357,7 @@ export class Combat {
         for (const t of targets) {
           if (t.team === b.owner || !t.alive) continue;
           const dx = t.state.x - b.x, dz = t.state.z - b.z;
-          const isPlayerBullet = b.owner === 'player' || !String(b.owner).startsWith('enemy:');
-          const hr = t.radius * (t.hitScale || 1) + (isPlayerBullet ? WEAPONS.gun.hitPad || 0 : 0);
+          const hr = t.radius * (t.hitScale || 1);
           if (dx * dx + dz * dz < hr * hr) {
             t.takeDamage(b.dmg, b.owner);
             if (b.owner === 'player' && this.onPlayerHit) this.onPlayerHit(t);
