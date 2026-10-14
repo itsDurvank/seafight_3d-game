@@ -48,7 +48,7 @@ export function makeCoralReef(def = {}) {
   const brain = egg(g, 1.1, 0.8, 1.1, CORALS[3], 2.4, 0.7, -1.2); for (let k = 0; k < 3; k++) add(g, new THREE.Mesh(new THREE.TorusGeometry(0.55 + k * 0.2, 0.05, 4, 12, 4), flat(0xc73a49)), 2.4, 1.0 + k * 0.0, -1.2).rotation.x = Math.PI / 2;
   const fan = add(g, new THREE.Mesh(new THREE.CylinderGeometry(1.5, 1.5, 0.12, 14, 1, false, 0, Math.PI), flat(CORALS[1], { side: THREE.DoubleSide })), -2.4, 1.8, -1.0); fan.rotation.x = Math.PI / 2; fan.rotation.z = 0.4;
   for (let k = 0; k < 4; k++) cyl(g, 0.17, 0.2, 1.0 + k * 0.25, CORALS[4], -0.5 + k * 0.4, 0.7 + k * 0.12, -2.4 + (k % 2) * 0.3, 7), cyl(g, 0.12, 0.12, 0.05, 0x1d6b66, -0.5 + k * 0.4, 1.2 + k * 0.25, -2.4 + (k % 2) * 0.3, 7);
-  // tick disabled: (t) => sway.forEach((b, i) => { b.rotation.z = Math.sin(t * 1.2 + i) * 0.05; b.rotation.x = Math.cos(t + i * 2) * 0.04; });
+  g.userData.tick = (t) => sway.forEach((b, i) => { b.rotation.z = Math.sin(t * 1.2 + i) * 0.05; b.rotation.x = Math.cos(t + i * 2) * 0.04; });
   return g;
 }
 
@@ -61,7 +61,7 @@ export function makeKelpForest(def = {}) {
     for (let k = 0; k < len; k++) { const s = new THREE.Group(); parent.add(s); s.position.y = k ? 0.9 : 0; const w = 0.55 - k * 0.03; box(s, w, 0.95, 0.07, i % 3 ? 0x2fb76a : 0x4fd37a, 0, 0.45, 0); if (k % 3 === 2) ball(s, 0.14, 0xffd23f, w * 0.6, 0.5, 0.0); segs.push(s); parent = s; }
     strands.push({ segs, ph: r() * 6 });
   }
-  // tick disabled: (t) => strands.forEach(({ segs, ph }) => segs.forEach((s, k) => { s.rotation.z = Math.sin(t * 1.4 + ph + k * 0.5) * 0.14; s.rotation.x = Math.cos(t * 1.1 + ph + k * 0.4) * 0.08; }));
+  g.userData.tick = (t) => strands.forEach(({ segs, ph }) => segs.forEach((s, k) => { s.rotation.z = Math.sin(t * 1.4 + ph + k * 0.5) * 0.14; s.rotation.x = Math.cos(t * 1.1 + ph + k * 0.4) * 0.08; }));
   return g;
 }
 
@@ -76,7 +76,7 @@ export function makeJellyfishSwarm() {
     for (let k = 0; k < 7; k++) { const a = (k / 7) * 6.28, pv = new THREE.Group(); add(m, pv, Math.cos(a) * 0.85, 0, Math.sin(a) * 0.85); cyl(pv, 0.07, 0.03, 2.0 + (k % 3) * 0.4, c, 0, -1.1, 0, 5); tents.push(pv); }
     meds.push({ m, bell, tents, y, ph: i * 1.7 });
   });
-  // tick disabled: (t) => meds.forEach(({ m, bell, tents, y, ph }) => { m.position.y = y + Math.sin(t * 0.9 + ph) * 0.4; const p = Math.sin(t * 2.2 + ph); bell.scale.set(1 + p * 0.06, 0.85 - p * 0.08, 1 + p * 0.06); tents.forEach((tn, k) => { tn.rotation.x = Math.sin(t * 2 + ph + k) * 0.18 + p * 0.06; tn.rotation.z = Math.cos(t * 1.7 + ph + k * 1.3) * 0.15; }); });
+  g.userData.tick = (t) => meds.forEach(({ m, bell, tents, y, ph }) => { m.position.y = y + Math.sin(t * 0.9 + ph) * 0.4; const p = Math.sin(t * 2.2 + ph); bell.scale.set(1 + p * 0.06, 0.85 - p * 0.08, 1 + p * 0.06); tents.forEach((tn, k) => { tn.rotation.x = Math.sin(t * 2 + ph + k) * 0.18 + p * 0.06; tn.rotation.z = Math.cos(t * 1.7 + ph + k * 1.3) * 0.15; }); });
   return g;
 }
 
@@ -85,7 +85,7 @@ export function makeFishSchool(def = {}) {
   const g = new THREE.Group(), r = rng(def.seed || 24), list = [], cols = [[0xff8a3d, 0xffd23f], [0xffd23f, 0xff8a3d], [0x4fb8ff, 0xffffff], [0x3fd1c4, 0xffd23f]];
   for (let i = 0; i < 14; i++) { const [c, c2] = cols[i % 4], f = fish(g, c, c2, 0.8 + r() * 0.35); list.push({ ...f, a: (i / 14) * 6.28, rad: 2.2 + r() * 1.8, y: 0.7 + r() * 1.6, sp: 0.5 + r() * 0.2, ph: r() * 6 }); }
   const rp = [ripple(g, 2.6), ripple(g, 4.0, 0, 0, 0.3)];
-  // tick disabled: (t) => { list.forEach((f) => { const a = f.a + t * f.sp; f.g.position.set(Math.cos(a) * f.rad, f.y + Math.sin(t * 2 + f.ph) * 0.2, Math.sin(a) * f.rad); f.g.rotation.y = -a; f.tail.rotation.y = Math.sin(t * 9 + f.ph) * 0.5; }); rp[0].scale.setScalar(1 + Math.sin(t * 1.5) * 0.06); rp[1].scale.setScalar(1 + Math.cos(t * 1.2) * 0.06); };
+  g.userData.tick = (t) => { list.forEach((f) => { const a = f.a + t * f.sp; f.g.position.set(Math.cos(a) * f.rad, f.y + Math.sin(t * 2 + f.ph) * 0.2, Math.sin(a) * f.rad); f.g.rotation.y = -a; f.tail.rotation.y = Math.sin(t * 9 + f.ph) * 0.5; }); rp[0].scale.setScalar(1 + Math.sin(t * 1.5) * 0.06); rp[1].scale.setScalar(1 + Math.cos(t * 1.2) * 0.06); };
   return g;
 }
 
@@ -101,7 +101,7 @@ export function makeSeaTurtle() {
   for (const s of [-1, 1]) { const f = new THREE.Group(); add(body, f, s * 1.6, 0.35, 1.0); egg(f, 1.15, 0.12, 0.5, SKIN, s * 0.9, 0, 0.1); fl.push([f, s]); const b = new THREE.Group(); add(body, b, s * 1.2, 0.3, -1.5); egg(b, 0.55, 0.1, 0.35, SKIN, s * 0.45, 0, -0.1); fl.push([b, s * 0.5]); }
   cone(body, 0.2, 0.7, SKIN, 0, 0.3, -2.3, 4).rotation.x = -Math.PI / 2;
   const rp = ripple(g, 2.7, 0, 0.3);
-  // tick disabled: (t) => { body.position.y = Math.sin(t * 1.6) * 0.1; body.rotation.z = Math.sin(t * 0.9) * 0.05; fl.forEach(([f, s], i) => { f.rotation.z = Math.sin(t * 2.2 + (i > 1 ? 1 : 0)) * 0.4 * s; }); rp.scale.setScalar(1 + Math.sin(t * 1.5) * 0.05); };
+  g.userData.tick = (t) => { body.position.y = Math.sin(t * 1.6) * 0.1; body.rotation.z = Math.sin(t * 0.9) * 0.05; fl.forEach(([f, s], i) => { f.rotation.z = Math.sin(t * 2.2 + (i > 1 ? 1 : 0)) * 0.4 * s; }); rp.scale.setScalar(1 + Math.sin(t * 1.5) * 0.05); };
   return g;
 }
 
@@ -116,7 +116,7 @@ export function makeWhale() {
   const blow = add(body, new THREE.Mesh(new THREE.CylinderGeometry(0.2, 0.25, 0.2, 7), flat(0x2f5fae)), 0, 1.85, 2.0);
   const drops = Array.from({ length: 9 }, (_, i) => ({ m: add(g, new THREE.Mesh(new THREE.SphereGeometry(0.28, 7, 5), new THREE.MeshStandardMaterial({ color: 0xcfeeff, emissive: 0x6fb8ff, emissiveIntensity: 0.4, transparent: true, opacity: 0.8 })), 0, 2, 2), ph: i / 9 }));
   const rp = ripple(g, 5.2, 0, 0, 0.35);
-  // tick disabled: (t) => { body.position.y = Math.sin(t * 0.9) * 0.18; body.rotation.x = Math.sin(t * 0.9 + 1) * 0.03; tail.rotation.x = Math.sin(t * 1.4) * 0.12; fluke.rotation.x = Math.sin(t * 1.4 - 0.8) * 0.25; drops.forEach((d, i) => { const k = (t * 0.45 + d.ph) % 1, hh = k * (1.5 - k); d.m.position.set(Math.sin(i * 2.4) * 0.9 * k, 2.1 + body.position.y + hh * 4.2, 2.0 + Math.cos(i * 1.7) * 0.9 * k); d.m.scale.setScalar(Math.max(0.1, 1 - k * 0.7)); d.m.material.opacity = 0.85 * (1 - k * k); }); rp.scale.setScalar(1 + Math.sin(t * 1.2) * 0.04); };
+  g.userData.tick = (t) => { body.position.y = Math.sin(t * 0.9) * 0.18; body.rotation.x = Math.sin(t * 0.9 + 1) * 0.03; tail.rotation.x = Math.sin(t * 1.4) * 0.12; fluke.rotation.x = Math.sin(t * 1.4 - 0.8) * 0.25; drops.forEach((d, i) => { const k = (t * 0.45 + d.ph) % 1, hh = k * (1.5 - k); d.m.position.set(Math.sin(i * 2.4) * 0.9 * k, 2.1 + body.position.y + hh * 4.2, 2.0 + Math.cos(i * 1.7) * 0.9 * k); d.m.scale.setScalar(Math.max(0.1, 1 - k * 0.7)); d.m.material.opacity = 0.85 * (1 - k * k); }); rp.scale.setScalar(1 + Math.sin(t * 1.2) * 0.04); };
   return g;
 }
 
@@ -126,7 +126,7 @@ export function makeDolphinPair() {
   const dolphin = () => { const d = new THREE.Group(); egg(d, 1.25, 0.45, 0.45, GREY, 0, 0, 0); egg(d, 1.1, 0.3, 0.38, 0xeaf4ff, 0.05, -0.2, 0); egg(d, 0.5, 0.42, 0.42, GREY, 1.0, 0.05, 0); rod(d, [1.2, -0.02, 0], [1.95, -0.05, 0], 0.15, GREY, 6); cone(d, 0.22, 0.6, GREY, 0.1, 0.55, 0, 4).rotation.z = -0.5; for (const s of [-1, 1]) { egg(d, 0.35, 0.06, 0.2, GREY, 0.7, -0.25, s * 0.45).rotation.y = s * 0.5; egg(d, 0.35, 0.06, 0.28, GREY, -1.5, 0.0, s * 0.3); ball(d, 0.07, 0x15202b, 1.15, 0.2, s * 0.33); } return d; };
   [[1.6, 0], [-1.6, 0.5]].forEach(([z, ph]) => { const d = dolphin(); add(g, d, 0, -2, z); dols.push({ d, z, ph }); });
   [[-3.6, 1.6], [3.6, 1.6], [-3.6, -1.6], [3.6, -1.6]].forEach(([x, z]) => rings.push({ m: ripple(g, 0.8, x, z, 0.5), x, z }));
-  // tick disabled: (t) => {
+  g.userData.tick = (t) => {
     dols.forEach(({ d, z, ph }) => { const u = (t * 0.4 + ph) % 1; if (u < 0.7) { const s = u / 0.7; d.visible = true; d.position.set(-3.6 + s * 7.2, -0.3 + 3.9 * Math.sin(Math.PI * s), z); d.rotation.z = Math.atan2(3.9 * Math.PI * Math.cos(Math.PI * s), 7.2); } else d.visible = false; });
     rings.forEach((r, i) => { const dd = dols[i % 2], u = (t * 0.4 + dd.ph) % 1, near = i < 2 ? Math.min(u, 1 - u) : Math.abs(u - 0.7); const k = Math.max(0, 1 - near * 5); r.m.scale.setScalar(0.4 + (1 - k) * 1.2); r.m.material.opacity = 0.55 * k; });
   };
@@ -142,7 +142,7 @@ export function makeShark() {
   for (const k of [-1, 1]) { const f = cone(s, 0.3, 1.1, GREY, k * 0.9, -0.2, 0.6, 3); f.rotation.z = k * 1.2; f.scale.z = 0.3; ball(s, 0.13, 0xffffff, k * 0.55, 0.3, 1.9); ball(s, 0.07, 0x15202b, k * 0.58, 0.3, 2.02); }
   box(s, 0.9, 0.08, 0.1, 0x8a1f2a, 0, -0.12, 2.15); for (let i = -2; i <= 2; i++) cone(s, 0.05, 0.14, 0xffffff, i * 0.15, -0.06, 2.2, 3).rotation.x = Math.PI;
   const wake = ripple(g, 1.4, 0, 0, 0.35);
-  // tick disabled: (t) => { const a = t * 0.55, R = 4.0; s.position.set(Math.cos(a) * R, Math.sin(t * 1.5) * 0.08, Math.sin(a) * R); s.rotation.y = -a; tail.rotation.y = Math.sin(t * 4) * 0.35; wake.position.set(Math.cos(a - 0.35) * R, 0.06, Math.sin(a - 0.35) * R); wake.scale.setScalar(1 + Math.sin(t * 3) * 0.1); };
+  g.userData.tick = (t) => { const a = t * 0.55, R = 4.0; s.position.set(Math.cos(a) * R, Math.sin(t * 1.5) * 0.08, Math.sin(a) * R); s.rotation.y = -a; tail.rotation.y = Math.sin(t * 4) * 0.35; wake.position.set(Math.cos(a - 0.35) * R, 0.06, Math.sin(a - 0.35) * R); wake.scale.setScalar(1 + Math.sin(t * 3) * 0.1); };
   return g;
 }
 
@@ -155,7 +155,7 @@ export function makeMantaRay() {
   rod(body, [0, 0.1, -0.9], [0, 0.0, -4.2], 0.08, 0x2f4b8f, 5);
   for (const [x, z] of [[-0.9, 0.1], [0.9, -0.2], [0.0, -0.5], [-1.6, -0.1], [1.7, 0.0]]) ball(body, 0.12, 0xffffff, x, 0.32, z);
   const rp = ripple(g, 3.3, 0, 0, 0.3);
-  // tick disabled: (t) => { body.position.y = 0.35 + Math.sin(t * 1.4) * 0.18; body.rotation.z = Math.sin(t * 0.7) * 0.05; wl.rotation.z = -Math.sin(t * 2.2) * 0.22; wr.rotation.z = Math.sin(t * 2.2) * 0.22; rp.scale.setScalar(1 + Math.sin(t * 1.4) * 0.05); };
+  g.userData.tick = (t) => { body.position.y = 0.35 + Math.sin(t * 1.4) * 0.18; body.rotation.z = Math.sin(t * 0.7) * 0.05; wl.rotation.z = -Math.sin(t * 2.2) * 0.22; wr.rotation.z = Math.sin(t * 2.2) * 0.22; rp.scale.setScalar(1 + Math.sin(t * 1.4) * 0.05); };
   return g;
 }
 
@@ -184,7 +184,7 @@ export function makeGiantClam() {
   const hinge = new THREE.Group(); add(g, hinge, 0, 1.0, -2.0); const lidMesh = new THREE.Group(); add(hinge, lidMesh, 0, 0, 2.0); half(lidMesh, true);
   for (let i = 0; i < 5; i++) add(g, new THREE.Mesh(new THREE.DodecahedronGeometry(0.5 + (i % 2) * 0.2, 0), flat(i % 2 ? ROCK : ROCK2)), Math.cos(i * 1.3 + 0.5) * 3.3, 0.4, Math.sin(i * 1.3 + 0.5) * 3.0).scale.y = 0.65;
   const bubbles = [0, 1, 2, 3].map((i) => ({ m: add(g, new THREE.Mesh(new THREE.SphereGeometry(0.14, 7, 5), new THREE.MeshStandardMaterial({ color: 0xdff6ff, transparent: true, opacity: 0.7 })), 0, 2, 0), ph: i / 4 }));
-  // tick disabled: (t) => { const c = Math.max(0, Math.sin(t * 0.7)); hinge.rotation.x = -(1.15 - c * 0.9); pearl.material.emissiveIntensity = 0.6 + Math.sin(t * 2.5) * 0.3; pearl.position.y = 1.7 + Math.sin(t * 1.6) * 0.06; bubbles.forEach((b, i) => { const k = (t * 0.35 + b.ph) % 1; b.m.position.set(Math.sin(i * 2 + t) * 0.5, 2.2 + k * 3, Math.cos(i * 2) * 0.4); b.m.scale.setScalar(1 - k * 0.5); b.m.material.opacity = 0.7 * (1 - k); }); };
+  g.userData.tick = (t) => { const c = Math.max(0, Math.sin(t * 0.7)); hinge.rotation.x = -(1.15 - c * 0.9); pearl.material.emissiveIntensity = 0.6 + Math.sin(t * 2.5) * 0.3; pearl.position.y = 1.7 + Math.sin(t * 1.6) * 0.06; bubbles.forEach((b, i) => { const k = (t * 0.35 + b.ph) % 1; b.m.position.set(Math.sin(i * 2 + t) * 0.5, 2.2 + k * 3, Math.cos(i * 2) * 0.4); b.m.scale.setScalar(1 - k * 0.5); b.m.material.opacity = 0.7 * (1 - k); }); };
   return g;
 }
 
@@ -198,7 +198,7 @@ export function makeOctopus() {
   for (const s of [-1, 1]) { ball(body, 0.42, 0xffffff, s * 0.55, 0.95, 1.2); ball(body, 0.22, 0x15202b, s * 0.55, 0.95, 1.55); ball(body, 0.08, 0xffffff, s * 0.6, 1.02, 1.7); ball(body, 0.2, 0xff9a8a, s * 1.0, 0.5, 1.15, { transparent: true, opacity: 0.6 }); }
   for (let k = 0; k < 5; k++) ball(body, 0.1, 0xffc0a8, -0.8 + k * 0.4, 1.9 - Math.abs(k - 2) * 0.15, 0.3);
   for (let i = 0; i < 8; i++) { const a = (i / 8) * 6.28, base = new THREE.Group(); add(body, base, Math.cos(a) * 1.05, 0.1, Math.sin(a) * 1.05); base.rotation.y = -a; let parent = base; const segs = []; for (let k = 0; k < 5; k++) { const rad = 0.42 - k * 0.06, s = new THREE.Group(); parent.add(s); s.position.y = k ? 0.0 : 0; s.position.x = k ? 0.8 : 0; cyl(s, rad * 0.85, rad, 0.9, ORANGE, 0.4, 0, 0, 7).rotation.z = Math.PI / 2; ball(s, rad * 0.35, 0xffd0b8, 0.4, rad * 0.55, 0); segs.push(s); parent = s; } tents.push({ segs, ph: i * 0.8 }); }
-  // tick disabled: (t) => { body.position.y = 1.8 + Math.sin(t * 1.2) * 0.1; tents.forEach(({ segs, ph }) => segs.forEach((s, k) => { s.rotation.y = Math.sin(t * 1.5 + ph + k * 0.7) * 0.28; s.rotation.z = (k === 0 ? -0.5 : -0.2) + Math.cos(t * 1.3 + ph + k * 0.6) * 0.2; })); };
+  g.userData.tick = (t) => { body.position.y = 1.8 + Math.sin(t * 1.2) * 0.1; tents.forEach(({ segs, ph }) => segs.forEach((s, k) => { s.rotation.y = Math.sin(t * 1.5 + ph + k * 0.7) * 0.28; s.rotation.z = (k === 0 ? -0.5 : -0.2) + Math.cos(t * 1.3 + ph + k * 0.6) * 0.2; })); };
   return g;
 }
 
@@ -213,7 +213,7 @@ export function makeGiantCrab() {
   const claws = [];
   for (const s of [-1, 1]) { const arm = new THREE.Group(); add(crab, arm, s * 1.7, 0.5, 0.4); rod(arm, [0, 0, 0], [s * 0.7, 0.6, 0.7], 0.2, RED); const claw = new THREE.Group(); add(arm, claw, s * 0.7, 0.6, 0.7); egg(claw, 0.75, 0.55, 0.55, RED2, s * 0.2, 0.2, 0.5); const up = new THREE.Group(); add(claw, up, s * 0.1, 0.5, 0.9); cone(up, 0.2, 0.9, RED2, 0, 0.0, 0.3, 4).rotation.x = Math.PI / 2; const lo = new THREE.Group(); add(claw, lo, s * 0.1, 0.0, 0.9); cone(lo, 0.2, 0.9, RED2, 0, 0.0, 0.3, 4).rotation.x = Math.PI / 2; claws.push({ arm, up, lo, s }); }
   for (const s of [-1, 1]) for (let k = 0; k < 3; k++) { const z = -0.5 + k * 0.45; rod(crab, [s * 1.4, 0.4, z], [s * 2.5, 0.9, z + 0.2], 0.09, RED); rod(crab, [s * 2.5, 0.9, z + 0.2], [s * 3.0, -0.8, z + 0.3], 0.08, RED); }
-  // tick disabled: (t) => { crab.position.y = 1.0 + Math.abs(Math.sin(t * 2)) * 0.06; crab.rotation.y = Math.sin(t * 0.8) * 0.12; claws.forEach(({ arm, up, lo, s }, i) => { arm.rotation.z = s * Math.sin(t * 1.6 + i) * 0.2; const p = (Math.sin(t * 5 + i) + 1) * 0.15; up.rotation.x = -p; lo.rotation.x = p; }); };
+  g.userData.tick = (t) => { crab.position.y = 1.0 + Math.abs(Math.sin(t * 2)) * 0.06; crab.rotation.y = Math.sin(t * 0.8) * 0.12; claws.forEach(({ arm, up, lo, s }, i) => { arm.rotation.z = s * Math.sin(t * 1.6 + i) * 0.2; const p = (Math.sin(t * 5 + i) + 1) * 0.15; up.rotation.x = -p; lo.rotation.x = p; }); };
   return g;
 }
 
@@ -232,7 +232,7 @@ export function makeSeahorsePair() {
     horses.push({ h, body, ph: i * 2, y: 0.4 });
   });
   for (let i = 0; i < 5; i++) { const b = new THREE.Group(); add(g, b, -3 + i * 1.5, 0.2, -2.2 + (i % 2) * 0.8); for (let k = 0; k < 3; k++) { const bl = box(b, 0.3, 1.6 + k * 0.4, 0.05, 0x3dcb74, (k - 1) * 0.15, 0.9 + k * 0.1, 0); bl.rotation.z = (k - 1) * 0.25; } }
-  // tick disabled: (t) => horses.forEach(({ h, body, ph, y }) => { h.position.y = y + Math.sin(t * 1.4 + ph) * 0.25; body.rotation.z = Math.sin(t * 1.1 + ph) * 0.08; body.rotation.x = Math.cos(t * 0.9 + ph) * 0.05; });
+  g.userData.tick = (t) => horses.forEach(({ h, body, ph, y }) => { h.position.y = y + Math.sin(t * 1.4 + ph) * 0.25; body.rotation.z = Math.sin(t * 1.1 + ph) * 0.08; body.rotation.x = Math.cos(t * 0.9 + ph) * 0.05; });
   return g;
 }
 
@@ -245,7 +245,7 @@ export function makePufferfish() {
   egg(body, 0.28, 0.14, 0.12, 0xff6a3d, 0, 1.0, 1.45);
   const tail = new THREE.Group(); add(body, tail, 0, 1.4, -1.5); const tf = cone(tail, 0.6, 1.0, 0xff9f1c, 0, 0, -0.4, 3); tf.rotation.x = -Math.PI / 2; tf.scale.x = 0.25;
   const rp = ripple(g, 2.1, 0, 0, 0.4);
-  // tick disabled: (t) => { const k = 1 + Math.max(0, Math.sin(t * 1.3)) * 0.14; body.scale.setScalar(k); body.position.y = Math.sin(t * 1.8) * 0.12; tail.rotation.y = Math.sin(t * 6) * 0.35; rp.scale.setScalar(1 + Math.sin(t * 1.8) * 0.06); };
+  g.userData.tick = (t) => { const k = 1 + Math.max(0, Math.sin(t * 1.3)) * 0.14; body.scale.setScalar(k); body.position.y = Math.sin(t * 1.8) * 0.12; tail.rotation.y = Math.sin(t * 6) * 0.35; rp.scale.setScalar(1 + Math.sin(t * 1.8) * 0.06); };
   return g;
 }
 
@@ -257,7 +257,7 @@ export function makeAnemoneClownfish(def = {}) {
   for (let i = 0; i < 44; i++) { const a = r() * 6.28, d = Math.sqrt(r()) * 1.5, t = new THREE.Group(); add(g, t, Math.cos(a) * d, 1.1, Math.sin(a) * d); const c = [0xff5aa8, 0xd447c4, 0xff8ac4][i % 3]; cyl(t, 0.07, 0.17, 1.4, c, 0, 0.7, 0, 5); ball(t, 0.14, 0xfff0a0, 0, 1.45, 0); tents.push({ t, ph: r() * 6 }); }
   for (let i = 0; i < 2; i++) { const g2 = new THREE.Group(); g.add(g2); egg(g2, 0.42, 0.5, 0.95, 0xff7a1f, 0, 0, 0); for (const z of [0.35, -0.2]) add(g2, new THREE.Mesh(new THREE.CylinderGeometry(0.43, 0.43, 0.14, 10), flat(0xffffff)), 0, 0, z).rotation.x = Math.PI / 2;
     egg(g2, 0.1, 0.5, 0.3, 0xffffff, 0, 0, -0.7); const tail = new THREE.Group(); add(g2, tail, 0, 0, -0.85); const tf = cone(tail, 0.4, 0.7, 0xff7a1f, 0, 0, -0.3, 3); tf.rotation.x = -Math.PI / 2; tf.scale.x = 0.25; cone(g2, 0.14, 0.5, 0xff7a1f, 0, 0.55, 0.1, 3).scale.x = 0.3; for (const s of [-1, 1]) { ball(g2, 0.1, 0xffffff, s * 0.32, 0.12, 0.62); ball(g2, 0.055, 0x15202b, s * 0.36, 0.12, 0.68); } fishes.push({ g2, tail, ph: i * 3.1 }); }
-  // tick disabled: (t) => { tents.forEach(({ t: tn, ph }) => { tn.rotation.z = Math.sin(t * 1.6 + ph) * 0.2; tn.rotation.x = Math.cos(t * 1.3 + ph) * 0.2; }); fishes.forEach(({ g2, tail, ph }) => { const a = t * 0.9 + ph, R = 2.1; g2.position.set(Math.cos(a) * R, 2.2 + Math.sin(t * 2 + ph) * 0.3, Math.sin(a) * R); g2.rotation.y = -a; tail.rotation.y = Math.sin(t * 9 + ph) * 0.5; }); };
+  g.userData.tick = (t) => { tents.forEach(({ t: tn, ph }) => { tn.rotation.z = Math.sin(t * 1.6 + ph) * 0.2; tn.rotation.x = Math.cos(t * 1.3 + ph) * 0.2; }); fishes.forEach(({ g2, tail, ph }) => { const a = t * 0.9 + ph, R = 2.1; g2.position.set(Math.cos(a) * R, 2.2 + Math.sin(t * 2 + ph) * 0.3, Math.sin(a) * R); g2.rotation.y = -a; tail.rotation.y = Math.sin(t * 9 + ph) * 0.5; }); };
   return g;
 }
 
@@ -270,7 +270,7 @@ export function makeLilyPond(def = {}) {
   [[1.7, -1.5, 0xff7ab8], [-2.4, 1.6, 0xffffff], [0.2, 1.9, 0xffe36a]].forEach(([x, z, c], i) => { const f = new THREE.Group(); add(g, f, x, 0.35, z); for (let k = 0; k < 8; k++) { const a = (k / 8) * 6.28, pt = cone(f, 0.22, 0.8, c, Math.cos(a) * 0.35, 0.35, Math.sin(a) * 0.35, 4); pt.rotation.z = -Math.cos(a) * 0.7; pt.rotation.x = Math.sin(a) * 0.7; } ball(f, 0.18, 0xffd23f, 0, 0.3, 0); flowers.push({ f, ph: i }); });
   const frog = new THREE.Group(); add(g, frog, -1.8, 0.35, -1.2); egg(frog, 0.45, 0.32, 0.5, 0x6ccf3c, 0, 0.2, 0); egg(frog, 0.3, 0.25, 0.3, 0xa8f060, 0, 0.0, 0.2); for (const s of [-1, 1]) { ball(frog, 0.17, 0xffffff, s * 0.2, 0.55, 0.3); ball(frog, 0.09, 0x15202b, s * 0.2, 0.57, 0.42); egg(frog, 0.14, 0.08, 0.3, 0x55b82e, s * 0.4, 0.06, -0.1); }
   for (let i = 0; i < 6; i++) { const a = 0.2 + i * 0.5, x = Math.cos(a) * 4.0, z = Math.sin(a) * 4.0; rod(g, [x, 0.2, z], [x * 1.02, 2.4 + (i % 3) * 0.4, z * 1.02], 0.05, 0x3fa85a); cyl(g, 0.12, 0.12, 0.6, 0x8a5a33, x * 1.02, 2.6 + (i % 3) * 0.4, z * 1.02, 6); }
-  // tick disabled: (t) => { pads.forEach(({ p, ph, y }) => { p.position.y = y + Math.sin(t * 1.2 + ph) * 0.03; p.rotation.z = Math.sin(t + ph) * 0.03; }); flowers.forEach(({ f, ph }) => { f.scale.setScalar(1 + Math.sin(t * 1.5 + ph) * 0.06); }); frog.position.y = 0.35 + Math.max(0, Math.sin(t * 2.2)) * 0.18; };
+  g.userData.tick = (t) => { pads.forEach(({ p, ph, y }) => { p.position.y = y + Math.sin(t * 1.2 + ph) * 0.03; p.rotation.z = Math.sin(t + ph) * 0.03; }); flowers.forEach(({ f, ph }) => { f.scale.setScalar(1 + Math.sin(t * 1.5 + ph) * 0.06); }); frog.position.y = 0.35 + Math.max(0, Math.sin(t * 2.2)) * 0.18; };
   return g;
 }
 
@@ -285,7 +285,7 @@ export function makeTidePool(def = {}) {
   for (const [x, z, c] of [[1.2, 0.9, 0xf4d6c0], [-1.5, -0.8, 0xe8f0ff]]) { const sh = add(g, new THREE.Mesh(new THREE.SphereGeometry(0.35, 8, 6, 0, 6.28, 0, 1.6), flat(c)), x, 0.5, z); sh.scale.y = 0.7; }
   for (let i = 0; i < 4; i++) { const a = i * 1.6; cone(g, 0.18, 1.0, 0x3dcb74, Math.cos(a) * 1.9, 0.9, Math.sin(a) * 1.9, 5).rotation.z = 0.15; }
   const sea = [ripple(g, 1.2, 0.5, 0.2, 0.5), ripple(g, 1.9, 0.5, 0.2, 0.3)];
-  // tick disabled: (t) => { crab.position.x = -0.8 + Math.sin(t * 0.9) * 0.7; crab.position.z = 0.6 + Math.cos(t * 0.6) * 0.3; crab.rotation.y = Math.sin(t * 0.9) * 0.3; sea[0].scale.setScalar(0.7 + ((t * 0.5) % 1) * 0.8); sea[0].material.opacity = 0.5 * (1 - ((t * 0.5) % 1)); sea[1].scale.setScalar(0.7 + ((t * 0.5 + 0.5) % 1) * 0.8); sea[1].material.opacity = 0.5 * (1 - ((t * 0.5 + 0.5) % 1)); star.rotation.y = 0.5 + Math.sin(t * 0.5) * 0.05; };
+  g.userData.tick = (t) => { crab.position.x = -0.8 + Math.sin(t * 0.9) * 0.7; crab.position.z = 0.6 + Math.cos(t * 0.6) * 0.3; crab.rotation.y = Math.sin(t * 0.9) * 0.3; sea[0].scale.setScalar(0.7 + ((t * 0.5) % 1) * 0.8); sea[0].material.opacity = 0.5 * (1 - ((t * 0.5) % 1)); sea[1].scale.setScalar(0.7 + ((t * 0.5 + 0.5) % 1) * 0.8); sea[1].material.opacity = 0.5 * (1 - ((t * 0.5 + 0.5) % 1)); star.rotation.y = 0.5 + Math.sin(t * 0.5) * 0.05; };
   return g;
 }
 
@@ -302,7 +302,7 @@ export function makeSealRock() {
   const bl = new THREE.Group(); add(g, bl, 0, 4.4, 0);
   for (let i = 0; i < 6; i++) add(bl, new THREE.Mesh(new THREE.SphereGeometry(0.62, 4, 8, (i / 6) * 6.283, 1.0472), flat([0xff5a3d, 0xffffff, 0x2fb8ff][i % 3], { side: THREE.DoubleSide })), 0, 0, 0);
   const rp = ripple(g, 4.2, 0, 0, 0.4);
-  // tick disabled: (t) => { head.rotation.x = Math.sin(t * 1.3) * 0.08 - 0.05; seal.position.y = 1.85 + Math.sin(t * 1.1) * 0.03; bl.position.set(Math.sin(seal.rotation.y) * 3.1, 3.8 + Math.abs(Math.sin(t * 2.0)) * 0.9, Math.cos(seal.rotation.y) * 3.1); bl.rotation.x = t * 1.5; bl.rotation.z = t * 0.9; rp.scale.setScalar(1 + Math.sin(t * 1.2) * 0.04); };
+  g.userData.tick = (t) => { head.rotation.x = Math.sin(t * 1.3) * 0.08 - 0.05; seal.position.y = 1.85 + Math.sin(t * 1.1) * 0.03; bl.position.set(Math.sin(seal.rotation.y) * 3.1, 3.8 + Math.abs(Math.sin(t * 2.0)) * 0.9, Math.cos(seal.rotation.y) * 3.1); bl.rotation.x = t * 1.5; bl.rotation.z = t * 0.9; rp.scale.setScalar(1 + Math.sin(t * 1.2) * 0.04); };
   return g;
 }
 
@@ -315,7 +315,7 @@ export function makeBubbleVent() {
   const glowRing = add(g, new THREE.Mesh(new THREE.TorusGeometry(0.75, 0.16, 6, 14), new THREE.MeshStandardMaterial({ color: 0xff8a3d, emissive: 0xff5a1a, emissiveIntensity: 1.5 })), 0, 3.28, 0); glowRing.rotation.x = Math.PI / 2;
   for (let k = 0; k < 6; k++) { const a = k * 1.1; const tw = cyl(g, 0.1, 0.1, 0.9 + (k % 3) * 0.3, 0xfff6e6, Math.cos(a) * 3.2, 0.8, Math.sin(a) * 3.2, 6); ball(g, 0.17, 0xff4d5a, Math.cos(a) * 3.2, 1.3 + (k % 3) * 0.3, Math.sin(a) * 3.2); }
   const bubbles = Array.from({ length: 16 }, (_, i) => ({ m: add(g, new THREE.Mesh(new THREE.SphereGeometry(0.25, 8, 6), new THREE.MeshStandardMaterial({ color: 0xdff6ff, emissive: 0x9fdcff, emissiveIntensity: 0.3, transparent: true, opacity: 0.7, roughness: 0.1 })), 0, 3.4, 0), ph: i / 16, sz: 0.5 + r() * 0.8, sp: 0.25 + r() * 0.15 }));
-  // tick disabled: (t) => { glowRing.material.emissiveIntensity = 1.3 + Math.sin(t * 3) * 0.4; bubbles.forEach((b, i) => { const k = (t * b.sp + b.ph) % 1; b.m.position.set(Math.sin(i * 2.3 + t * 1.2) * 0.4 * k * 2, 3.4 + k * 7, Math.cos(i * 1.9 + t) * 0.4 * k * 2); b.m.scale.setScalar(b.sz * (0.5 + k * 0.7)); b.m.material.opacity = 0.75 * (1 - k * k); }); };
+  g.userData.tick = (t) => { glowRing.material.emissiveIntensity = 1.3 + Math.sin(t * 3) * 0.4; bubbles.forEach((b, i) => { const k = (t * b.sp + b.ph) % 1; b.m.position.set(Math.sin(i * 2.3 + t * 1.2) * 0.4 * k * 2, 3.4 + k * 7, Math.cos(i * 1.9 + t) * 0.4 * k * 2); b.m.scale.setScalar(b.sz * (0.5 + k * 0.7)); b.m.material.opacity = 0.75 * (1 - k * k); }); };
   return g;
 }
 

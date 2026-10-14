@@ -104,7 +104,7 @@ export function buildFloatingTreasure({ float = true } = {}) {
   };
   api.close = () => { isOpen = false; for (const c of coins) c.m.visible = false; };
   api.isOpen = () => isOpen;
-  // tick disabled: (t, dt = 0.016) => {
+  api.tick = (t, dt = 0.016) => {
     body.position.y = Math.sin(t * 1.7) * 0.16;
     body.rotation.z = Math.sin(t * 1.2) * 0.05; body.rotation.x = Math.cos(t * 1.0) * 0.04;
     if (ring) { ring.rotation.z = Math.sin(t * 1.3) * 0.05; ring.rotation.x = Math.cos(t * 1.1) * 0.04; }
