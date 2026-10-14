@@ -6,6 +6,7 @@
 import * as THREE from 'three';
 import { buildTrophy } from './new_assets/trophy.js';
 import { MP } from './config.js';
+import { MULTIPLAYER_BOATS } from './multiplayerBoats.js';
 
 export class MultiplayerHUD {
   constructor(mpManager) {
@@ -47,6 +48,12 @@ export class MultiplayerHUD {
     this.elReadyBtn = document.getElementById('mp-ready-btn');
     this.elLobbyLeaveBtn = document.getElementById('mp-leave-btn');
     this.isReady = false;
+
+    // Skin dropdown elements
+    this.elLobbySkinBtn = document.getElementById('mp-lobby-skin-btn');
+    this.elLobbySkinPanel = document.getElementById('mp-lobby-skin-panel');
+    this.elSettingsOnlineSkinBtn = document.getElementById('settings-online-skin-btn');
+    this.elSettingsOnlineSkinPanel = document.getElementById('settings-online-skin-panel');
 
     // Countdown overlay
     this.elCountdownOverlay = document.getElementById('mp-countdown-overlay');
@@ -191,6 +198,25 @@ export class MultiplayerHUD {
       });
     }
 
+    // Skin toggle button listeners
+    if (this.elLobbySkinBtn && this.elLobbySkinPanel) {
+      this.elLobbySkinBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const willOpen = this.elLobbySkinPanel.classList.contains('hidden');
+        this.elLobbySkinPanel.classList.toggle('hidden', !willOpen);
+        this.elLobbySkinBtn.classList.toggle('open', willOpen);
+      });
+    }
+
+    if (this.elSettingsOnlineSkinBtn && this.elSettingsOnlineSkinPanel) {
+      this.elSettingsOnlineSkinBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const willOpen = this.elSettingsOnlineSkinPanel.classList.contains('hidden');
+        this.elSettingsOnlineSkinPanel.classList.toggle('hidden', !willOpen);
+        this.elSettingsOnlineSkinBtn.classList.toggle('open', willOpen);
+      });
+    }
+
     // Ping & Network Status update
     this.mp.net.onPing = (rtt) => {
       if (this.elPingIndicator) {
@@ -232,85 +258,149 @@ export class MultiplayerHUD {
   }
 
   getBoatDisplayName(skinKey) {
-    const map = {
-      reefbreaker: '💥 Reefbreaker',
-      tidecutter: '💧 Tidecutter',
-      twinhull: '🌿 Twinhull',
-      manta: '⚡ Manta',
-      blazerunner: '🌸 Blaze Runner',
-    };
-    return map[skinKey] || '🛥️ Boat';
+    const found = MULTIPLAYER_BOATS.find(b => b.id === skinKey);
+    return found ? `${found.icon} ${found.name}` : '🛥️ Boat';
   }
 
-  renderBoatPickerInto(containerId) {
-    const container = document.getElementById(containerId);
-    if (!container) return;
-    container.innerHTML = '';
+  renderBoatPickerInto(prefix) {
+    const btnTitle = document.getElementById(`${prefix}-skin-title`);
+    const btnIcon = document.getElementById(`${prefix}-skin-icon`);
+    const btnDot = document.getElementById(`${prefix}-skin-dot`);
+    const btnColorName = document.getElementById(`${prefix}-skin-color-name`);
+
+    const activeIcon = document.getElementById(`${prefix}-active-icon`);
+    const activeName = document.getElementById(`${prefix}-active-name`);
+    const activeBadge = document.getElementById(`${prefix}-active-badge`);
+    const activeDesc = document.getElementById(`${prefix}-active-desc`);
+
+    const swatchesContainer = document.getElementById(`${prefix}-paint-swatches`);
+    const optionsContainer = document.getElementById(prefix === 'mp-lobby' ? 'mp-lobby-boat-picker' : 'settings-online-boat-picker');
 
     const currentSkin = this.mp.localBoatSkin || 'reefbreaker';
-    const currentColor = this.mp.localColor || MP.colors[0];
     const currentColorIndex = this.mp.localColorIndex !== undefined ? this.mp.localColorIndex : 0;
+    const currentColor = MP.colors[currentColorIndex] || MP.colors[0];
 
-    const boats = [
-      { id: 'reefbreaker', name: 'Reefbreaker', icon: '💥' },
-      { id: 'tidecutter', name: 'Tidecutter', icon: '💧' },
-      { id: 'twinhull', name: 'Twinhull', icon: '🌿' },
-      { id: 'manta', name: 'Manta', icon: '⚡' },
-      { id: 'blazerunner', name: 'Blaze Runner', icon: '🌸' },
-    ];
+    const currentBoatDef = MULTIPLAYER_BOATS.find(b => b.id === currentSkin) || MULTIPLAYER_BOATS[0];
 
-    for (const b of boats) {
-      const chip = document.createElement('div');
-      chip.className = 'mp-boat-chip';
-      const isActive = currentSkin === b.id;
-      if (isActive) {
-        chip.classList.add('active');
-        chip.style.borderColor = currentColor.hex || '#ff8a3d';
-      }
+    // 1. Update Skin Toggle Button
+    if (btnTitle) btnTitle.textContent = `Skin: ${currentBoatDef.name}`;
+    if (btnIcon) btnIcon.textContent = currentBoatDef.icon;
+    if (btnDot) btnDot.style.backgroundColor = currentColor.hex || '#ff7a59';
+    if (btnColorName) btnColorName.textContent = currentColor.name || 'Color';
 
-      const icon = document.createElement('div');
-      icon.className = 'mp-boat-chip-icon';
-      icon.textContent = b.icon;
+    // 2. Update Active Boat Preview Card
+    if (activeIcon) activeIcon.textContent = currentBoatDef.icon;
+    if (activeName) activeName.textContent = currentBoatDef.name;
+    if (activeBadge) {
+      activeBadge.textContent = currentBoatDef.badge || 'PRO';
+      activeBadge.style.backgroundColor = currentColor.hex || '#ff8a3d';
+    }
+    if (activeDesc) activeDesc.textContent = currentBoatDef.desc || 'Multiplayer combat vessel';
 
-      const name = document.createElement('div');
-      name.className = 'mp-boat-chip-name';
-      name.textContent = b.name;
-
-      chip.appendChild(icon);
-      chip.appendChild(name);
-
-      if (isActive) {
-        const paint = document.createElement('div');
-        paint.className = 'mp-boat-chip-paint';
-        paint.style.color = currentColor.hex;
-        paint.textContent = `${currentColor.icon || '🎨'} ${currentColor.name || 'Color'}`;
-        chip.appendChild(paint);
-      }
-
-      chip.addEventListener('click', (e) => {
-        e.stopPropagation();
-        if (currentSkin === b.id) {
-          // SAME SKIN CLICKED AGAIN -> Cycle color!
-          const nextColorIdx = (currentColorIndex + 1) % MP.colors.length;
-          this.mp.selectSkin(b.id, nextColorIdx);
-        } else {
-          // DIFFERENT SKIN CLICKED -> Equip this skin with current color!
-          this.mp.selectSkin(b.id, currentColorIndex);
+    // 3. Render Paint Color Swatches
+    if (swatchesContainer) {
+      swatchesContainer.innerHTML = '';
+      MP.colors.forEach((c, idx) => {
+        const swatch = document.createElement('button');
+        swatch.type = 'button';
+        swatch.className = 'mp-paint-swatch-btn';
+        swatch.style.backgroundColor = c.hex;
+        swatch.title = `${c.name} (${c.icon || '🎨'})`;
+        if (idx === currentColorIndex) {
+          swatch.classList.add('active');
+          swatch.textContent = '✓';
+          swatch.style.color = '#fff';
         }
-        this.renderLobbyBoatPicker();
-        this.renderSettingsBoatPicker();
+        swatch.addEventListener('click', (e) => {
+          e.stopPropagation();
+          this.mp.selectSkin(currentSkin, idx);
+          this.renderLobbyBoatPicker();
+          this.renderSettingsBoatPicker();
+        });
+        swatchesContainer.appendChild(swatch);
       });
+    }
 
-      container.appendChild(chip);
+    // 4. Render All Skin Option Cards
+    if (optionsContainer) {
+      optionsContainer.innerHTML = '';
+      MULTIPLAYER_BOATS.forEach((b) => {
+        const card = document.createElement('div');
+        card.className = 'mp-skin-option-card';
+        const isActive = (currentSkin === b.id);
+        if (isActive) {
+          card.classList.add('active');
+          card.style.borderColor = currentColor.hex || '#ff8a3d';
+        }
+
+        const iconEl = document.createElement('div');
+        iconEl.className = 'mp-skin-option-icon';
+        iconEl.textContent = b.icon;
+
+        const infoEl = document.createElement('div');
+        infoEl.className = 'mp-skin-option-info';
+
+        const headerEl = document.createElement('div');
+        headerEl.className = 'mp-skin-option-header';
+
+        const nameEl = document.createElement('span');
+        nameEl.className = 'mp-skin-option-name';
+        nameEl.textContent = b.name;
+
+        const badgeEl = document.createElement('span');
+        badgeEl.className = 'mp-skin-option-badge';
+        badgeEl.textContent = b.badge || 'PRO';
+        if (isActive) {
+          badgeEl.style.backgroundColor = currentColor.hex || '#ff8a3d';
+          badgeEl.style.color = '#fff';
+        }
+
+        headerEl.appendChild(nameEl);
+        headerEl.appendChild(badgeEl);
+
+        const descEl = document.createElement('div');
+        descEl.className = 'mp-skin-option-desc';
+        descEl.textContent = b.desc;
+
+        infoEl.appendChild(headerEl);
+        infoEl.appendChild(descEl);
+
+        const actionEl = document.createElement('div');
+        actionEl.className = 'mp-skin-option-action';
+        actionEl.textContent = isActive ? 'Equipped ✓' : 'Select';
+        if (isActive) {
+          actionEl.style.backgroundColor = currentColor.hex || '#22c55e';
+        }
+
+        card.appendChild(iconEl);
+        card.appendChild(infoEl);
+        card.appendChild(actionEl);
+
+        card.addEventListener('click', (e) => {
+          e.stopPropagation();
+          if (currentSkin === b.id) {
+            // Clicked already equipped skin -> cycle to next paint color!
+            const nextColorIdx = (currentColorIndex + 1) % MP.colors.length;
+            this.mp.selectSkin(b.id, nextColorIdx);
+          } else {
+            // Clicked different skin -> equip it with current paint color!
+            this.mp.selectSkin(b.id, currentColorIndex);
+          }
+          this.renderLobbyBoatPicker();
+          this.renderSettingsBoatPicker();
+        });
+
+        optionsContainer.appendChild(card);
+      });
     }
   }
 
   renderLobbyBoatPicker() {
-    this.renderBoatPickerInto('mp-lobby-boat-picker');
+    this.renderBoatPickerInto('mp-lobby');
   }
 
   renderSettingsBoatPicker() {
-    this.renderBoatPickerInto('settings-online-boat-picker');
+    this.renderBoatPickerInto('settings-online');
   }
 
   toggleReady() {

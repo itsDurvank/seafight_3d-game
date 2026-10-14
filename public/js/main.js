@@ -15,7 +15,7 @@ import { EnemyBoat, Director, HUNT } from './enemies.js?v=orig_boost_formula';
 import { audio } from './audio.js';
 import { NetworkClient } from './net.js?v=sg_20261015';
 import { MultiplayerManager } from './multiplayer.js?v=firm_guns_20261015';
-import { MultiplayerHUD } from './mpHud.js';
+import { MultiplayerHUD } from './mpHud.js?v=skin_dropdown_20261015';
 
 // ---------- renderer, scene, camera ----------
 const canvas = document.getElementById('game');

@@ -173,9 +173,10 @@
     .mp-error-msg { font-size:11.5px; font-weight:700; color:#e04646; background:#ffebeb; border:1px solid #ffccd2; border-radius:8px; padding:6px 8px; text-align:center; }
     .mp-error-msg.hidden { display:none; }
 
-    /* Lobby modal */
-    #mp-lobby-modal { top:50%; left:50%; transform:translate(-50%,-50%); width:min(390px,94vw); padding:18px; z-index:100;
-      display:flex; flex-direction:column; gap:14px; animation:popIn 0.16s cubic-bezier(0.18, 0.89, 0.32, 1.25); }
+    /* Lobby modal - docked in usual settings place at top-left */
+    #mp-lobby-modal { top:68px; left:16px; width:min(380px,92vw); padding:16px; z-index:100;
+      max-height:calc(100vh - 90px); overflow-y:auto; display:flex; flex-direction:column; gap:12px;
+      animation:popIn 0.16s cubic-bezier(0.18, 0.89, 0.32, 1.25); }
     #mp-lobby-modal.hidden { display:none; }
     .mp-room-code-display { display:flex; align-items:center; justify-content:space-between; background:#fff; border:2px dashed #e8a35a;
       border-radius:12px; padding:8px 14px; font-size:14px; font-weight:700; }
@@ -195,20 +196,65 @@
     .mp-ready-dot { width:12px; height:12px; border-radius:50%; display:inline-block; flex-shrink:0; transition:background-color 0.2s, box-shadow 0.2s; }
     .mp-ready-dot.ready { background-color:#22c55e; box-shadow:0 0 8px #22c55e, 0 0 2px #15803d; }
     .mp-ready-dot.not-ready { background-color:#ef4444; box-shadow:0 0 6px #ef4444, 0 0 2px #b91c1c; }
-    .mp-boat-picker-section { display:flex; flex-direction:column; gap:6px; background:#fff; border:2px solid #e3d0b3; border-radius:12px; padding:8px 10px; }
-    .mp-section-subtitle { display:flex; align-items:center; justify-content:space-between; font-size:11.5px; font-weight:700; color:#8f4f2a; }
-    .mp-picker-hint { font-size:10.5px; font-weight:600; color:#b9642a; }
-    .mp-lobby-boat-picker { display:grid; grid-template-columns:repeat(5, 1fr); gap:5px; }
-    .mp-boat-chip {
-      display:flex; flex-direction:column; align-items:center; justify-content:center; gap:2px;
-      padding:6px 2px; border-radius:10px; border:2px solid #e3d0b3; background:#fffdfa;
-      cursor:pointer; transition:all .15s ease; user-select:none; text-align:center;
+
+    /* Skin button & collapsible selector panel */
+    .mp-boat-picker-section { display:flex; flex-direction:column; gap:6px; }
+    .mp-skin-toggle-btn {
+      display:flex; align-items:center; justify-content:space-between; width:100%;
+      padding:9px 12px; background:#fff; border:2px solid #e3d0b3; border-radius:10px;
+      font-size:13px; font-weight:700; color:#3b281c; cursor:pointer; transition:all 0.15s ease;
+      box-shadow:0 2px 5px rgba(0,0,0,0.04);
     }
-    .mp-boat-chip:hover { border-color:#f2a33a; transform:translateY(-1px); }
-    .mp-boat-chip.active { border-width:2.5px; background:#fff8eb; box-shadow:0 0 0 2px rgba(255,138,61,0.3), 0 3px 8px rgba(0,0,0,0.12); }
-    .mp-boat-chip-icon { font-size:17px; line-height:1; }
-    .mp-boat-chip-name { font-size:9.5px; font-weight:700; color:var(--ink); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:100%; }
-    .mp-boat-chip-paint { font-size:9px; font-weight:700; padding:1px 4px; border-radius:6px; background:#f4ece1; line-height:1.2; display:flex; align-items:center; gap:2px; }
+    .mp-skin-toggle-btn:hover { border-color:#ff8a3d; background:#fffbf5; }
+    .mp-skin-btn-left { display:flex; align-items:center; gap:8px; }
+    .mp-skin-btn-icon { font-size:17px; line-height:1; }
+    .mp-skin-btn-right { display:flex; align-items:center; gap:6px; font-size:11.5px; color:#8c674b; }
+    .mp-color-dot { width:12px; height:12px; border-radius:50%; border:2px solid #fff; box-shadow:0 0 0 1.5px rgba(0,0,0,0.18); display:inline-block; }
+    .mp-skin-chevron { font-size:13px; transition:transform 0.2s ease; margin-left:2px; }
+    .mp-skin-toggle-btn.open .mp-skin-chevron { transform:rotate(180deg); }
+
+    .mp-skin-dropdown-panel {
+      display:flex; flex-direction:column; gap:8px; background:#fffdf9; border:2px solid #e8dac3;
+      border-radius:12px; padding:10px; animation:popIn 0.15s ease-out; box-shadow:0 4px 12px rgba(0,0,0,0.08);
+    }
+    .mp-skin-dropdown-panel.hidden { display:none; }
+    .mp-skin-active-card {
+      display:flex; align-items:center; gap:10px; background:#fff; border:2px solid #ff8a3d;
+      border-radius:10px; padding:8px 10px; box-shadow:0 2px 6px rgba(255,138,61,0.15);
+    }
+    .mp-skin-active-icon { font-size:26px; line-height:1; flex-shrink:0; }
+    .mp-skin-active-details { flex:1; display:flex; flex-direction:column; gap:2px; }
+    .mp-skin-active-title-row { display:flex; align-items:center; justify-content:space-between; }
+    .mp-skin-active-name { font-size:13px; font-weight:800; color:#3b281c; }
+    .mp-skin-active-badge { font-size:9px; font-weight:800; padding:2px 6px; border-radius:5px; background:#ff8a3d; color:#fff; letter-spacing:0.5px; }
+    .mp-skin-active-desc { font-size:10.5px; color:#7d593c; line-height:1.25; }
+    .mp-paint-palette-row { display:flex; align-items:center; justify-content:space-between; gap:8px; padding-top:6px; border-top:1px solid #f0e2cf; }
+    .mp-paint-label { font-size:11px; font-weight:700; color:#8c674b; }
+    .mp-paint-swatches { display:flex; align-items:center; gap:6px; }
+    .mp-paint-swatch-btn {
+      width:22px; height:22px; border-radius:50%; border:2px solid #fff; box-shadow:0 0 0 1.5px rgba(0,0,0,0.18);
+      cursor:pointer; transition:all 0.15s ease; display:flex; align-items:center; justify-content:center; font-size:11px;
+    }
+    .mp-paint-swatch-btn:hover { transform:scale(1.15); }
+    .mp-paint-swatch-btn.active { box-shadow:0 0 0 2px #3b281c, 0 0 8px rgba(0,0,0,0.25); transform:scale(1.18); font-weight:700; }
+    .mp-skin-options-header { font-size:11px; font-weight:700; color:#8c674b; text-transform:uppercase; letter-spacing:0.5px; margin-top:2px; }
+    .mp-lobby-boat-picker { display:flex; flex-direction:column; gap:6px; max-height:220px; overflow-y:auto; padding-right:2px; }
+    .mp-skin-option-card {
+      display:flex; align-items:center; gap:10px; background:#fff; border:2px solid #e8dac3;
+      border-radius:10px; padding:7px 10px; cursor:pointer; transition:all 0.15s ease;
+    }
+    .mp-skin-option-card:hover { border-color:#f2a33a; background:#fffdf5; transform:translateY(-1px); }
+    .mp-skin-option-card.active { border-color:#ff8a3d; background:#fff8ee; box-shadow:0 0 0 1.5px rgba(255,138,61,0.35); }
+    .mp-skin-option-icon { font-size:22px; line-height:1; flex-shrink:0; }
+    .mp-skin-option-info { flex:1; display:flex; flex-direction:column; gap:1px; }
+    .mp-skin-option-header { display:flex; align-items:center; gap:6px; }
+    .mp-skin-option-name { font-size:12.5px; font-weight:700; color:#3b281c; }
+    .mp-skin-option-badge { font-size:9px; font-weight:800; padding:1px 5px; border-radius:4px; background:#efe0cb; color:#8c674b; }
+    .mp-skin-option-card.active .mp-skin-option-badge { background:#ff8a3d; color:#fff; }
+    .mp-skin-option-desc { font-size:10px; color:#8c674b; line-height:1.2; }
+    .mp-skin-option-action { font-size:10px; font-weight:700; padding:3px 7px; border-radius:6px; background:#f4ede1; color:#8c674b; white-space:nowrap; flex-shrink:0; }
+    .mp-skin-option-card.active .mp-skin-option-action { background:#22c55e; color:#fff; }
+
     .mp-player-boat-tag { font-size:10.5px; color:#8c674b; font-weight:600; margin-left:auto; }
     .mp-lobby-status { font-size:12px; text-align:center; color:#8c674b; font-style:italic; }
     .mp-lobby-actions { display:flex; gap:8px; }
@@ -352,12 +398,37 @@
       </div>
 
       <!-- 🛥️ Multiplayer Boat & Paint Selector -->
-      <div class="settings-section">
-        <div class="mp-section-subtitle">
-          <span>🛥️ Select Boat &amp; Paint</span>
-          <span class="mp-picker-hint">Click same boat to change paint! 🎨</span>
+      <div class="settings-section mp-boat-picker-section">
+        <button id="settings-online-skin-btn" class="mp-skin-toggle-btn" type="button" title="Select Boat Skin">
+          <span class="mp-skin-btn-left">
+            <span id="settings-online-skin-icon" class="mp-skin-btn-icon">⛵</span>
+            <span id="settings-online-skin-title">Skin: Reefbreaker</span>
+          </span>
+          <span class="mp-skin-btn-right">
+            <span id="settings-online-skin-dot" class="mp-color-dot" style="background-color:#ff7a59"></span>
+            <span id="settings-online-skin-color-name">Sunfire</span>
+            <span class="mp-skin-chevron">▾</span>
+          </span>
+        </button>
+
+        <div id="settings-online-skin-panel" class="mp-skin-dropdown-panel hidden">
+          <div class="mp-skin-active-card">
+            <span id="settings-online-active-icon" class="mp-skin-active-icon">🔥</span>
+            <div class="mp-skin-active-details">
+              <div class="mp-skin-active-title-row">
+                <span id="settings-online-active-name" class="mp-skin-active-name">Reefbreaker</span>
+                <span id="settings-online-active-badge" class="mp-skin-active-badge">HEAVY</span>
+              </div>
+              <div id="settings-online-active-desc" class="mp-skin-active-desc">Heavy armored gunboat • Twin side cannons</div>
+            </div>
+          </div>
+          <div class="mp-paint-palette-row">
+            <span class="mp-paint-label">🎨 Paint Color:</span>
+            <div id="settings-online-paint-swatches" class="mp-paint-swatches"></div>
+          </div>
+          <div class="mp-skin-options-header">Select Boat:</div>
+          <div id="settings-online-boat-picker" class="mp-lobby-boat-picker"></div>
         </div>
-        <div id="settings-online-boat-picker" class="mp-lobby-boat-picker"></div>
       </div>
 
       <!-- Leave Room Option -->
@@ -390,13 +461,38 @@
     <div class="mp-player-count">Players (<span id="mp-player-count-num">1</span>/5):</div>
     <div id="mp-player-list" class="mp-player-list"></div>
 
-    <!-- 🛥️ Multiplayer Boat & Paint Selector -->
+    <!-- 🛥️ Multiplayer Boat & Paint Selector Under Skin Button -->
     <div class="mp-boat-picker-section">
-      <div class="mp-section-subtitle">
-        <span>🛥️ Your Boat & Paint</span>
-        <span class="mp-picker-hint">Click same boat to change paint! 🎨</span>
+      <button id="mp-lobby-skin-btn" class="mp-skin-toggle-btn" type="button" title="Select Boat Skin">
+        <span class="mp-skin-btn-left">
+          <span id="mp-lobby-skin-icon" class="mp-skin-btn-icon">⛵</span>
+          <span id="mp-lobby-skin-title">Skin: Reefbreaker</span>
+        </span>
+        <span class="mp-skin-btn-right">
+          <span id="mp-lobby-skin-dot" class="mp-color-dot" style="background-color:#ff7a59"></span>
+          <span id="mp-lobby-skin-color-name">Sunfire</span>
+          <span class="mp-skin-chevron">▾</span>
+        </span>
+      </button>
+
+      <div id="mp-lobby-skin-panel" class="mp-skin-dropdown-panel hidden">
+        <div class="mp-skin-active-card">
+          <span id="mp-lobby-active-icon" class="mp-skin-active-icon">🔥</span>
+          <div class="mp-skin-active-details">
+            <div class="mp-skin-active-title-row">
+              <span id="mp-lobby-active-name" class="mp-skin-active-name">Reefbreaker</span>
+              <span id="mp-lobby-active-badge" class="mp-skin-active-badge">HEAVY</span>
+            </div>
+            <div id="mp-lobby-active-desc" class="mp-skin-active-desc">Heavy armored gunboat • Twin side cannons</div>
+          </div>
+        </div>
+        <div class="mp-paint-palette-row">
+          <span class="mp-paint-label">🎨 Paint Color:</span>
+          <div id="mp-lobby-paint-swatches" class="mp-paint-swatches"></div>
+        </div>
+        <div class="mp-skin-options-header">Select Boat:</div>
+        <div id="mp-lobby-boat-picker" class="mp-lobby-boat-picker"></div>
       </div>
-      <div id="mp-lobby-boat-picker" class="mp-lobby-boat-picker"></div>
     </div>
 
     <div id="mp-lobby-status" class="mp-lobby-status">Waiting for players (min 2)...</div>
@@ -512,6 +608,6 @@
   <script type="importmap">
     { "imports": { "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js" } }
   </script>
-  <script type="module" src="/js/main.js?v=firm_guns_20261015"></script>
+  <script type="module" src="/js/main.js?v=skin_dropdown_20261015"></script>
 </body>
 </html>
