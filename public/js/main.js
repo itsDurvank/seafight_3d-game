@@ -362,11 +362,11 @@ function updateCamera(dt) {
   camFar += ((boat.boosting ? 0.35 : 1) - camFar) * Math.min(1, dt * 4);
   const speedFrac = Math.min(1.0, Math.max(0, s.speed) / BOAT.topCap) * camFar;
   camYaw += angleDiff(camYaw, s.yaw) * Math.min(1, dt * (boat.boosting ? 4.5 : 2.5)); // keeps up with fast turns
-  camZoom += ((boat.boosting ? 0.90 : 1) - camZoom) * Math.min(1, dt * 4);
+  camZoom += ((boat.boosting ? 0.94 : 1) - camZoom) * Math.min(1, dt * 4);
   const fx = Math.sin(camYaw), fz = Math.cos(camYaw);
   const back = (14 + speedFrac * 2.5) * camZoom; // stays close: only a small pull-back at speed
   camTarget.set(s.x - fx * back, (7 + speedFrac * 1.2) * camZoom, s.z - fz * back);
-  camera.position.lerp(camTarget, 1 - Math.exp(-dt * (boat.boosting ? 5.5 : 4.5)));
+  camera.position.lerp(camTarget, 1 - Math.exp(-dt * 4.5));
 
   shake = Math.max(0, shake - dt * 2.5);
   look.set(
