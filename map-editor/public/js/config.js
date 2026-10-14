@@ -77,10 +77,10 @@ export const BOAT = {
   boostRefillTime: 4, // seconds to refill a completely empty boost meter
   boostMin: 0.6, // minimum energy (seconds) needed to switch the boost on
   boostMul: 1.3, // top speed multiplier while boosting
-  boostAdd: 12,
-  boostPull: 1.55, // smooth, exciting surge into the boost
+  boostAdd: 12, // flat extra speed on top of that (70 x 1.3 + 12 = 103 at the start, 105 x 1.3 + 12 = 148 flat out)
+  boostPull: 1.5, // how fast speed ramps up into the boost: lower = a longer, smoother surge (no sudden jump)
   brakeMin: 12, // Space slows you down to about this speed
-  brakeDecel: 92, // how fast Space slows you (speed units per second)
+  brakeDecel: 90, // how fast Space slows you (speed units per second)
   brakeTurnMul: 1.6, // steering is much easier while braking
   boostTurnMul: 1.5, // extra steering authority while boosting
   boostMax: 160, // absolute speed limit while boosting

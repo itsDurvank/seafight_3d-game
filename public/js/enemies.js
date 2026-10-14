@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { ENEMY_TYPES, WEAPONS, WORLD, DIFFICULTY as D, SWARM, ENEMY_SPEED, POTION, AI } from './config.js?v=cruise7_origall';
+import { ENEMY_TYPES, WEAPONS, WORLD, DIFFICULTY as D, SWARM, ENEMY_SPEED, POTION, AI } from './config.js?v=orig_boost_formula';
 import { Boat } from './boat.js';
 import { audio } from './audio.js';
 import { resolveCollisions } from './world.js';
