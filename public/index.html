@@ -187,7 +187,10 @@
       <button id="settings-audio-btn" class="settings-btn-action">
         <span id="settings-audio-icon">🔊</span> <span id="settings-audio-text">Sound: On (M)</span>
       </button>
-      <div class="settings-tip">Tip: Press <kbd>O</kbd> in-game to switch skins instantly!</div>
+      <button id="settings-cam-btn" class="settings-btn-action">
+        <span>📷</span> <span id="settings-cam-text">Camera Zoom: 100% (Reset)</span>
+      </button>
+      <div class="settings-tip">Tip: Press <kbd>O</kbd> to switch skins &bull; <kbd>Scroll</kbd> to zoom camera!</div>
     </div>
   </div>
 
@@ -256,6 +259,7 @@
     <kbd>Left click</kbd> fire (hold for gun)<br />
     <kbd>Shift</kbd> toggle boost (8s, refills) &mdash; ram!<br />
     <kbd>Space</kbd> brake (easier steering)<br />
+    <kbd>Scroll</kbd> zoom camera &amp; POV in / out (persisted)<br />
     <kbd>H</kbd> sail home &nbsp; <kbd>O</kbd> boat skin &nbsp; <kbd>M</kbd> sound on/off
   </div>
   <div id="minimap-wrap" class="panel"><canvas id="minimap" width="200" height="200"></canvas></div>
@@ -263,6 +267,6 @@
   <script type="importmap">
     { "imports": { "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js" } }
   </script>
-  <script type="module" src="/js/main.js?v=speed7_origcam"></script>
+  <script type="module" src="/js/main.js?v=speed7_camzoom"></script>
 </body>
 </html>
