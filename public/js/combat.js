@@ -351,7 +351,7 @@ export class Combat {
         b.z += b.vz * sdt;
         for (const i of islands) {
           const dx = b.x - i.x, dz = b.z - i.z;
-          if (dx * dx + dz * dz < i.r * i.r * 0.81) { dead = true; break; }
+          if (dx * dx + dz * dz < i.r * i.r * 0.72) { dead = true; break; }
         }
         if (dead) { this.explode(b.x, b.z, 1.2, 0.2); break; }
         for (const t of targets) {
@@ -405,7 +405,7 @@ export class Combat {
         m.z += Math.cos(m.h) * m.speed * sdt;
         for (const i of islands) {
           const dx = m.x - i.x, dz = m.z - i.z;
-          if (dx * dx + dz * dz < i.r * i.r * 0.81) { this.detonate(m, null); done = true; break; }
+          if (dx * dx + dz * dz < i.r * i.r * 0.72) { this.detonate(m, null); done = true; break; }
         }
         if (done) break;
         for (const t of targets) {

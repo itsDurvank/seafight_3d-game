@@ -418,7 +418,7 @@ const angleDiff = (a, b) => ((b - a + Math.PI) % (Math.PI * 2) + Math.PI * 2) % 
 // If a boat is near your nose, bend the shot toward where that boat will be when the bullet arrives.
 function gunAim(s) {
   const G = WEAPONS.gun;
-  if (!G.assistCone) return s.yaw;
+  if (!G.assistCone || !G.assist) return s.yaw;
   const bs = G.speed + Math.max(0, s.speed);
   const reach = bs * G.life * 0.9;
   let best = null, bestOff = G.assistCone, bestAng = s.yaw;
