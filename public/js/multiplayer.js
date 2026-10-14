@@ -179,8 +179,11 @@ export class RemotePlayer {
     });
 
     if (hpVal !== this.hp) {
-      this.hp = hpVal;
-      this.updateNametag();
+      // Do not allow stale snapshots to jump HP upwards during combat
+      if (hpVal <= this.hp || hpVal === 100 || hpVal - this.hp >= 30) {
+        this.hp = hpVal;
+        this.updateNametag();
+      }
     }
 
     // Prune snapshots older than 1 second
@@ -211,7 +214,6 @@ export class RemotePlayer {
       this.state.yaw = snap.yaw;
       this.state.speed = snap.speed;
       this.state.boosting = snap.boosting;
-      this.hp = snap.hp;
     } else {
       // Find two snapshots surrounding renderTime
       let idx0 = -1;
@@ -233,7 +235,6 @@ export class RemotePlayer {
         this.state.yaw = lerpAngle(p0.yaw, p1.yaw, frac);
         this.state.speed = p0.speed + (p1.speed - p0.speed) * frac;
         this.state.boosting = p1.boosting;
-        this.hp = p1.hp;
       } else {
         // Gap / extrapolation: extrapolate from newest snapshot for up to 250ms
         const latest = this.snapshots[this.snapshots.length - 1];
@@ -244,14 +245,12 @@ export class RemotePlayer {
           this.state.yaw = latest.yaw;
           this.state.speed = latest.speed;
           this.state.boosting = latest.boosting;
-          this.hp = latest.hp;
         } else {
           this.state.x = latest.x;
           this.state.z = latest.z;
           this.state.yaw = latest.yaw;
           this.state.speed = latest.speed;
           this.state.boosting = latest.boosting;
-          this.hp = latest.hp;
         }
       }
     }
@@ -539,7 +538,12 @@ export class MultiplayerManager {
         // Local player took damage
         const player = this.game.player;
         if (player.alive && player.invuln <= 0) {
-          player.hp = Math.max(0, msg.hp);
+          const incomingHp = Math.max(0, Number(msg.hp));
+          // Monotonic damage check: damage events must never bounce HP upward!
+          // Only health orbs (orbTaken) or respawn can increase HP.
+          if (incomingHp <= player.hp || msg.isHeal) {
+            player.hp = incomingHp;
+          }
           player.sinceHit = 0;
           this.game.audio.hurt();
           this.game.hud.flash(Math.min(0.9, 0.25 + msg.dmg / 60));
@@ -547,11 +551,15 @@ export class MultiplayerManager {
           if (this.game.boat.fpv?.userData?.hit) this.game.boat.fpv.userData.hit();
           const attacker = msg.attackerName || 'An opponent';
           this.game.hud.toast(`💥 Hit by ${attacker}! (-${Math.round(msg.dmg)} HP)`, 1200);
+
+          if (player.hp <= 0 && this.game.sink) {
+            this.game.sink(msg.attackerId, attacker, true);
+          }
         }
       } else {
         const rp = this.remotePlayers.get(msg.victimId);
         if (rp) {
-          rp.hp = msg.hp;
+          rp.hp = Math.max(0, Number(msg.hp));
           rp.updateNametag();
           if (rp.boatGroup.userData && rp.boatGroup.userData.hit) {
             rp.boatGroup.userData.hit();
@@ -599,6 +607,9 @@ export class MultiplayerManager {
     this.net.on('playerRespawned', (msg) => {
       if (msg.id === this.localPlayerId) {
         // Confirmed local respawn
+        this.game.player.alive = true;
+        this.game.player.hp = PLAYER.maxHp;
+        this.game.player.invuln = PLAYER.invuln;
       } else {
         const rp = this.remotePlayers.get(msg.id);
         if (rp) {
@@ -631,10 +642,17 @@ export class MultiplayerManager {
 
       if (msg.by === this.localPlayerId) {
         // Apply healing instantly upon server confirmation
-        const healed = this.game.healLocalPlayer(PLAYER.maxHp * POTION.heal);
+        const targetHp = msg.hp !== undefined ? Number(msg.hp) : undefined;
+        const healed = this.game.healLocalPlayer(PLAYER.maxHp * POTION.heal, targetHp);
         audio.potion();
         this.game.hud.toast(`🧪 +${Math.round(healed)} HP!`, 1500);
       } else {
+        const rp = this.remotePlayers.get(msg.by);
+        if (rp) {
+          if (msg.hp !== undefined) rp.hp = Number(msg.hp);
+          else rp.hp = Math.min(PLAYER.maxHp, rp.hp + PLAYER.maxHp * POTION.heal);
+          rp.updateNametag();
+        }
         this.game.hud.toast(`🧪 ${msg.byName || 'A player'} grabbed a health orb!`, 1500);
       }
     });

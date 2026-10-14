@@ -356,11 +356,15 @@ class Room {
 
     // First claim wins
     this.orbs.delete(orbId);
+    const healAmount = 35;
+    player.state.hp = Math.min(100, (player.state.hp || 0) + healAmount);
+
     this.broadcast({
       type: 'orbTaken',
       orbId,
       by: playerId,
       byName: player.name,
+      hp: player.state.hp,
     });
 
     this.onOrbConsumedOrExpired();
@@ -436,6 +440,7 @@ class Room {
       p.deaths = 0;
       p.alive = true;
       p.lifeId = 1;
+      p.state.hp = 100;
       p.ready = (p.id === this.hostId);
     }
 
@@ -681,10 +686,9 @@ function setupWebSocketServer(httpServer) {
             p.state.yaw = Number(s.yaw) || 0;
             p.state.speed = Number(s.speed) || 0;
             p.state.boosting = !!s.boosting;
-            if (s.hp !== undefined) p.state.hp = Number(s.hp);
             if (s.alive !== undefined) p.alive = !!s.alive;
 
-            // Broadcast to other players in room
+            // Broadcast to other players in room (p.state.hp is authoritative from server)
             room.broadcast({
               type: 'remoteState',
               id: playerId,
@@ -742,20 +746,22 @@ function setupWebSocketServer(httpServer) {
         case 'hit': {
           if (room.state !== 'playing') return;
           const victim = room.players.get(playerId);
-          if (victim) {
-            victim.state.hp = Math.max(0, Number(msg.hp) || 0);
-            const attacker = msg.by ? room.players.get(msg.by) : null;
-            room.broadcast({
-              type: 'remoteHit',
-              victimId: playerId,
-              victimName: victim.name,
-              attackerId: msg.by || null,
-              attackerName: attacker ? attacker.name : 'The Sea',
-              dmg: Number(msg.dmg) || 0,
-              hp: victim.state.hp,
-            }, playerId);
+          if (victim && victim.alive) {
+            // Only fatal hits (hp === 0) are accepted from victim client (e.g. fatal test trigger)
+            // Combat damage is authoritatively driven by dealDamage to prevent desync and fluctuations
+            if (Number(msg.hp) === 0) {
+              victim.state.hp = 0;
+              const attacker = msg.by ? room.players.get(msg.by) : null;
+              room.broadcast({
+                type: 'remoteHit',
+                victimId: playerId,
+                victimName: victim.name,
+                attackerId: msg.by || null,
+                attackerName: attacker ? attacker.name : 'The Sea',
+                dmg: Number(msg.dmg) || 0,
+                hp: 0,
+              }, playerId);
 
-            if (victim.state.hp <= 0) {
               room.recordDeath(victim.id, msg.by, victim.lifeId);
             }
           }

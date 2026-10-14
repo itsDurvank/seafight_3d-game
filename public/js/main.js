@@ -226,16 +226,19 @@ const player = {
   get boosting() { return boat.boosting; },
   takeDamage(n, by = null) {
     if (!this.alive || this.invuln > 0) return;
+    if (mp && mp.mode === 'online') {
+      // In online multiplayer, player damage is strictly authoritative from the server via 'remoteHit'.
+      // The attacker's client reports 'dealDamage' to the server.
+      // Local client prediction of remote projectiles must not double-deduct damage or send 'reportLocalHit',
+      // which causes desync and health bouncing/fluctuations.
+      return;
+    }
     this.hp = Math.max(0, this.hp - n);
     this.sinceHit = 0;
     audio.hurt();
     hud.flash(Math.min(0.9, 0.25 + n / 60));
     if (boat.group?.userData?.hit) boat.group.userData.hit();
     if (boat.fpv?.userData?.hit) boat.fpv.userData.hit();
-
-    if (mp && mp.mode === 'online') {
-      mp.reportLocalHit(n, by, this.hp);
-    }
 
     if (this.hp <= 0) sink(by);
   },
@@ -311,10 +314,14 @@ const mainGame = {
     boat.teleport(x, z, yaw);
     snapCamera();
   },
-  healLocalPlayer: (amount) => {
+  healLocalPlayer: (amount, explicitTargetHp) => {
     if (player.alive) {
       const before = player.hp;
-      player.hp = Math.min(player.maxHp, player.hp + amount);
+      if (explicitTargetHp !== undefined) {
+        player.hp = Math.min(player.maxHp, explicitTargetHp);
+      } else {
+        player.hp = Math.min(player.maxHp, player.hp + amount);
+      }
       return player.hp - before;
     }
     return 0;
