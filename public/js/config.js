@@ -69,7 +69,7 @@ export const BOAT = {
   maxReverse: 5,
   accel: 9,
   drag: 0.5,
-  turnRate: 1.5, // radians per second at full grip
+  turnRate: 1.8, // radians per second at full grip
   radius: 2.4, // collision radius
   // Shift boost
   boostTime: 8, // seconds of boost energy (toggle with Shift)
@@ -84,8 +84,8 @@ export const BOAT = {
   boostMinAccel: 25, // units/s^2 floor so the surge never crawls
   brakeMin: 12, // Space slows you down to about this speed
   brakeDecel: 90, // how fast Space slows you (speed units per second)
-  brakeTurnMul: 1.6, // steering is much easier while braking
-  boostTurnMul: 1.5, // extra steering authority while boosting
+  brakeTurnMul: 1.35, // steering is much easier while braking
+  boostTurnMul: 1.25, // extra steering authority while boosting
   // ramming while boosting (percent of each boat's MAX health)
   boostRamSelfPct: 0.10,
   boostRamEnemyPct: 0.30,

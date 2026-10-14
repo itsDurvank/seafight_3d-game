@@ -331,7 +331,7 @@ export function buildHeroBoatFPV(hero, style = {}) {
       const L = u.look;
       if (L.recenter && !L.active) { const k = 1 - Math.exp(-5 * dt); L.yaw -= L.yaw * k; L.pitch -= L.pitch * k; }
       cam.rotation.y = L.yaw; cam.rotation.x = L.pitch;
-      cam.rotation.z += (clamp(turn * 0.08, -0.10, 0.10) - cam.rotation.z) * (1 - Math.exp(-12 * dt));
+      cam.rotation.z += (clamp(turn * 0.05, -0.07, 0.07) - cam.rotation.z) * (1 - Math.exp(-10 * dt));
       const fov = baseFov + speedK * 4 + boostK * 9;
       if (Math.abs(cam.fov - fov) > 0.05) { cam.fov += (fov - cam.fov) * (1 - Math.exp(-8 * dt)); cam.updateProjectionMatrix(); }
       fitHUD(cam); hud.rotation.z = -cam.rotation.z;                  // HUD stays level while the camera leans

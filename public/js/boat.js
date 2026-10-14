@@ -303,11 +303,8 @@ export class Boat {
 
     const steer = (input.left ? 1 : 0) - (input.right ? 1 : 0);
     const grip = clamp(Math.abs(s.speed) / 5, 0.4, 1);
-    // Normal sailing steers a bit wider when very fast. While boosting there is no such
-    // penalty, and the rudder bites harder so the boat stays as easy to steer as normal.
-    const stability = boosting || braking ? 1 : 1 / (1 + Math.max(0, s.speed - BOAT.baseTop) / 100);
     const turnMul = boosting ? BOAT.boostTurnMul : braking ? BOAT.brakeTurnMul : 1;
-    const target = steer * BOAT.turnRate * turnMul * grip * stability * (s.speed < -0.2 ? -1 : 1);
+    const target = steer * BOAT.turnRate * turnMul * grip * (s.speed < -0.2 ? -1 : 1);
 
     // Responsive rudder: snaps in and out cleanly when turning over or centering without sluggish delay
     const isReversing = steer === 0 || (Math.sign(steer) !== Math.sign(s.turnVel) && Math.abs(s.turnVel) > 0.05);
@@ -324,22 +321,30 @@ export class Boat {
     const s = this.state;
     const fx = Math.sin(s.yaw), fz = Math.cos(s.yaw); // forward
     const lx = Math.cos(s.yaw), lz = -Math.sin(s.yaw); // left
-    const L = 2.5 * this.scale, W = 1.1 * this.scale;
+    const L = 3.2 * this.scale, W = 1.8 * this.scale;
 
     const hF = waveHeight(s.x + fx * L, s.z + fz * L, t);
     const hB = waveHeight(s.x - fx * L, s.z - fz * L, t);
     const hL = waveHeight(s.x + lx * W, s.z + lz * W, t);
     const hR = waveHeight(s.x - lx * W, s.z - lz * W, t);
 
-    const y = (hF + hB + hL + hR) / 4 + 0.1;
-    const pitchT = -Math.atan2(hF - hB, 2 * L);
-    const bankGrip = clamp(s.speed / 14, 0, 1.2);
-    const rollT = Math.atan2(hL - hR, 2 * W) - s.turnVel * 0.08 * bankGrip;
+    // Smooth vertical position so wave sample rotation doesn't cause vertical micro-jitter
+    const rawY = (hF + hB + hL + hR) / 4 + 0.1;
+    this.curY = (this.curY !== undefined) ? this.curY + (rawY - this.curY) * (1 - Math.exp(-12 * dt)) : rawY;
 
-    // Responsive wave tracking (rate 12): prevents stale pitch/roll from lingering across yaw turns
-    const k = 1 - Math.exp(-12 * dt);
+    const turnActivity = clamp(Math.abs(s.turnVel) / 1.4, 0, 1);
+    // When turning, centrifugal banking smoothly dominates, preventing high-frequency
+    // wave chop from shaking the roll axis and vibrating side islands in FPP
+    const waveRollWeight = 1 - turnActivity * 0.75;
+    const wavePitchWeight = 1 - turnActivity * 0.40;
+
+    const pitchT = -Math.atan2(hF - hB, 2 * L) * wavePitchWeight;
+    const bankGrip = clamp(s.speed / 14, 0, 1.2);
+    const rollT = Math.atan2(hL - hR, 2 * W) * waveRollWeight - s.turnVel * 0.08 * bankGrip;
+
+    const k = 1 - Math.exp(-10 * dt);
     const g = this.group;
-    g.position.set(s.x, y, s.z);
+    g.position.set(s.x, this.curY, s.z);
     g.rotation.y = s.yaw;
     g.rotation.x += (pitchT - g.rotation.x) * k;
     g.rotation.z += (rollT - g.rotation.z) * k;
