@@ -1,9 +1,10 @@
 import * as THREE from 'three';
 import { BOAT, WORLD } from './config.js?v=orig_boost_formula';
 import { waveHeight } from './waves.js';
-import { buildHeroBoat } from './heroBoat.js';
+import { buildHeroBoat } from './new_assets/heroBoat.js';
 import { buildClassicBoat } from './classicBoat.js';
 import { buildHeroBoatFPV } from './heroBoatFPV.js';
+import { buildMultiplayerBoat, MULTIPLAYER_BOATS } from './multiplayerBoats.js';
 
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 
@@ -30,6 +31,12 @@ export const PLAYER_STYLE = {
 function buildModel(style) {
   const isPlayer = !!(style.isPlayer || style.look === 'player');
   if (isPlayer) {
+    if (style.mpBoatSkin) {
+      return buildMultiplayerBoat(style.mpBoatSkin, style, true);
+    }
+    if (style.mpColorIndex !== undefined && style.mpColorIndex !== null) {
+      return buildMultiplayerBoat(style.mpColorIndex, style, true);
+    }
     if (style.skin === 'classic') {
       return buildClassicBoat(style);
     }
@@ -179,8 +186,11 @@ export class Boat {
 
   setSkin(skinName) {
     if (!this.isPlayer) return this.currentSkin;
-    if (skinName !== 'hero' && skinName !== 'classic') return this.currentSkin;
+    const validSkins = ['hero', 'classic'];
+    if (!validSkins.includes(skinName)) return this.currentSkin;
     this.currentSkin = skinName;
+    delete this.style.mpColorIndex;
+    delete this.style.mpBoatSkin;
     try { localStorage.setItem('boom_boats_skin', skinName); } catch {}
     if (this.group && this.scene) {
       this.scene.remove(this.group);
@@ -190,12 +200,42 @@ export class Boat {
     this.scene.add(this.group);
     this.group.position.set(this.state.x, 0, this.state.z);
     this.group.rotation.y = this.state.yaw;
+    this.group.visible = true;
     return this.currentSkin;
+  }
+
+  applyStyle(customStyle, colorIndex = null, boatSkin = null) {
+    this.style = { ...this.style, ...customStyle };
+    if (colorIndex !== null && colorIndex !== undefined) {
+      this.style.mpColorIndex = colorIndex;
+    }
+    if (boatSkin) {
+      this.style.mpBoatSkin = boatSkin;
+      this.style.skin = boatSkin;
+    }
+    if (this.group && this.scene) {
+      this.scene.remove(this.group);
+    }
+    this.group = buildModel({ ...this.style, isPlayer: true });
+    this.fpv = this.group.userData?.fpv || null;
+    this.scene.add(this.group);
+    this.group.position.set(this.state.x, 0, this.state.z);
+    this.group.rotation.y = this.state.yaw;
+    this.group.visible = true;
+  }
+
+  resetStyle() {
+    this.style = { ...PLAYER_STYLE };
+    delete this.style.mpColorIndex;
+    delete this.style.mpBoatSkin;
+    this.setSkin(this.currentSkin === 'classic' ? 'classic' : 'hero');
+    if (this.group) this.group.visible = true;
   }
 
   toggleSkin() {
     if (!this.isPlayer) return this.currentSkin;
-    return this.setSkin(this.currentSkin === 'hero' ? 'classic' : 'hero');
+    const next = this.currentSkin === 'hero' ? 'classic' : 'hero';
+    return this.setSkin(next);
   }
 
   get boosting() { return this.boostOn; }

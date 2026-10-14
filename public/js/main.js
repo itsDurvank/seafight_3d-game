@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import './mapLoader.js'; // loads public/maps/default.json into WORLD before game initializes
-import { WORLD, BOAT, PLAYER, WEAPONS, COLORS, SWARM, KILL_REWARD, POTION } from './config.js?v=orig_boost_formula';
+import { WORLD, BOAT, PLAYER, WEAPONS, COLORS, SWARM, KILL_REWARD, POTION, MP } from './config.js?v=orig_boost_formula';
 import { createWater } from './waves.js';
 import { createSky } from './sky.js';
 import { createWorld, resolveCollisions } from './world.js';
@@ -13,6 +13,9 @@ import { Combat } from './combat.js';
 import { Potions } from './potions.js';
 import { EnemyBoat, Director, HUNT } from './enemies.js?v=orig_boost_formula';
 import { audio } from './audio.js';
+import { NetworkClient } from './net.js';
+import { MultiplayerManager } from './multiplayer.js';
+import { MultiplayerHUD } from './mpHud.js';
 
 // ---------- renderer, scene, camera ----------
 const canvas = document.getElementById('game');
@@ -74,18 +77,58 @@ const statusClassic = document.getElementById('status-classic');
 const settingsAudioBtn = document.getElementById('settings-audio-btn');
 const settingsAudioIcon = document.getElementById('settings-audio-icon');
 const settingsAudioText = document.getElementById('settings-audio-text');
+let mp = null;
+let mpHud = null;
 
 function updateSettingsUI() {
-  const current = boat.currentSkin;
-  if (skinHeroCard && skinClassicCard) {
-    skinHeroCard.classList.toggle('active', current === 'hero');
-    skinClassicCard.classList.toggle('active', current === 'classic');
-    if (statusHero) statusHero.textContent = current === 'hero' ? 'Equipped' : 'Select';
-    if (statusClassic) statusClassic.textContent = current === 'classic' ? 'Equipped' : 'Select';
+  const isOnlineInRoom = !!(mp && mp.mode === 'online' && mp.roomCode);
+  const offlineView = document.getElementById('settings-offline-view');
+  const onlineView = document.getElementById('settings-online-view');
+  const titleEl = document.getElementById('settings-modal-title');
+  const tipEl = document.getElementById('settings-tip-text');
+
+  if (isOnlineInRoom) {
+    if (offlineView) offlineView.classList.add('hidden');
+    if (onlineView) onlineView.classList.remove('hidden');
+    if (titleEl) titleEl.textContent = '⚓ Match Settings';
+    if (tipEl) tipEl.innerHTML = 'Tip: Press <kbd>V</kbd> for cockpit view!';
+
+    const nameEl = document.getElementById('settings-online-player-name');
+    if (nameEl) nameEl.textContent = mp.playerName || 'Captain';
+    const codeEl = document.getElementById('settings-online-room-code');
+    if (codeEl) codeEl.textContent = mp.roomCode || '-----';
+
+    if (mpHud && mpHud.renderSettingsBoatPicker) {
+      mpHud.renderSettingsBoatPicker();
+    }
+  } else {
+    if (offlineView) offlineView.classList.remove('hidden');
+    if (onlineView) onlineView.classList.add('hidden');
+    if (titleEl) titleEl.textContent = '⚙️ Settings';
+
+    const isOnlineTab = mpHud?.elModeOnline?.classList.contains('active');
+    const offlineSkinsSection = document.getElementById('offline-boat-skin-section');
+    if (isOnlineTab) {
+      if (offlineSkinsSection) offlineSkinsSection.classList.add('hidden');
+      if (tipEl) tipEl.innerHTML = 'Tip: Press <kbd>V</kbd> for cockpit view!';
+    } else {
+      if (offlineSkinsSection) offlineSkinsSection.classList.remove('hidden');
+      if (tipEl) tipEl.innerHTML = 'Tip: Press <kbd>O</kbd> to switch skins &bull; <kbd>V</kbd> for cockpit view!';
+    }
+
+    const current = boat.currentSkin;
+    document.querySelectorAll('.skin-card').forEach((card) => {
+      const skin = card.getAttribute('data-skin');
+      const isActive = current === skin;
+      card.classList.toggle('active', isActive);
+      const status = card.querySelector('.skin-status');
+      if (status) status.textContent = isActive ? 'Equipped' : 'Select';
+    });
   }
 }
 
 function applySkin(skinName, toast = true) {
+  if (skinName !== 'hero' && skinName !== 'classic') return;
   if (skinName === 'classic' && isFPV) {
     setFPV(false);
   }
@@ -127,12 +170,17 @@ if (settingsBtn && settingsModal) {
   });
 }
 
-if (skinHeroCard) skinHeroCard.addEventListener('click', () => applySkin('hero'));
-if (skinClassicCard) skinClassicCard.addEventListener('click', () => applySkin('classic'));
+document.querySelectorAll('.skin-card').forEach((card) => {
+  const skin = card.getAttribute('data-skin');
+  if (skin) {
+    card.addEventListener('click', () => applySkin(skin));
+  }
+});
 
-// Quick toggle with 'O' key
+// Quick toggle with 'O' key (offline only)
 input.onPress('KeyO', () => {
-  const next = boat.currentSkin === 'hero' ? 'classic' : 'hero';
+  if (typeof mp !== 'undefined' && mp && mp.mode === 'online' && mp.roomCode) return;
+  const next = boat.toggleSkin();
   applySkin(next);
 });
 
@@ -174,6 +222,7 @@ const player = {
   sinceHit: 99,
   respawn: 0,
   idle: 0, // seconds spent (nearly) standing still: drives how hard the swarm hunts you
+  lifeId: 1,
   get boosting() { return boat.boosting; },
   takeDamage(n, by = null) {
     if (!this.alive || this.invuln > 0) return;
@@ -183,6 +232,11 @@ const player = {
     hud.flash(Math.min(0.9, 0.25 + n / 60));
     if (boat.group?.userData?.hit) boat.group.userData.hit();
     if (boat.fpv?.userData?.hit) boat.fpv.userData.hit();
+
+    if (mp && mp.mode === 'online') {
+      mp.reportLocalHit(n, by, this.hp);
+    }
+
     if (this.hp <= 0) sink(by);
   },
 };
@@ -234,6 +288,49 @@ potions.onClaim = (who, p, healed, target) => {
 };
 const director = new Director();
 
+// Toggle first-person cockpit perspective (V)
+let isFPV = false;
+let respawnInFPV = false;
+
+// Multiplayer client wiring
+const mainGame = {
+  get player() { return player; },
+  get boat() { return boat; },
+  get hud() { return hud; },
+  get audio() { return audio; },
+  isFPV: () => isFPV,
+  sink: (by, killerName, fromServer) => sink(by, killerName, fromServer),
+  applySkinStyle: (style, colorIndex, boatSkin) => {
+    boat.applyStyle(style, colorIndex, boatSkin);
+    if (isFPV && boat.fpv) {
+      boat.fpv.userData.mount(camera);
+      boat.fpv.userData.setActive(true);
+    }
+  },
+  teleportLocalPlayer: (x, z, yaw) => {
+    boat.teleport(x, z, yaw);
+    snapCamera();
+  },
+  healLocalPlayer: (amount) => {
+    if (player.alive) {
+      const before = player.hp;
+      player.hp = Math.min(player.maxHp, player.hp + amount);
+      return player.hp - before;
+    }
+    return 0;
+  },
+  applyKillReward: () => {
+    kills++;
+    if (KILL_REWARD.resetMissile) missileCd = 0;
+    boat.boostEnergy = Math.min(BOAT.boostTime, boat.boostEnergy + KILL_REWARD.boostSeconds);
+  },
+};
+
+const netClient = new NetworkClient();
+mp = new MultiplayerManager(scene, combat, netClient, mainGame);
+mpHud = new MultiplayerHUD(mp);
+let prevIsOnline = false;
+
 combat.onPlayerHit = () => hud.hit(); // hit marker on every shot that lands
 combat.onWarn = () => { audio.warn(); hud.flash(0.3); }; // missile-incoming alert
 
@@ -243,34 +340,69 @@ combat.onExplode = (x, z, r) => {
 };
 
 // ---------- player actions ----------
-function sink() {
+function sink(by = null, killerName = null, fromServer = false) {
+  if (!player.alive) {
+    if (killerName) {
+      hud.toast(`🌊 Sunk by ${killerName}! Respawning…`, 3000);
+    }
+    return;
+  }
+  respawnInFPV = isFPV;
   if (isFPV) {
-    setFPV(false);
+    setFPV(false, false); // Detach camera to TPP so blast animation is fully visible
+    snapCamera();
   }
   player.alive = false;
+  player.hp = 0;
   player.respawn = PLAYER.respawnTime;
-  boat.group.visible = false;
+  boat.group.visible = false; // Hide boat so blast debris and explosion take center stage
   boat.cancelBoost();
   wasBoosting = false;
   audio.sink();
-  const st = PLAYER_STYLE;
+  const st = (mp && mp.mode === 'online' && mp.localColor?.style) ? mp.localColor.style : PLAYER_STYLE;
   combat.bigExplosion(boat.state.x, boat.state.z, 1.3, [st.hull, st.accent, st.cabin, st.roof]);
   shake = Math.max(shake, 1.4);
   hud.flash(0.9);
-  hud.toast('Your boat was blown up! Respawning at the harbor… 🌊');
+  if (killerName) {
+    hud.toast(`🌊 Sunk by ${killerName}! Respawning…`, 3000);
+  } else {
+    hud.toast('Your boat was blown up! Respawning… 🌊');
+  }
+
+  if (mp && mp.mode === 'online' && !fromServer) {
+    mp.reportLocalDeath(by, player.lifeId || 1);
+    player.lifeId = (player.lifeId || 1) + 1;
+  }
 }
 
 function respawnPlayer() {
-  boat.teleport(WORLD.boatSpawn.x, WORLD.boatSpawn.z, WORLD.boatSpawn.yaw);
+  const spawn = (mp && mp.mode === 'online' && MP.spawns && mp.localColorIndex !== undefined)
+    ? MP.spawns[mp.localColorIndex % MP.spawns.length]
+    : WORLD.boatSpawn;
+
+  boat.teleport(spawn.x, spawn.z, spawn.yaw);
   boat.top = BOAT.baseTop;
   boat.cancelBoost();
+  boat.syncModel(0.016, performance.now() * 0.001);
   boat.group.visible = true;
   player.hp = player.maxHp;
   player.alive = true;
   audio.respawn();
   player.invuln = PLAYER.invuln;
   camYaw = boat.state.yaw;
-  hud.toast('Back at the harbor. Sail out and try again! ⚓', 3000);
+
+  // Restore FPP if player died in FPP mode, otherwise stay in TPP
+  if (respawnInFPV) {
+    respawnInFPV = false;
+    setFPV(true, false);
+  } else {
+    snapCamera();
+  }
+  hud.toast('Back at your boat. Sail out and fight! ⚓', 3000);
+
+  if (mp && mp.mode === 'online') {
+    mp.reportLocalRespawn(spawn.x, spawn.z, spawn.yaw);
+  }
 }
 
 // Machine-gun aim assist. Bullets fly straight, so while you steer they trail behind your nose like a hose and miss.
@@ -281,7 +413,8 @@ function gunAim(s) {
   const bs = G.speed + Math.max(0, s.speed);
   const reach = bs * G.life * 0.9;
   let best = null, bestOff = G.assistCone, bestAng = s.yaw;
-  for (const e of enemies) {
+  const pool = (mp && mp.mode === 'online') ? mp.getTargets() : enemies;
+  for (const e of pool) {
     if (!e.alive) continue;
     let px = e.state.x, pz = e.state.z;
     const evx = Math.sin(e.state.yaw) * e.state.speed, evz = Math.cos(e.state.yaw) * e.state.speed;
@@ -304,7 +437,8 @@ function gunAim(s) {
 function acquireLock() {
   const s = boat.state, W = WEAPONS.missile;
   let best = null, bestScore = 1e9;
-  for (const e of enemies) {
+  const pool = (mp && mp.mode === 'online') ? mp.getTargets() : enemies;
+  for (const e of pool) {
     if (!e.alive) continue;
     const dx = e.state.x - s.x, dz = e.state.z - s.z;
     const d = Math.hypot(dx, dz);
@@ -324,8 +458,13 @@ function fireMissile() {
   const lock = acquireLock();
   combat.fireMissile('player', s.x + fx * 2.5, s.z + fz * 2.5, s.yaw, Math.max(WEAPONS.missile.speed, s.speed + 25), WEAPONS.missile, lock);
   audio.lock(!!lock);
-  hud.toast(lock ? `🎯 Locked on ${lock.island.enemyName || lock.type.name}!` : '🚀 No lock: aim at a boat', 900);
+  const targetLabel = lock ? (lock.name || lock.island?.enemyName || lock.type?.name) : null;
+  hud.toast(lock ? `🎯 Locked on ${targetLabel}!` : '🚀 No lock: aim at a boat', 900);
   missileCd = WEAPONS.missile.cooldown;
+
+  if (mp && mp.mode === 'online') {
+    mp.broadcastLocalFire('missile', s, lock ? lock.id : null);
+  }
 }
 
 // Shift: toggle the speed boost (8 s of energy; refills after 2 s of not boosting)
@@ -351,12 +490,10 @@ input.onPress('KeyH', () => {
 });
 
 // Toggle first-person cockpit perspective (V)
-let isFPV = false;
-
-function setFPV(active) {
+function setFPV(active, showToast = true) {
   if (active === isFPV) return;
   if (active) {
-    if (boat.currentSkin !== 'hero') {
+    if (!boat.fpv) {
       applySkin('hero', false);
     }
     const fpv = boat.fpv;
@@ -366,7 +503,9 @@ function setFPV(active) {
     fpv.userData.mount(camera);
     fpv.userData.setActive(true);
     document.body.classList.add('fpv-mode');
-    hud.toast('🎛️ Cockpit View (Press V to exit • Hold Right Mouse to look)', 2200);
+    if (showToast) {
+      hud.toast('🎛️ Cockpit View (Press V to exit • Hold Right Mouse to look)', 2200);
+    }
   } else {
     isFPV = false;
     const fpv = boat.fpv;
@@ -380,15 +519,17 @@ function setFPV(active) {
     camera.updateProjectionMatrix();
     camYaw = boat.state.yaw;
     document.body.classList.remove('fpv-mode');
-    hud.toast('⛵ Third-Person View', 1200);
+    if (showToast) {
+      hud.toast('⛵ Third-Person View', 1200);
+    }
   }
 }
 
 function toggleFPV() {
   if (!player.alive) return;
-  if (!isFPV && boat.currentSkin !== 'hero') {
+  if (!isFPV && !boat.fpv) {
     applySkin('hero', false);
-    hud.toast('🔥 Switched to Sunfire Hero Boat for Cockpit View!', 2000);
+    hud.toast('🔥 Switched to Hero Boat for Cockpit View!', 2000);
   }
   setFPV(!isFPV);
 }
@@ -435,6 +576,17 @@ const camTarget = new THREE.Vector3();
 const look = new THREE.Vector3();
 camera.position.set(boat.state.x, 7.5, boat.state.z - 15);
 
+function snapCamera() {
+  if (isFPV) return; // In FPV mode camera is attached to cockpit rig
+  const s = boat.state;
+  camYaw = s.yaw;
+  const fx = Math.sin(camYaw), fz = Math.cos(camYaw);
+  const back = 14 * camZoom;
+  camera.position.set(s.x - fx * back, 7 * camZoom, s.z - fz * back);
+  look.set(s.x + fx * 4, 1.5, s.z + fz * 4);
+  camera.lookAt(look);
+}
+
 function updateCamera(dt) {
   const s = boat.state;
   camFar += ((boat.boosting ? 0.35 : 1) - camFar) * Math.min(1, dt * 4);
@@ -471,10 +623,43 @@ function frame() {
   const s = boat.state;
   let gunFiring = false;
 
+  const isOnline = mp && mp.mode === 'online';
+
+  if (isOnline !== prevIsOnline) {
+    prevIsOnline = isOnline;
+    if (isOnline) {
+      for (const e of enemies) {
+        e.boat.group.visible = false;
+        if (e.bar) e.bar.visible = false;
+      }
+      for (const p of potions.items) p.g.visible = false;
+      document.getElementById('title')?.classList.add('hidden');
+    } else {
+      for (const e of enemies) e.boat.group.visible = true;
+      for (const p of potions.items) if (p.on) p.g.visible = true;
+      document.getElementById('title')?.classList.remove('hidden');
+      boat.resetStyle();
+      boat.teleport(WORLD.boatSpawn.x, WORLD.boatSpawn.z, WORLD.boatSpawn.yaw);
+      snapCamera();
+    }
+  }
+
+  if (isOnline) {
+    for (const e of enemies) {
+      if (e.bar && e.bar.visible) e.bar.visible = false;
+    }
+  }
+
+  const controlsActive = !isOnline || (mp.matchState === 'playing');
+
   if (player.alive) {
-    boat.update(dt, input.state);
-    if (input.state.brake && !wasBraking) audio.brake();
-    wasBraking = input.state.brake;
+    if (controlsActive) {
+      boat.update(dt, input.state);
+      if (input.state.brake && !wasBraking) audio.brake();
+      wasBraking = input.state.brake;
+    } else {
+      boat.update(dt, { sail: 0, steer: 0, brake: true });
+    }
     // standing still gets you hunted
     if (Math.abs(s.speed) < SWARM.idleSpeed) player.idle += dt; else player.idle = Math.max(0, player.idle - dt * 3);
     if (boat.boosting !== wasBoosting) { wasBoosting = boat.boosting; audio.boost(wasBoosting); }
@@ -483,7 +668,7 @@ function frame() {
     // Weapons: pick with 1 / 2, fire with the left mouse button.
     // The machine gun fires while the button is held and alternates between its two barrels.
     gunTimer -= dt;
-    if (input.state.fire && input.state.weapon === 'gun') {
+    if (controlsActive && input.state.fire && input.state.weapon === 'gun') {
       gunFiring = true;
       if (gunTimer <= 0) {
         gunTimer = 1 / WEAPONS.gun.rate;
@@ -491,13 +676,19 @@ function frame() {
         const fx = Math.sin(s.yaw), fz = Math.cos(s.yaw);
         const lx = Math.cos(s.yaw), lz = -Math.sin(s.yaw);
         const ang = gunAim(s) + (Math.random() - 0.5) * 2 * WEAPONS.gun.spread;
-        combat.fireBullet('player', s.x + fx * 3.6 + lx * gunSide * 0.55, s.z + fz * 3.6 + lz * gunSide * 0.55,
+        const bx = s.x + fx * 3.6 + lx * gunSide * 0.55;
+        const bz = s.z + fz * 3.6 + lz * gunSide * 0.55;
+        combat.fireBullet('player', bx, bz,
           ang, WEAPONS.gun.speed + Math.max(0, s.speed), WEAPONS.gun.dmg, WEAPONS.gun.life);
         if (boat.fpv?.userData?.fire) boat.fpv.userData.fire();
+
+        if (isOnline) {
+          mp.broadcastLocalFire('gun', { x: bx, z: bz, yaw: ang, speed: WEAPONS.gun.speed + Math.max(0, s.speed) });
+        }
       }
     }
     // The missile fires whenever it is ready and the button is down.
-    if (input.state.fire && input.state.weapon === 'missile' && missileCd <= 0) fireMissile();
+    if (controlsActive && input.state.fire && input.state.weapon === 'missile' && missileCd <= 0) fireMissile();
 
     // boost exhaust
     if (boat.boosting) {
@@ -519,70 +710,115 @@ function frame() {
     // blink while protected after respawning (stay visible in FPV so camera doesn't vanish)
     boat.group.visible = isFPV || player.invuln <= 0 || Math.floor(t * 10) % 2 === 0;
   } else {
+    // Keep syncing boat model on waves while waiting for respawn
+    boat.syncModel(dt, t);
+    boat.group.visible = false;
     player.respawn -= dt;
     if (player.respawn <= 0) respawnPlayer();
   }
 
   if (!player.alive) player.idle = 0;
-  director.update(dt, enemies, player);
-  if (HUNT.k > 0.6 && !huntWarned) { huntWarned = true; hud.toast('⚠️ They smell blood! Keep moving!', 2500); }
-  if (HUNT.k < 0.2) huntWarned = false;
-  for (const e of enemies) e.update(dt, t, player, camera, targets);
-  potions.update(dt, t, player, enemies);
 
-  // Boats bump into each other.
-  //  - ramming with the Shift boost: you lose 10% of your health, they lose 30% of theirs
-  //  - ramming at normal speed still hurts both (the enemy more)
-  ramCd = Math.max(0, ramCd - dt);
-  if (player.alive) {
-    for (const e of enemies) {
-      if (!e.alive) continue;
-      const dx = s.x - e.state.x, dz = s.z - e.state.z;
-      const d = Math.hypot(dx, dz) || 0.001;
-      const min = player.radius + e.radius;
-      if (d >= min) continue;
-      const nx = dx / d, nz = dz / d, push = min - d;
-      s.x += nx * push * 0.6; s.z += nz * push * 0.6;
-      e.state.x -= nx * push * 0.4; e.state.z -= nz * push * 0.4;
-      if (ramCd <= 0 && boat.boosting) {
-        ramCd = 0.9;
-        e.takeDamage(e.maxHp * BOAT.boostRamEnemyPct, 'player');
-        player.takeDamage(player.maxHp * BOAT.boostRamSelfPct, e.team);
-        combat.explode(s.x - nx * 2, s.z - nz * 2, 5, 0.4);
-        combat.ring(s.x - nx * 2, s.z - nz * 2, 9, 0.45, 0xffffff, 0.8);
-        shake = Math.max(shake, 1.0);
-        s.speed *= 0.8;
-      } else if (ramCd <= 0 && s.speed > 22) {
-        ramCd = 0.9;
-        const hit = s.speed;
-        e.takeDamage(Math.min(hit * 0.8, e.maxHp * 0.3), 'player'); // a ram never takes more than 30% of a boat's health
-        player.takeDamage(hit * 0.12, e.team);
-        combat.explode(s.x + nx * -2, s.z + nz * -2, 4, 0.35);
-        shake = Math.max(shake, 0.8);
-        s.speed *= 0.6;
-        boat.top = Math.max(BOAT.baseTop, boat.top - 8);
+  if (isOnline) {
+    mp.update(dt, t);
+    const activeTargets = [player, ...mp.getTargets()];
+
+    // Boats bump into each other in multiplayer
+    ramCd = Math.max(0, ramCd - dt);
+    if (player.alive) {
+      for (const e of mp.getTargets()) {
+        if (!e.alive) continue;
+        const dx = s.x - e.state.x, dz = s.z - e.state.z;
+        const d = Math.hypot(dx, dz) || 0.001;
+        const min = player.radius + e.radius;
+        if (d >= min) continue;
+        const nx = dx / d, nz = dz / d, push = min - d;
+        s.x += nx * push * 0.6; s.z += nz * push * 0.6;
+        if (ramCd <= 0 && boat.boosting) {
+          ramCd = 0.9;
+          e.takeDamage(e.maxHp * BOAT.boostRamEnemyPct, 'player');
+          player.takeDamage(player.maxHp * BOAT.boostRamSelfPct, e.team);
+          combat.explode(s.x - nx * 2, s.z - nz * 2, 5, 0.4);
+          combat.ring(s.x - nx * 2, s.z - nz * 2, 9, 0.45, 0xffffff, 0.8);
+          shake = Math.max(shake, 1.0);
+          s.speed *= 0.8;
+        } else if (ramCd <= 0 && s.speed > 22) {
+          ramCd = 0.9;
+          const hit = s.speed;
+          e.takeDamage(Math.min(hit * 0.8, e.maxHp * 0.3), 'player');
+          player.takeDamage(hit * 0.12, e.team);
+          combat.explode(s.x + nx * -2, s.z + nz * -2, 4, 0.35);
+          shake = Math.max(shake, 0.8);
+          s.speed *= 0.6;
+          boat.top = Math.max(BOAT.baseTop, boat.top - 8);
+        }
       }
     }
-  }
-  // enemy boats can't sail through each other either
-  for (let i = 0; i < enemies.length; i++) {
-    for (let j = i + 1; j < enemies.length; j++) {
-      const a = enemies[i], b = enemies[j];
-      if (!a.alive || !b.alive) continue;
-      const dx = a.state.x - b.state.x, dz = a.state.z - b.state.z;
-      const d = Math.hypot(dx, dz) || 0.001;
-      const min = a.radius + b.radius;
-      if (d >= min) continue;
-      const push = (min - d) / 2;
-      a.state.x += (dx / d) * push; a.state.z += (dz / d) * push;
-      b.state.x -= (dx / d) * push; b.state.z -= (dz / d) * push;
-    }
-  }
 
-  combat.update(dt, targets, player);
+    combat.update(dt, activeTargets, player);
+    minimap.draw(boat, mp.getTargets(), [...mp.orbs.values()]);
+  } else {
+    director.update(dt, enemies, player);
+    if (HUNT.k > 0.6 && !huntWarned) { huntWarned = true; hud.toast('⚠️ They smell blood! Keep moving!', 2500); }
+    if (HUNT.k < 0.2) huntWarned = false;
+    for (const e of enemies) e.update(dt, t, player, camera, targets);
+    potions.update(dt, t, player, enemies);
+
+    // Boats bump into each other.
+    //  - ramming with the Shift boost: you lose 10% of your health, they lose 30% of theirs
+    //  - ramming at normal speed still hurts both (the enemy more)
+    ramCd = Math.max(0, ramCd - dt);
+    if (player.alive) {
+      for (const e of enemies) {
+        if (!e.alive) continue;
+        const dx = s.x - e.state.x, dz = s.z - e.state.z;
+        const d = Math.hypot(dx, dz) || 0.001;
+        const min = player.radius + e.radius;
+        if (d >= min) continue;
+        const nx = dx / d, nz = dz / d, push = min - d;
+        s.x += nx * push * 0.6; s.z += nz * push * 0.6;
+        e.state.x -= nx * push * 0.4; e.state.z -= nz * push * 0.4;
+        if (ramCd <= 0 && boat.boosting) {
+          ramCd = 0.9;
+          e.takeDamage(e.maxHp * BOAT.boostRamEnemyPct, 'player');
+          player.takeDamage(player.maxHp * BOAT.boostRamSelfPct, e.team);
+          combat.explode(s.x - nx * 2, s.z - nz * 2, 5, 0.4);
+          combat.ring(s.x - nx * 2, s.z - nz * 2, 9, 0.45, 0xffffff, 0.8);
+          shake = Math.max(shake, 1.0);
+          s.speed *= 0.8;
+        } else if (ramCd <= 0 && s.speed > 22) {
+          ramCd = 0.9;
+          const hit = s.speed;
+          e.takeDamage(Math.min(hit * 0.8, e.maxHp * 0.3), 'player'); // a ram never takes more than 30% of a boat's health
+          player.takeDamage(hit * 0.12, e.team);
+          combat.explode(s.x + nx * -2, s.z + nz * -2, 4, 0.35);
+          shake = Math.max(shake, 0.8);
+          s.speed *= 0.6;
+          boat.top = Math.max(BOAT.baseTop, boat.top - 8);
+        }
+      }
+    }
+    // enemy boats can't sail through each other either
+    for (let i = 0; i < enemies.length; i++) {
+      for (let j = i + 1; j < enemies.length; j++) {
+        const a = enemies[i], b = enemies[j];
+        if (!a.alive || !b.alive) continue;
+        const dx = a.state.x - b.state.x, dz = a.state.z - b.state.z;
+        const d = Math.hypot(dx, dz) || 0.001;
+        const min = a.radius + b.radius;
+        if (d >= min) continue;
+        const push = (min - d) / 2;
+        a.state.x += (dx / d) * push; a.state.z += (dz / d) * push;
+        b.state.x -= (dx / d) * push; b.state.z -= (dz / d) * push;
+      }
+    }
+
+    combat.update(dt, targets, player);
+    enemies.forEach((e, i) => wakes[i].update(dt, t, e.boat, e.alive));
+    minimap.draw(boat, enemies, potions.list());
+  }
 
   wake.update(dt, t, boat, player.alive);
-  enemies.forEach((e, i) => wakes[i].update(dt, t, e.boat, e.alive));
   water.update(s.x, s.z, t);
   world.update(t, s.x, s.z);
   if (isFPV) {
@@ -591,7 +827,6 @@ function frame() {
     updateCamera(dt);
   }
   sky.update(camera, t);
-  minimap.draw(boat, enemies, potions.list());
   audio.setListener(s.x, s.z, isFPV ? boat.state.yaw : camYaw);
   audio.update(dt, { speed: s.speed, boosting: boat.boosting, alive: player.alive, hpFrac: player.hp / player.maxHp });
   tutorial();

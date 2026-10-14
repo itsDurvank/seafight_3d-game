@@ -140,6 +140,7 @@ export function buildHeroBoat(style = {}) {
     dome.material.emissiveIntensity = 0.6 + boostK * 0.9 + flashK;
   };
 
+  g.userData.fpvHide = [pilot, dome];
   g.scale.setScalar(style.scale || 1);
   return g;
 }

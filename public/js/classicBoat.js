@@ -73,7 +73,8 @@ export function buildClassicBoat(style = {}) {
   let flashK = 0;
   g.userData.hit = () => { flashK = 1; };
   g.userData.update = (dt, t, boat) => {
-    const speed = Math.max(0, boat?.state?.speed || 0);
+    const s = boat?.state || boat || {};
+    const speed = Math.max(0, s.speed || 0);
     const speedK = Math.min(1, speed / 100);
     
     // Wave the flag

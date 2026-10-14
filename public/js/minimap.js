@@ -42,7 +42,7 @@ export class Minimap {
     for (const e of enemies) {
       if (!e.alive) continue;
       const [x, z] = this.px(e.state.x, e.state.z);
-      c.fillStyle = e.island.theme.map;
+      c.fillStyle = e.color?.hex || e.island?.theme?.map || '#1fd1c9';
       c.strokeStyle = '#2b3a4a'; c.lineWidth = 1.5;
       c.beginPath(); c.arc(x, z, 3.5, 0, Math.PI * 2); c.fill(); c.stroke();
     }

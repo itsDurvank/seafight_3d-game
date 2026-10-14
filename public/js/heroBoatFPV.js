@@ -70,20 +70,21 @@ export function buildHeroBoatFPV(hero, style = {}) {
   box(1.37, 0.03, 0.05, C.accent, 0, 0.03, 0.26, dash);                   // accent lip on the far edge
   add(new THREE.Mesh(new THREE.BoxGeometry(1.3, 0.012, 0.012), glow(C.neon)), 0, 0.056, 0.2, dash);
 
-  const gauge = new THREE.Group(); add(gauge, -0.32, 0.052, -0.02, dash); gauge.rotation.x = -Math.PI / 2;
+  // Shifted speed gauge to -0.18 to ensure clearance with left console lever at -0.42
+  const gauge = new THREE.Group(); add(gauge, -0.18, 0.052, -0.02, dash); gauge.rotation.x = -Math.PI / 2;
   add(new THREE.Mesh(new THREE.CircleGeometry(0.13, 24), glow(0x0b1018)), 0, 0, 0, gauge);
   add(new THREE.Mesh(new THREE.RingGeometry(0.115, 0.13, 28), glow(C.neon)), 0, 0, 0.002, gauge);
   const needle = new THREE.Group(); add(needle, 0, 0, 0.004, gauge);
   add(new THREE.Mesh(new THREE.BoxGeometry(0.012, 0.1, 0.004), glow(0xff5a3c)), 0, 0.05, 0, needle);
   add(new THREE.Mesh(new THREE.CircleGeometry(0.014, 10), glow(0xffffff)), 0, 0, 0.006, gauge);
 
-  const boostGroup = new THREE.Group(); add(boostGroup, 0.12, 0.054, 0.02, dash);
+  const boostGroup = new THREE.Group(); add(boostGroup, 0.19, 0.054, 0.02, dash);
   add(new THREE.Mesh(new THREE.BoxGeometry(0.46, 0.008, 0.06), glow(0x0b1018)), 0.23, 0, 0, boostGroup);
   const boostGeo = new THREE.BoxGeometry(0.44, 0.01, 0.04); boostGeo.translate(0.22, 0, 0);
   const boostBar = add(new THREE.Mesh(boostGeo, glow(0xffb02e)), 0.01, 0.004, 0, boostGroup);
 
   // ---- little extras: radar scope, toggles, cogs, throttle lever, button pad, seat ----
-  const radar = new THREE.Group(); add(radar, -0.03, 0.052, 0.0, dash); radar.rotation.x = -Math.PI / 2;
+  const radar = new THREE.Group(); add(radar, 0.055, 0.052, 0.0, dash); radar.rotation.x = -Math.PI / 2;
   add(new THREE.Mesh(new THREE.CircleGeometry(0.075, 24), glow(0x07161d)), 0, 0, 0, radar);
   for (const r of [0.025, 0.05, 0.072]) add(new THREE.Mesh(new THREE.RingGeometry(r - 0.0015, r, 28), glow(C.neon, 0.6)), 0, 0, 0.002, radar);
   const sweep = new THREE.Group(); add(sweep, 0, 0, 0.004, radar);
@@ -139,6 +140,14 @@ export function buildHeroBoatFPV(hero, style = {}) {
   }
   box(0.07, 0.02, 0.07, 0xcfd8e3, 0, 1.32, -0.5, g);                              // buckle
 
+  // console block: if the boat reports its deck height (userData.fpvFloor), fill from the deck up to the
+  // cockpit floor so the seat, dash and hands sit on something solid instead of floating or sinking into a cabin
+  const floorY = hero.userData.fpvFloor;
+  if (floorY != null && floorY < 1.17) {
+    const th = 1.18 - floorY;
+    box(1.4, th, 2.0, C.metal, 0, floorY + th / 2, -0.3, g);
+  }
+
   // ---- aircraft-style yoke: control column, crossbar, vertical grips ----
   const yoke = new THREE.Group(); add(yoke, 0, 1.3, -0.1); yoke.rotation.x = 0.05;   // pulled back so the grips sit clear of the dash
   add(new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.03, 0.32, 10).rotateX(Math.PI / 2), std(0xcfd8e3)), 0, 0, 0.16, yoke); // chrome column
@@ -174,41 +183,74 @@ export function buildHeroBoatFPV(hero, style = {}) {
   };
   placeSleeves();
 
-  // ---- HUD (canvas on a plane in front of the eye, drawn over everything) ----
-  const cv = document.createElement('canvas'); cv.width = 640; cv.height = 360;
+  // ---- HUD: a screen-locked layer (speed / hull / boost, glued to the camera) + a gun-line crosshair on the boat ----
+  const HH = 540;                                                   // HUD canvas height; width follows the screen aspect
+  const cv = document.createElement('canvas'); cv.width = 960; cv.height = HH;
   const cx = cv.getContext('2d');
-  const hudTex = new THREE.CanvasTexture(cv); hudTex.colorSpace = THREE.SRGBColorSpace;
-  const hud = new THREE.Mesh(new THREE.PlaneGeometry(1.6, 0.9), new THREE.MeshBasicMaterial({
-    map: hudTex, transparent: true, depthTest: false, depthWrite: false, toneMapped: false }));
-  hud.renderOrder = 999; hud.position.set(0, 0, -1.6); hud.frustumCulled = false; eye.add(hud);
+  let hudTex = new THREE.CanvasTexture(cv); hudTex.colorSpace = THREE.SRGBColorSpace;
+  const hudMat = new THREE.MeshBasicMaterial({ map: hudTex, transparent: true, depthTest: false, depthWrite: false, toneMapped: false });
+  const hud = new THREE.Mesh(new THREE.PlaneGeometry(1, 1), hudMat);
+  hud.renderOrder = 999; hud.position.set(0, 0, -1.6); hud.frustumCulled = false; // parented to the camera in mount()
+
+  const xc = document.createElement('canvas'); xc.width = xc.height = 128; const xx = xc.getContext('2d');
+  const xTex = new THREE.CanvasTexture(xc); xTex.colorSpace = THREE.SRGBColorSpace;
+  const aim = new THREE.Mesh(new THREE.PlaneGeometry(0.2, 0.2), new THREE.MeshBasicMaterial({
+    map: xTex, transparent: true, depthTest: false, depthWrite: false, toneMapped: false }));
+  aim.renderOrder = 999; aim.position.set(0, 0, -1.6); aim.frustumCulled = false; eye.add(aim);  // stays on the gun line when you look around
+
+  let hudAspect = 0;
+  const fitHUD = (camera) => {                                       // make the HUD plane exactly fill the view
+    const a = camera.aspect;
+    if (Math.abs(a - hudAspect) > 0.01) {
+      hudAspect = a; cv.width = Math.round(clamp(HH * a, 360, 2400)); cv.height = HH;
+      hudTex.dispose(); hudTex = new THREE.CanvasTexture(cv); hudTex.colorSpace = THREE.SRGBColorSpace;
+      hudMat.map = hudTex; hudMat.needsUpdate = true;
+    }
+    const h = 2 * 1.6 * Math.tan(THREE.MathUtils.degToRad(camera.fov / 2));
+    hud.scale.set(h * a, h, 1);
+  };
+
+  const drawAim = (boostK) => {
+    xx.clearRect(0, 0, 128, 128);
+    xx.strokeStyle = xx.fillStyle = '#39e6ff'; xx.lineWidth = 3; xx.shadowColor = '#39e6ff'; xx.shadowBlur = 6;
+    xx.beginPath(); xx.arc(64, 64, 24 + boostK * 6, 0, Math.PI * 2); xx.stroke();
+    for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+      xx.beginPath(); xx.moveTo(64 + dx * 33, 64 + dy * 33); xx.lineTo(64 + dx * 52, 64 + dy * 52); xx.stroke();
+    }
+    xx.fillRect(62, 62, 4, 4);
+    xTex.needsUpdate = true;
+  };
 
   const drawHUD = (speed, speedK, boostK, flashK, boat) => {
-    cx.clearRect(0, 0, 640, 360);
-    if (flashK > 0.01) { // damage vignette
-      const v = cx.createRadialGradient(320, 180, 120, 320, 180, 400);
-      v.addColorStop(0, 'rgba(255,40,30,0)'); v.addColorStop(1, `rgba(255,40,30,${flashK * 0.55})`);
-      cx.fillStyle = v; cx.fillRect(0, 0, 640, 360);
+    const W = cv.width, H = cv.height, k = H / 981, Lo = u.hudLayout;   // k keeps the HUD at its original on-screen size
+    cx.clearRect(0, 0, W, H);
+    if (flashK > 0.01) { // damage flash: red glow in all four screen corners, middle of the view stays clear
+      for (const [gx, gy] of [[0, 0], [W, 0], [0, H], [W, H]]) {
+        const v = cx.createRadialGradient(gx, gy, 0, gx, gy, H * 0.42);
+        v.addColorStop(0, `rgba(255,40,30,${flashK * 0.35})`); v.addColorStop(1, 'rgba(255,40,30,0)');
+        cx.fillStyle = v; cx.fillRect(0, 0, W, H);
+      }
     }
-    cx.strokeStyle = '#39e6ff'; cx.fillStyle = '#39e6ff'; cx.lineWidth = 2; cx.shadowColor = '#39e6ff'; cx.shadowBlur = 8;
-    // crosshair
-    cx.beginPath(); cx.arc(320, 170, 16 + boostK * 4, 0, Math.PI * 2); cx.stroke();
-    for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
-      cx.beginPath(); cx.moveTo(320 + dx * 22, 170 + dy * 22); cx.lineTo(320 + dx * 34, 170 + dy * 34); cx.stroke();
-    }
-    cx.fillRect(319, 169, 2, 2);
-    // speed readout
-    cx.font = 'bold 34px monospace'; cx.textAlign = 'left'; cx.fillText(String(Math.round(speed)), 40, 318);
-    cx.font = '14px monospace'; cx.fillText('SPD', 42, 336);
-    cx.beginPath(); cx.arc(150, 300, 26, Math.PI * 0.75, Math.PI * (0.75 + 1.5 * speedK)); cx.stroke();
+    cx.strokeStyle = cx.fillStyle = '#39e6ff'; cx.lineWidth = Math.max(1.5, 2 * k); cx.shadowColor = '#39e6ff'; cx.shadowBlur = 8 * k;
+    cx.textBaseline = 'middle';
+    // speed: ring gauge with the number inside
+    const sx = W * Lo.speed[0], sy = H * Lo.speed[1];
+    cx.globalAlpha = 0.25; cx.beginPath(); cx.arc(sx, sy, 30 * k, 0, Math.PI * 2); cx.stroke(); cx.globalAlpha = 1;
+    cx.beginPath(); cx.arc(sx, sy, 30 * k, Math.PI * 0.75, Math.PI * (0.75 + 1.5 * speedK)); cx.stroke();
+    cx.textAlign = 'center'; cx.font = `bold ${28 * k}px monospace`; cx.fillText(String(Math.round(speed)), sx, sy - 2 * k);
+    cx.font = `${12 * k}px monospace`; cx.fillText('SPD', sx, sy + 42 * k);
     // boost bar
-    cx.textAlign = 'right'; cx.font = '14px monospace'; cx.fillText('BOOST', 600, 336);
-    cx.strokeRect(440, 300, 160, 12); cx.fillStyle = boostK > 0.1 ? '#ffb02e' : '#39e6ff';
-    cx.shadowColor = cx.fillStyle; cx.fillRect(442, 302, 156 * Math.max(0.03, boostK), 8);
+    const bx = W * Lo.boost[0], by = H * Lo.boost[1], col = boostK > 0.1 ? '#ffb02e' : '#39e6ff';
+    cx.strokeRect(bx - 80 * k, by - 6 * k, 160 * k, 12 * k);
+    cx.fillStyle = col; cx.shadowColor = col; cx.fillRect(bx - 78 * k, by - 4 * k, 156 * k * Math.max(0.03, boostK), 8 * k);
+    cx.font = `${12 * k}px monospace`; cx.fillText('BOOST', bx, by + 24 * k);
     // hull bar (if the game provides hp)
     if (boat && boat.maxHp > 0 && boat.hp != null) {
-      const k = clamp(boat.hp / boat.maxHp, 0, 1), col = k > 0.35 ? '#7dff9c' : '#ff5a3c';
-      cx.strokeStyle = col; cx.fillStyle = col; cx.shadowColor = col; cx.textAlign = 'left';
-      cx.font = '14px monospace'; cx.fillText('HULL', 40, 40); cx.strokeRect(90, 28, 160, 12); cx.fillRect(92, 30, 156 * k, 8);
+      const f = clamp(boat.hp / boat.maxHp, 0, 1), hc = f > 0.35 ? '#7dff9c' : '#ff5a3c';
+      const hx = W * Lo.hull[0] - 98 * k, hy = H * Lo.hull[1];
+      cx.strokeStyle = cx.fillStyle = hc; cx.shadowColor = hc; cx.textAlign = 'left';
+      cx.font = `${12 * k}px monospace`; cx.fillText('HULL', hx, hy);
+      cx.strokeRect(hx + 46 * k, hy - 6 * k, 150 * k, 12 * k); cx.fillRect(hx + 48 * k, hy - 4 * k, 146 * k * f, 8 * k);
     }
     cx.shadowBlur = 0;
     hudTex.needsUpdate = true;
@@ -227,16 +269,18 @@ export function buildHeroBoatFPV(hero, style = {}) {
   let boostK = 0, flashK = 0, fireT = 0, hudT = 0, steer = 0, cam = null, baseFov = 75;
   const u = g.userData;
   u.eye = eye;
+  u.hudLayout = { speed: [0.24, 0.68], boost: [0.75, 0.63], hull: [0.25, 0.41] };  // HUD element centres as fractions of the screen (x, y from top-left)
 
   u.mount = (camera) => {
     cam = camera; eye.add(camera);
     camera.position.set(0, 0, 0); camera.rotation.set(0, 0, 0); camera.rotation.order = 'YXZ';
     camera.near = 0.05; baseFov = camera.fov; camera.updateProjectionMatrix();
+    camera.add(hud); fitHUD(camera);
     return camera;
   };
-  u.unmount = () => { if (cam) { eye.remove(cam); cam.fov = baseFov; cam.updateProjectionMatrix(); cam = null; } };
+  u.unmount = () => { if (cam) { cam.remove(hud); eye.remove(cam); cam.fov = baseFov; cam.updateProjectionMatrix(); cam = null; } };
   u.setActive = (on) => {
-    g.visible = on; hud.visible = on;
+    g.visible = on; hud.visible = on; aim.visible = on;
     (hero.userData.fpvHide || []).forEach((o) => { o.visible = !on; });
   };
   u.hit = () => { flashK = 1; };
@@ -280,7 +324,7 @@ export function buildHeroBoatFPV(hero, style = {}) {
 
     // HUD at ~30 fps
     hudT += dt;
-    if (hudT > 1 / 30) { hudT = 0; drawHUD(speed, speedK, boostK, flashK, boat); }
+    if (hudT > 1 / 30) { hudT = 0; if (cam) drawHUD(speed, speedK, boostK, flashK, boat); drawAim(boostK); }
 
     // camera feel: lean + FOV kick (no shake), aspect-safe HUD
     if (cam) {
@@ -290,7 +334,7 @@ export function buildHeroBoatFPV(hero, style = {}) {
       cam.rotation.z += (clamp(turn * 0.12, -0.15, 0.15) - cam.rotation.z) * (1 - Math.exp(-6 * dt));
       const fov = baseFov + speedK * 4 + boostK * 9;
       if (Math.abs(cam.fov - fov) > 0.05) { cam.fov += (fov - cam.fov) * (1 - Math.exp(-8 * dt)); cam.updateProjectionMatrix(); }
-      hud.scale.setScalar(Math.min(1, cam.aspect / (16 / 9)));
+      fitHUD(cam); hud.rotation.z = -cam.rotation.z;                  // HUD stays level while the camera leans
     }
   };
 

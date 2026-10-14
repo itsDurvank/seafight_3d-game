@@ -3,6 +3,7 @@
 const http = require('http');
 const fs = require('fs');
 const path = require('path');
+const { setupWebSocketServer } = require('./rooms');
 
 const PORT = process.env.PORT || 3000;
 const PUBLIC_DIR = path.join(__dirname, '..', 'public');
@@ -126,11 +127,15 @@ const server = http.createServer((req, res) => {
     }
     res.writeHead(200, {
       'Content-Type': MIME[path.extname(filePath)] || 'application/octet-stream',
-      'Cache-Control': 'no-cache',
+      'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0',
+      'Pragma': 'no-cache',
+      'Expires': '0',
     });
     res.end(data);
   });
 });
+
+setupWebSocketServer(server);
 
 server.listen(PORT, () => {
   console.log(`Island Resort running at http://localhost:${PORT}`);

@@ -73,7 +73,8 @@
     #missile-time { display:block; font-size:10.5px; margin-top:2px; position:relative; }
 
     #controls { bottom:58px; left:16px; padding:10px 14px; font-size:13px; line-height:1.7; }
-    #controls.hidden { display:none; }
+    .hidden { display: none !important; }
+    #controls.hidden { display:none !important; }
     #help-btn { bottom:16px; left:16px; width:34px; height:34px; padding:0; border-radius:50%; font:inherit; font-weight:700;
       font-size:18px; color:var(--ink); cursor:pointer; display:flex; align-items:center; justify-content:center; }
     #help-btn:hover { background:#fff0c4; }
@@ -114,18 +115,21 @@
     .close-btn:hover { background:#ffd9a0; transform:scale(1.08); }
     .close-btn:active { transform:translateY(1px); }
 
+    #settings-offline-view, #settings-online-view { display:flex; flex-direction:column; gap:14px; }
+    #settings-offline-view.hidden, #settings-online-view.hidden { display:none !important; }
+
     .settings-section { display:flex; flex-direction:column; gap:10px; }
     .settings-subtitle { font-size:13px; font-weight:700; color:#8f4f2a; text-transform:uppercase; letter-spacing:0.5px; }
 
-    .skin-picker { display:flex; flex-direction:column; gap:9px; }
+    .skin-picker { display:flex; flex-direction:column; gap:12px; max-height:240px; overflow-y:auto; padding:10px 4px 4px 2px; }
     .skin-card { position:relative; display:flex; align-items:center; gap:12px; padding:10px 12px;
       background:#fff; border:2.5px solid #e3d0b3; border-radius:14px; cursor:pointer;
       transition:transform .1s ease, border-color .15s ease, box-shadow .15s ease, background .15s ease; }
     .skin-card:hover { border-color:#f2a33a; background:#fffbf3; transform:translateY(-1px); }
     .skin-card.active { border-color:#ff8a3d; background:#fff8eb; box-shadow:0 0 0 2px #ff8a3d, 0 4px 12px rgba(255,138,61,0.28); }
 
-    .skin-badge { position:absolute; top:-8px; right:12px; font-size:9px; font-weight:700; padding:1px 7px;
-      border-radius:8px; text-transform:uppercase; color:#fff; letter-spacing:0.5px; }
+    .skin-badge { position:absolute; top:-9px; right:12px; font-size:9.5px; font-weight:800; padding:2px 8px;
+      border-radius:8px; text-transform:uppercase; color:#fff; letter-spacing:0.5px; line-height:1.2; z-index:2; }
     .skin-badge.hot { background:linear-gradient(135deg, #ff5722, #ff9800); box-shadow:0 2px 5px rgba(255,87,34,0.4); }
     .skin-badge.og { background:linear-gradient(135deg, #1fd1c9, #0d9488); box-shadow:0 2px 5px rgba(13,148,136,0.4); }
 
@@ -146,9 +150,127 @@
       font:inherit; font-size:12.5px; font-weight:600; color:var(--ink); cursor:pointer; display:flex;
       align-items:center; justify-content:center; gap:6px; transition:all .1s ease; }
     .settings-btn-action:hover { background:#fff5e3; border-color:#e8a35a; }
+    .settings-btn-action:disabled { opacity:0.5; cursor:not-allowed; border-color:#e3d0b3; background:#f4ece1; }
     .settings-tip { font-size:11px; text-align:center; color:#8c674b; }
 
-    @media (max-width:700px){ #minimap{width:130px;height:130px} #controls{display:none} .slot{width:70px} #hp{width:min(260px,50vw)} }
+    /* Multiplayer Styles */
+    .mp-mode-toggle { display:flex; border-radius:10px; background:#e8d5be; padding:3px; gap:4px; }
+    .mp-toggle-btn { flex:1; border:none; background:transparent; border-radius:8px; padding:6px 0;
+      font:inherit; font-size:12.5px; font-weight:700; color:var(--ink); cursor:pointer; transition:all .15s ease; }
+    .mp-toggle-btn.active { background:#fff; color:var(--ink); box-shadow:0 2px 4px rgba(0,0,0,.12); }
+    .mp-online-panel { display:flex; flex-direction:column; gap:10px; margin-top:2px; }
+    .mp-online-panel.hidden { display:none; }
+    .mp-input-group { display:flex; flex-direction:column; gap:4px; }
+    .mp-input-group label { font-size:11px; font-weight:700; color:#8f4f2a; text-transform:uppercase; }
+    .mp-input-group input, .mp-join-row input {
+      background:#fff; border:2px solid #e3d0b3; border-radius:8px; padding:7px 10px;
+      font:inherit; font-size:13px; font-weight:600; color:var(--ink); outline:none; transition:border-color .15s ease;
+    }
+    .mp-input-group input:focus, .mp-join-row input:focus { border-color:#ff8a3d; }
+    .mp-actions { display:flex; flex-direction:column; gap:8px; }
+    .mp-join-row { display:flex; gap:6px; }
+    .mp-join-row input { flex:1; text-align:center; letter-spacing:2px; font-weight:700; text-transform:uppercase; }
+    .mp-error-msg { font-size:11.5px; font-weight:700; color:#e04646; background:#ffebeb; border:1px solid #ffccd2; border-radius:8px; padding:6px 8px; text-align:center; }
+    .mp-error-msg.hidden { display:none; }
+
+    /* Lobby modal */
+    #mp-lobby-modal { top:50%; left:50%; transform:translate(-50%,-50%); width:min(390px,94vw); padding:18px; z-index:100;
+      display:flex; flex-direction:column; gap:14px; animation:popIn 0.16s cubic-bezier(0.18, 0.89, 0.32, 1.25); }
+    #mp-lobby-modal.hidden { display:none; }
+    .mp-room-code-display { display:flex; align-items:center; justify-content:space-between; background:#fff; border:2px dashed #e8a35a;
+      border-radius:12px; padding:8px 14px; font-size:14px; font-weight:700; }
+    .mp-room-code-display b { font-size:22px; letter-spacing:3px; color:#ff7a59; }
+    .mp-copy-btn { padding:4px 10px; font-size:12px; font-weight:700; cursor:pointer; background:#fff3de; border:2px solid #e8a35a; border-radius:8px; }
+    .mp-copy-btn:hover { background:#ffd9a0; }
+    .mp-player-count { font-size:12px; font-weight:700; color:#8f4f2a; text-transform:uppercase; }
+    .mp-player-list { display:flex; flex-direction:column; gap:6px; max-height:180px; overflow-y:auto; }
+    .mp-lobby-player { display:flex; align-items:center; gap:8px; background:#fff; border:2px solid #e3d0b3; border-radius:10px; padding:8px 12px; font-size:14px; font-weight:600; }
+    .mp-lobby-player.self { border-color:#ff8a3d; background:#fffbf3; }
+    .mp-player-swatch { font-size:18px; }
+    .mp-player-name { flex:1; }
+    .mp-host-badge { font-size:10px; font-weight:700; background:#ff8a3d; color:#fff; padding:2px 7px; border-radius:6px; letter-spacing:0.5px; }
+    .mp-ready-badge { font-size:10px; font-weight:700; padding:2px 7px; border-radius:6px; letter-spacing:0.5px; transition:all .2s ease; }
+    .mp-ready-badge.ready { background:#22c55e; color:#fff; box-shadow:0 0 6px rgba(34,197,94,0.4); }
+    .mp-ready-badge.not-ready { background:#fee2e2; color:#dc2626; border:1px solid #fca5a5; }
+    .mp-ready-dot { width:12px; height:12px; border-radius:50%; display:inline-block; flex-shrink:0; transition:background-color 0.2s, box-shadow 0.2s; }
+    .mp-ready-dot.ready { background-color:#22c55e; box-shadow:0 0 8px #22c55e, 0 0 2px #15803d; }
+    .mp-ready-dot.not-ready { background-color:#ef4444; box-shadow:0 0 6px #ef4444, 0 0 2px #b91c1c; }
+    .mp-boat-picker-section { display:flex; flex-direction:column; gap:6px; background:#fff; border:2px solid #e3d0b3; border-radius:12px; padding:8px 10px; }
+    .mp-section-subtitle { display:flex; align-items:center; justify-content:space-between; font-size:11.5px; font-weight:700; color:#8f4f2a; }
+    .mp-picker-hint { font-size:10.5px; font-weight:600; color:#b9642a; }
+    .mp-lobby-boat-picker { display:grid; grid-template-columns:repeat(5, 1fr); gap:5px; }
+    .mp-boat-chip {
+      display:flex; flex-direction:column; align-items:center; justify-content:center; gap:2px;
+      padding:6px 2px; border-radius:10px; border:2px solid #e3d0b3; background:#fffdfa;
+      cursor:pointer; transition:all .15s ease; user-select:none; text-align:center;
+    }
+    .mp-boat-chip:hover { border-color:#f2a33a; transform:translateY(-1px); }
+    .mp-boat-chip.active { border-width:2.5px; background:#fff8eb; box-shadow:0 0 0 2px rgba(255,138,61,0.3), 0 3px 8px rgba(0,0,0,0.12); }
+    .mp-boat-chip-icon { font-size:17px; line-height:1; }
+    .mp-boat-chip-name { font-size:9.5px; font-weight:700; color:var(--ink); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:100%; }
+    .mp-boat-chip-paint { font-size:9px; font-weight:700; padding:1px 4px; border-radius:6px; background:#f4ece1; line-height:1.2; display:flex; align-items:center; gap:2px; }
+    .mp-player-boat-tag { font-size:10.5px; color:#8c674b; font-weight:600; margin-left:auto; }
+    .mp-lobby-status { font-size:12px; text-align:center; color:#8c674b; font-style:italic; }
+    .mp-lobby-actions { display:flex; gap:8px; }
+    .mp-lobby-actions button { flex:1; }
+    #mp-ready-btn.is-ready { background:#22c55e; border-color:#16a34a; color:#fff; font-weight:700; }
+    #mp-start-match-btn.ready-to-start { background:#22c55e; border-color:#16a34a; color:#fff; font-weight:700; box-shadow:0 0 10px rgba(34,197,94,0.5); }
+
+    /* Online Settings Active Match styles */
+    .mp-online-player-badge { display:flex; align-items:center; gap:10px; background:#fff; border:2px solid #e3d0b3; border-radius:12px; padding:8px 12px; }
+    .mp-online-player-avatar { font-size:24px; width:38px; height:38px; border-radius:10px; background:#f7ede0; display:flex; align-items:center; justify-content:center; flex-shrink:0; }
+    .mp-online-player-details { display:flex; flex-direction:column; flex:1; min-width:0; }
+    .mp-online-player-label { font-size:9.5px; font-weight:700; color:#8f4f2a; letter-spacing:0.5px; }
+    .mp-online-player-name { font-size:15px; font-weight:800; color:var(--ink); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+    .mp-online-room-badge { display:flex; flex-direction:column; align-items:flex-end; background:#fff5e8; border:1.5px dashed #e8a35a; border-radius:8px; padding:3px 8px; }
+    .mp-room-badge-label { font-size:8.5px; font-weight:700; color:#8f4f2a; letter-spacing:0.5px; }
+    .mp-room-badge-code { font-size:13px; font-weight:800; letter-spacing:1.5px; color:#ff7a59; }
+    .mp-leave-room-action { background:#fee2e2; border-color:#fca5a5; color:#b91c1c; font-weight:700; padding:9px 12px; width:100%; }
+    .mp-leave-room-action:hover { background:#fecaca; border-color:#ef4444; color:#991b1b; }
+
+    /* Countdown overlay */
+    #mp-countdown-overlay { position:fixed; inset:0; z-index:200; pointer-events:none;
+      display:flex; flex-direction:column; align-items:center; justify-content:center;
+      background:rgba(0,30,50,0.35); backdrop-filter:blur(2px); }
+    #mp-countdown-overlay.hidden { display:none; }
+    #mp-countdown-number { font-size:96px; font-weight:800; color:#fff; text-shadow:0 4px 0 #5b3a22, 0 8px 24px rgba(0,0,0,0.5);
+      animation:countPulse 1s ease-in-out infinite; }
+    #mp-countdown-sub { font-size:24px; font-weight:700; color:#ffd166; letter-spacing:3px; text-shadow:0 2px 4px rgba(0,0,0,0.5); }
+    @keyframes countPulse { 0% { transform:scale(1.2); opacity:0.8; } 50% { transform:scale(1); opacity:1; } 100% { transform:scale(0.9); opacity:0.8; } }
+
+    /* In-game scoreboard */
+    #mp-scoreboard { top:68px; left:16px; width:210px; padding:10px 12px; z-index:10; font-size:12.5px; }
+    #mp-scoreboard.hidden { display:none; }
+    .mp-scoreboard-header { display:flex; align-items:center; justify-content:space-between; font-weight:700; color:#8f4f2a;
+      font-size:11px; letter-spacing:0.5px; margin-bottom:6px; padding-bottom:4px; border-bottom:1.5px dashed #e8a35a; }
+    .mp-ping { font-weight:600; color:#1b8c6e; font-size:10.5px; }
+    #mp-scoreboard-list { display:flex; flex-direction:column; gap:4px; }
+    .mp-score-row { display:flex; align-items:center; gap:6px; padding:3px 6px; border-radius:6px; font-weight:600; font-size:12px; }
+    .mp-score-row.self { background:rgba(255,138,61,0.22); }
+    .mp-score-swatch { font-size:14px; flex-shrink:0; }
+    .mp-score-name { flex:1; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+    .mp-crown { font-size:12px; }
+    .mp-score-kills { font-weight:700; color:var(--ink); font-size:11.5px; }
+
+    /* Game over screen */
+    #mp-gameover-modal { top:50%; left:50%; transform:translate(-50%,-50%); width:min(390px,94vw); padding:20px; z-index:150;
+      display:flex; flex-direction:column; align-items:center; gap:12px; text-align:center; animation:popIn 0.2s cubic-bezier(0.18, 0.89, 0.32, 1.25); }
+    #mp-gameover-modal.hidden { display:none; }
+    .mp-gameover-title { font-size:22px; font-weight:800; color:var(--wood-dark); letter-spacing:1px; }
+    .mp-winner-banner { font-size:18px; font-weight:700; color:var(--ink); }
+    .mp-trophy-canvas-wrap { width:220px; height:180px; margin:2px 0; }
+    .mp-standings-title { font-size:12px; font-weight:700; color:#8f4f2a; text-transform:uppercase; letter-spacing:0.5px; }
+    .mp-final-standings { width:100%; display:flex; flex-direction:column; gap:5px; max-height:140px; overflow-y:auto; }
+    .mp-final-row { display:flex; align-items:center; justify-content:space-between; background:#fff; border:1.5px solid #e3d0b3;
+      border-radius:8px; padding:6px 10px; font-size:12.5px; font-weight:600; }
+    .mp-final-row.self { border-color:#ff8a3d; background:#fff8eb; }
+    .mp-final-rank { font-weight:700; color:#8f4f2a; width:26px; }
+    .mp-final-name { flex:1; text-align:left; font-weight:700; }
+    .mp-final-kills { font-weight:600; font-size:11.5px; }
+    .mp-gameover-actions { width:100%; display:flex; flex-direction:column; gap:8px; margin-top:6px; }
+    .mp-restart-status { font-size:12px; color:#8c674b; font-style:italic; }
+
+    @media (max-width:700px){ #minimap{width:130px;height:130px} #controls{display:none} .slot{width:70px} #hp{width:min(260px,50vw)} #mp-scoreboard{top:68px;left:10px;width:170px} }
   </style>
 </head>
 <body>
@@ -159,37 +281,162 @@
 
   <div id="settings-modal" class="panel ui-btn hidden">
     <div class="settings-header">
-      <div class="settings-title">⚙️ Settings</div>
+      <div id="settings-modal-title" class="settings-title">⚙️ Settings</div>
       <button id="settings-close" class="close-btn" title="Close">✕</button>
     </div>
-    <div class="settings-section">
-      <div class="settings-subtitle">⛵ Boat Skin</div>
-      <div class="skin-picker">
-        <div class="skin-card" data-skin="hero" id="skin-card-hero">
-          <div class="skin-badge hot">NEW</div>
-          <div class="skin-icon">🔥</div>
-          <div class="skin-info">
-            <div class="skin-name">Sunfire Hero</div>
-            <div class="skin-desc">Lofted body • Dual autocannons • Afterburner</div>
-          </div>
-          <div class="skin-status" id="status-hero">Equip</div>
+
+    <!-- 1. Offline & Pre-Room Settings View -->
+    <div id="settings-offline-view">
+      <!-- 🌐 Multiplayer Section -->
+      <div class="settings-section" id="mp-settings-section">
+        <div class="settings-subtitle">🌐 Multiplayer</div>
+        <div class="mp-mode-toggle">
+          <button id="mp-mode-offline" class="mp-toggle-btn active">Offline</button>
+          <button id="mp-mode-online" class="mp-toggle-btn">Online</button>
         </div>
-        <div class="skin-card" data-skin="classic" id="skin-card-classic">
-          <div class="skin-badge og">OG</div>
-          <div class="skin-icon">⛵</div>
-          <div class="skin-info">
-            <div class="skin-name">Classic OG Boat</div>
-            <div class="skin-desc">Original cruiser • Twin guns • Roof rocket pod</div>
+        <div id="mp-online-panel" class="mp-online-panel hidden">
+          <div class="mp-input-group">
+            <label for="mp-name-input">Captain Name (Max 16):</label>
+            <input type="text" id="mp-name-input" maxlength="16" placeholder="Enter captain name..." autocomplete="off">
           </div>
-          <div class="skin-status" id="status-classic">Equip</div>
+          <div class="mp-actions">
+            <button id="mp-create-btn" class="settings-btn-action" disabled>🎲 Generate Room Code</button>
+            <div class="mp-join-row">
+              <input type="text" id="mp-code-input" maxlength="5" placeholder="CODE" autocomplete="off">
+              <button id="mp-join-btn" class="settings-btn-action" disabled>Join</button>
+            </div>
+          </div>
+          <div id="mp-error" class="mp-error-msg hidden"></div>
+        </div>
+      </div>
+      <div class="settings-section" id="offline-boat-skin-section">
+        <div class="settings-subtitle">⛵ Boat Skin</div>
+        <div class="skin-picker">
+          <div class="skin-card" data-skin="hero" id="skin-card-hero">
+            <div class="skin-badge hot">HERO</div>
+            <div class="skin-icon">🔥</div>
+            <div class="skin-info">
+              <div class="skin-name">Sunfire Hero</div>
+              <div class="skin-desc">Lofted body • Dual autocannons • Afterburner</div>
+            </div>
+            <div class="skin-status" id="status-hero">Equip</div>
+          </div>
+          <div class="skin-card" data-skin="classic" id="skin-card-classic">
+            <div class="skin-badge og">OG</div>
+            <div class="skin-icon">⛵</div>
+            <div class="skin-info">
+              <div class="skin-name">Classic OG Boat</div>
+              <div class="skin-desc">Original cruiser • Twin guns • Roof rocket pod</div>
+            </div>
+            <div class="skin-status" id="status-classic">Equip</div>
+          </div>
         </div>
       </div>
     </div>
+
+    <!-- 2. Active Online Match Settings View -->
+    <div id="settings-online-view" class="hidden">
+      <!-- Captain Info -->
+      <div class="settings-section">
+        <div class="mp-online-player-badge">
+          <span class="mp-online-player-avatar">🎖️</span>
+          <div class="mp-online-player-details">
+            <span class="mp-online-player-label">CAPTAIN</span>
+            <span id="settings-online-player-name" class="mp-online-player-name">Player</span>
+          </div>
+          <div class="mp-online-room-badge">
+            <span class="mp-room-badge-label">ROOM</span>
+            <span id="settings-online-room-code" class="mp-room-badge-code">-----</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- 🛥️ Multiplayer Boat & Paint Selector -->
+      <div class="settings-section">
+        <div class="mp-section-subtitle">
+          <span>🛥️ Select Boat &amp; Paint</span>
+          <span class="mp-picker-hint">Click same boat to change paint! 🎨</span>
+        </div>
+        <div id="settings-online-boat-picker" class="mp-lobby-boat-picker"></div>
+      </div>
+
+      <!-- Leave Room Option -->
+      <div class="settings-section">
+        <button id="settings-online-leave-btn" class="settings-btn-action mp-leave-room-action">
+          🚪 Leave Room
+        </button>
+      </div>
+    </div>
+
     <div class="settings-footer">
       <button id="settings-audio-btn" class="settings-btn-action">
         <span id="settings-audio-icon">🔊</span> <span id="settings-audio-text">Sound: On (M)</span>
       </button>
-      <div class="settings-tip">Tip: Press <kbd>O</kbd> to switch skins &bull; <kbd>V</kbd> for cockpit view!</div>
+      <div id="settings-tip-text" class="settings-tip">Tip: Press <kbd>O</kbd> to switch skins &bull; <kbd>V</kbd> for cockpit view!</div>
+    </div>
+  </div>
+
+  <!-- Room Lobby Modal -->
+  <div id="mp-lobby-modal" class="panel ui-btn hidden">
+    <div class="settings-header">
+      <div class="settings-title">⚓ Room Lobby</div>
+      <button id="mp-lobby-leave" class="close-btn" title="Leave Room">✕</button>
+    </div>
+    <div class="mp-room-code-display">
+      <span>Room Code:</span>
+      <b id="mp-room-code-text">-----</b>
+      <button id="mp-copy-code-btn" class="mp-copy-btn" title="Copy code">📋 Copy</button>
+    </div>
+    <div class="mp-player-count">Players (<span id="mp-player-count-num">1</span>/5):</div>
+    <div id="mp-player-list" class="mp-player-list"></div>
+
+    <!-- 🛥️ Multiplayer Boat & Paint Selector -->
+    <div class="mp-boat-picker-section">
+      <div class="mp-section-subtitle">
+        <span>🛥️ Your Boat & Paint</span>
+        <span class="mp-picker-hint">Click same boat to change paint! 🎨</span>
+      </div>
+      <div id="mp-lobby-boat-picker" class="mp-lobby-boat-picker"></div>
+    </div>
+
+    <div id="mp-lobby-status" class="mp-lobby-status">Waiting for players (min 2)...</div>
+    <div class="mp-lobby-actions">
+      <button id="mp-start-match-btn" class="settings-btn-action hidden">🚀 Start Match</button>
+      <button id="mp-ready-btn" class="settings-btn-action hidden">✅ Ready</button>
+      <button id="mp-leave-btn" class="settings-btn-action">Leave Room</button>
+    </div>
+  </div>
+
+  <!-- 3-2-1 Countdown Overlay -->
+  <div id="mp-countdown-overlay" class="hidden">
+    <div id="mp-countdown-number">3</div>
+    <div id="mp-countdown-sub">RACE TO 20 KILLS!</div>
+  </div>
+
+  <!-- In-Game Compact Scoreboard -->
+  <div id="mp-scoreboard" class="panel hidden">
+    <div class="mp-scoreboard-header">
+      <span>🏆 RACE TO 20</span>
+      <span id="mp-ping-indicator" class="mp-ping">📶 --ms</span>
+    </div>
+    <div id="mp-scoreboard-list"></div>
+  </div>
+
+  <!-- Winner / Game Over Modal -->
+  <div id="mp-gameover-modal" class="panel ui-btn hidden">
+    <div class="mp-gameover-title">🏆 VICTORY!</div>
+    <div id="mp-winner-banner" class="mp-winner-banner">
+      <span id="mp-winner-name">Captain</span> WINS!
+    </div>
+    <div class="mp-trophy-canvas-wrap">
+      <canvas id="mp-trophy-canvas" width="220" height="180"></canvas>
+    </div>
+    <div class="mp-standings-title">Final Standings</div>
+    <div id="mp-final-standings" class="mp-final-standings"></div>
+    <div class="mp-gameover-actions">
+      <button id="mp-restart-btn" class="settings-btn-action hidden">🔄 New Game</button>
+      <div id="mp-restart-status" class="mp-restart-status hidden">Waiting for host...</div>
+      <button id="mp-gameover-leave-btn" class="settings-btn-action">Leave Room</button>
     </div>
   </div>
 

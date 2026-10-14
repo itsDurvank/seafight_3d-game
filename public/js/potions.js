@@ -7,7 +7,7 @@ const TAU = Math.PI * 2;
 const rand = (a, b) => a + Math.random() * (b - a);
 
 // soft red glow texture (drawn once, shared by every potion)
-function glowTexture() {
+export function glowTexture() {
   const c = document.createElement('canvas');
   c.width = c.height = 64;
   const g = c.getContext('2d');
@@ -23,7 +23,7 @@ function glowTexture() {
 const angleDiff = (a, b) => ((b - a + Math.PI) % TAU + TAU) % TAU - Math.PI;
 
 // The potion: a round glass flask half full of red liquid, a cork, and a tag with a cross.
-function makePotion(glowTex) {
+export function makePotion(glowTex) {
   const g = new THREE.Group();
   const flask = new THREE.Group(); // spins and bobs; the glow and beam stay upright
   g.add(flask);

@@ -49,4 +49,11 @@ export class Wake {
       pos.y = waveHeight(pos.x, pos.z, t) + 0.08; // ride the waves
     }
   }
+
+  destroy() {
+    for (const it of this.items) {
+      if (it.mesh && it.mesh.parent) it.mesh.parent.remove(it.mesh);
+    }
+    this.items = [];
+  }
 }
