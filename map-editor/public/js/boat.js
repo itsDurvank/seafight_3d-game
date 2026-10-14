@@ -169,6 +169,7 @@ export class Boat {
     this.boostEnergy = BOAT.boostTime; // seconds of boost left in the meter
     this.boostOn = false; // Shift toggles this
     this.boostIdle = 0; // seconds since boost was last on
+    this.boostT = 0; // seconds since boost turned on
     this.state = { x: spawn.x, z: spawn.z, yaw: spawn.yaw, speed: 0, turnVel: 0 };
     scene.add(this.group);
   }
@@ -202,19 +203,20 @@ export class Boat {
   // Shift toggles the boost on and off. It drains the meter while on; once it has been
   // off for a couple of seconds the meter refills.
   toggleBoost() {
-    if (this.boostOn) { this.boostOn = false; this.boostIdle = 0; return false; }
+    if (this.boostOn) { this.boostOn = false; this.boostIdle = 0; this.boostT = 0; return false; }
     if (this.boostEnergy < BOAT.boostMin) return false;
     this.boostOn = true;
+    this.boostT = 0;
     return true;
   }
 
-  cancelBoost() { this.boostOn = false; this.boostIdle = 0; this.boostEnergy = BOAT.boostTime; }
+  cancelBoost() { this.boostOn = false; this.boostIdle = 0; this.boostT = 0; this.boostEnergy = BOAT.boostTime; }
 
   tickBoost(dt) {
     if (this.boostOn) {
       this.boostEnergy -= dt;
       this.boostIdle = 0;
-      if (this.boostEnergy <= 0) { this.boostEnergy = 0; this.boostOn = false; }
+      if (this.boostEnergy <= 0) { this.boostEnergy = 0; this.boostOn = false; this.boostT = 0; }
     } else {
       this.boostIdle += dt;
       if (this.boostIdle >= BOAT.boostRefillDelay) {
@@ -229,19 +231,26 @@ export class Boat {
   update(dt, input) {
     const s = this.state;
     const braking = !!input.brake;
-    if (braking && this.boostOn) { this.boostOn = false; this.boostIdle = 0; } // braking cancels the boost
+    if (braking && this.boostOn) { this.boostOn = false; this.boostIdle = 0; this.boostT = 0; } // braking cancels the boost
     this.tickBoost(dt);
     const boosting = this.boosting;
+    if (boosting) {
+      this.boostT += dt;
+    }
 
     if (braking) {
       // Space: scrub speed off quickly (down to a crawl, never a stop or reverse)
       if (s.speed > BOAT.brakeMin) s.speed = Math.max(BOAT.brakeMin, s.speed - BOAT.brakeDecel * dt);
       this.top = Math.max(BOAT.baseTop, this.top - 25 * dt);
     } else if (boosting) {
+      const k = Math.min(1, this.boostT / BOAT.boostRamp);
+      const pull = BOAT.boostPull * (0.35 + 0.65 * k * k * (3 - 2 * k)); // smoothstep ease-in
       const goal = Math.min(BOAT.boostMax, Math.max(this.top, BOAT.baseTop) * BOAT.boostMul + BOAT.boostAdd);
-      s.speed += (goal - s.speed) * (1 - Math.exp(-BOAT.boostPull * dt));
+      let next = s.speed + (goal - s.speed) * (1 - Math.exp(-pull * dt));
+      next = Math.max(next, Math.min(goal, s.speed + BOAT.boostMinAccel * dt));
+      s.speed = next;
     } else if (input.forward) {
-      if (s.speed > this.top * 0.88) this.top = Math.min(BOAT.topCap, this.top + BOAT.topGain * dt);
+      if (s.speed > this.top * 0.85) this.top = Math.min(BOAT.topCap, this.top + BOAT.topGain * dt);
       s.speed += (this.top - s.speed) * (1 - Math.exp(-BOAT.pull * dt));
     } else {
       this.top = Math.max(BOAT.baseTop, this.top - BOAT.topDecay * dt);

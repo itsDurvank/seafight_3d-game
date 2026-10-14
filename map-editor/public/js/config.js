@@ -61,11 +61,11 @@ export const WORLD = {
 };
 
 export const BOAT = {
-  baseTop: 81, // normal cruising speed (+7%: 76 -> 81 km/h)
-  topCap: 114, // normal top speed: climbs from baseTop to this flat out
-  topGain: 3.2, // top speed gained per second while sailing flat out (about 10 s from 81 to 114)
-  topDecay: 1.5, // top speed lost per second when you let go of W
-  pull: 0.8, // how quickly speed catches up to the top speed
+  baseTop: 100, // normal cruising speed
+  topCap: 128, // normal top speed: climbs from baseTop to this flat out
+  topGain: 10, // top speed gained per second while sailing flat out
+  topDecay: 3, // top speed lost per second when you let go of W
+  pull: 2.2, // how quickly speed catches up to the top speed
   maxReverse: 5,
   accel: 9,
   drag: 0.5,
@@ -77,13 +77,15 @@ export const BOAT = {
   boostRefillTime: 4, // seconds to refill a completely empty boost meter
   boostMin: 0.6, // minimum energy (seconds) needed to switch the boost on
   boostMul: 1.3, // top speed multiplier while boosting
-  boostAdd: 12, // flat extra speed on top of that (70 x 1.3 + 12 = 103 at the start, 105 x 1.3 + 12 = 148 flat out)
-  boostPull: 1.5, // how fast speed ramps up into the boost: lower = a longer, smoother surge (no sudden jump)
+  boostAdd: 14, // flat extra speed on top of that
+  boostPull: 1.6, // how fast speed ramps up into the boost
+  boostMax: 170, // absolute speed limit while boosting
+  boostRamp: 0.5, // seconds of ease-in at boost start
+  boostMinAccel: 25, // units/s^2 floor so the surge never crawls
   brakeMin: 12, // Space slows you down to about this speed
   brakeDecel: 90, // how fast Space slows you (speed units per second)
   brakeTurnMul: 1.6, // steering is much easier while braking
   boostTurnMul: 1.5, // extra steering authority while boosting
-  boostMax: 160, // absolute speed limit while boosting
   // ramming while boosting (percent of each boat's MAX health)
   boostRamSelfPct: 0.10,
   boostRamEnemyPct: 0.30,

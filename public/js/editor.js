@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+import './mapLoader.js'; // loads maps/default.json into WORLD before editor initializes
 import { WORLD } from './config.js';
 import { makeIsland, makeDock } from './world.js';
 import { ASSET_CATALOG, makeAsset, createBillboardTexture } from './assets.js';
@@ -20,7 +21,7 @@ const PALETTES = {
 
 // ---- Map State & History (Undo / Redo) ----
 let islands = JSON.parse(JSON.stringify(WORLD.islands));
-let assets = [];
+let assets = Array.isArray(WORLD.assets) ? JSON.parse(JSON.stringify(WORLD.assets)) : [];
 const history = [];
 const redoStack = [];
 const MAX_HISTORY = 45;
