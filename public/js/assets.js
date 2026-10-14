@@ -1551,23 +1551,11 @@ function makeExtraBoatAsset(look, def = {}) {
   const style = EXTRA_BOAT_STYLES[look] || EXTRA_BOAT_STYLES.pod;
   const isBig = look === 'pod' || look === 'twin' || look === 'dread';
   const g = isBig ? buildBigBoat(style) : buildSmallBoat(style);
-  const mockBoat = { state: { speed: 8, turnVel: 0 } };
-  g.userData.tick = (t, dt = 0.016) => {
-    g.position.y = Math.sin(t * 1.6) * 0.08;
-    g.rotation.z = Math.sin(t * 1.2) * 0.025;
-    if (g.userData.update) g.userData.update(dt, t, mockBoat);
-  };
   return g;
 }
 
 function makeHeroBoatAsset(def = {}) {
   const g = buildHeroBoat();
-  const mockBoat = { state: { speed: 6, turnVel: 0 }, boosting: false };
-  g.userData.tick = (t, dt = 0.016) => {
-    g.position.y = Math.sin(t * 1.8) * 0.08;
-    g.rotation.z = Math.sin(t * 1.3) * 0.025;
-    if (g.userData.update) g.userData.update(dt, t, mockBoat);
-  };
   return g;
 }
 
