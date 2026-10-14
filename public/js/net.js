@@ -43,6 +43,7 @@ export class NetworkClient {
     }
 
     const url = this.getServerUrl();
+    console.log('[Net] Connecting to multiplayer server:', url);
     try {
       this.ws = new WebSocket(url);
     } catch (err) {

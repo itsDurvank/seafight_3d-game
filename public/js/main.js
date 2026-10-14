@@ -13,8 +13,8 @@ import { Combat } from './combat.js';
 import { Potions } from './potions.js';
 import { EnemyBoat, Director, HUNT } from './enemies.js?v=orig_boost_formula';
 import { audio } from './audio.js';
-import { NetworkClient } from './net.js';
-import { MultiplayerManager } from './multiplayer.js';
+import { NetworkClient } from './net.js?v=sg_20261015';
+import { MultiplayerManager } from './multiplayer.js?v=sg_20261015';
 import { MultiplayerHUD } from './mpHud.js';
 
 // ---------- renderer, scene, camera ----------
