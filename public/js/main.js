@@ -1,17 +1,17 @@
 import * as THREE from 'three';
 import './mapLoader.js'; // loads public/maps/default.json into WORLD before game initializes
-import { WORLD, BOAT, PLAYER, WEAPONS, COLORS, SWARM, KILL_REWARD, POTION } from './config.js?v=speed7_origcam';
+import { WORLD, BOAT, PLAYER, WEAPONS, COLORS, SWARM, KILL_REWARD, POTION } from './config.js?v=speed7_clean';
 import { createWater } from './waves.js';
 import { createSky } from './sky.js';
 import { createWorld, resolveCollisions } from './world.js';
-import { Boat, PLAYER_STYLE } from './boat.js?v=speed7_origcam';
+import { Boat, PLAYER_STYLE } from './boat.js?v=speed7_clean';
 import { Wake } from './wake.js';
 import { Minimap } from './minimap.js';
 import { createInput } from './input.js';
 import { createHud } from './hud.js';
 import { Combat } from './combat.js';
 import { Potions } from './potions.js';
-import { EnemyBoat, Director, HUNT } from './enemies.js?v=speed7_origcam';
+import { EnemyBoat, Director, HUNT } from './enemies.js?v=speed7_clean';
 import { audio } from './audio.js';
 
 // ---------- renderer, scene, camera ----------
