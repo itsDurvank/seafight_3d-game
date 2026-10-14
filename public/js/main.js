@@ -86,6 +86,9 @@ function updateSettingsUI() {
 }
 
 function applySkin(skinName, toast = true) {
+  if (skinName === 'classic' && isFPV) {
+    setFPV(false);
+  }
   const applied = boat.setSkin(skinName);
   updateSettingsUI();
   if (toast) {
@@ -179,9 +182,11 @@ const player = {
     audio.hurt();
     hud.flash(Math.min(0.9, 0.25 + n / 60));
     if (boat.group?.userData?.hit) boat.group.userData.hit();
+    if (boat.fpv?.userData?.hit) boat.fpv.userData.hit();
     if (this.hp <= 0) sink(by);
   },
 };
+boat.playerRef = player;
 
 // One enemy boat per themed island, each a different type
 const wakes = [];
@@ -239,6 +244,9 @@ combat.onExplode = (x, z, r) => {
 
 // ---------- player actions ----------
 function sink() {
+  if (isFPV) {
+    setFPV(false);
+  }
   player.alive = false;
   player.respawn = PLAYER.respawnTime;
   boat.group.visible = false;
@@ -342,6 +350,76 @@ input.onPress('KeyH', () => {
   hud.toast('Welcome home! Your resort will grow here.', 3000);
 });
 
+// Toggle first-person cockpit perspective (V)
+let isFPV = false;
+
+function setFPV(active) {
+  if (active === isFPV) return;
+  if (active) {
+    if (boat.currentSkin !== 'hero') {
+      applySkin('hero', false);
+    }
+    const fpv = boat.fpv;
+    if (!fpv) return;
+    isFPV = true;
+    camera.fov = 75;
+    fpv.userData.mount(camera);
+    fpv.userData.setActive(true);
+    document.body.classList.add('fpv-mode');
+    hud.toast('🎛️ Cockpit View (Press V to exit • Hold Right Mouse to look)', 2200);
+  } else {
+    isFPV = false;
+    const fpv = boat.fpv;
+    if (fpv) {
+      fpv.userData.setActive(false);
+      fpv.userData.unmount();
+    }
+    scene.add(camera);
+    camera.near = 0.5;
+    camera.fov = BASE_FOV;
+    camera.updateProjectionMatrix();
+    camYaw = boat.state.yaw;
+    document.body.classList.remove('fpv-mode');
+    hud.toast('⛵ Third-Person View', 1200);
+  }
+}
+
+function toggleFPV() {
+  if (!player.alive) return;
+  if (!isFPV && boat.currentSkin !== 'hero') {
+    applySkin('hero', false);
+    hud.toast('🔥 Switched to Sunfire Hero Boat for Cockpit View!', 2000);
+  }
+  setFPV(!isFPV);
+}
+
+input.onPress('KeyV', toggleFPV);
+
+let isFreeLooking = false;
+addEventListener('pointerdown', (e) => {
+  if ((e.button === 2 || e.button === 1) && isFPV && boat.fpv) {
+    isFreeLooking = true;
+    boat.fpv.userData.look.active = true;
+  }
+});
+addEventListener('pointerup', (e) => {
+  if ((e.button === 2 || e.button === 1) && isFreeLooking) {
+    isFreeLooking = false;
+    if (boat.fpv) boat.fpv.userData.look.active = false;
+  }
+});
+addEventListener('pointermove', (e) => {
+  if (isFreeLooking && isFPV && boat.fpv) {
+    boat.fpv.userData.addLook(e.movementX || 0, e.movementY || 0);
+  }
+});
+addEventListener('blur', () => {
+  if (isFreeLooking) {
+    isFreeLooking = false;
+    if (boat.fpv) boat.fpv.userData.look.active = false;
+  }
+});
+
 // ---------- tutorial ----------
 let tutStep = 0;
 function tutorial() {
@@ -414,6 +492,7 @@ function frame() {
         const ang = gunAim(s) + (Math.random() - 0.5) * 2 * WEAPONS.gun.spread;
         combat.fireBullet('player', s.x + fx * 3.6 + lx * gunSide * 0.55, s.z + fz * 3.6 + lz * gunSide * 0.55,
           ang, WEAPONS.gun.speed + Math.max(0, s.speed), WEAPONS.gun.dmg, WEAPONS.gun.life);
+        if (boat.fpv?.userData?.fire) boat.fpv.userData.fire();
       }
     }
     // The missile fires whenever it is ready and the button is down.
@@ -436,8 +515,8 @@ function frame() {
     // no health regeneration: once it is gone, it is gone
 
     boat.syncModel(dt, t);
-    // blink while protected after respawning
-    boat.group.visible = player.invuln <= 0 || Math.floor(t * 10) % 2 === 0;
+    // blink while protected after respawning (stay visible in FPV so camera doesn't vanish)
+    boat.group.visible = isFPV || player.invuln <= 0 || Math.floor(t * 10) % 2 === 0;
   } else {
     player.respawn -= dt;
     if (player.respawn <= 0) respawnPlayer();
@@ -505,10 +584,14 @@ function frame() {
   enemies.forEach((e, i) => wakes[i].update(dt, t, e.boat, e.alive));
   water.update(s.x, s.z, t);
   world.update(t, s.x, s.z);
-  updateCamera(dt);
+  if (isFPV) {
+    camYaw = boat.state.yaw;
+  } else {
+    updateCamera(dt);
+  }
   sky.update(camera, t);
   minimap.draw(boat, enemies, potions.list());
-  audio.setListener(s.x, s.z, camYaw);
+  audio.setListener(s.x, s.z, isFPV ? boat.state.yaw : camYaw);
   audio.update(dt, { speed: s.speed, boosting: boat.boosting, alive: player.alive, hpFrac: player.hp / player.maxHp });
   tutorial();
 

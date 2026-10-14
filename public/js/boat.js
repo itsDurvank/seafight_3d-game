@@ -3,6 +3,7 @@ import { BOAT, WORLD } from './config.js?v=cruise7_origall';
 import { waveHeight } from './waves.js';
 import { buildHeroBoat } from './heroBoat.js';
 import { buildClassicBoat } from './classicBoat.js';
+import { buildHeroBoatFPV } from './heroBoatFPV.js';
 
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 
@@ -32,7 +33,10 @@ function buildModel(style) {
     if (style.skin === 'classic') {
       return buildClassicBoat(style);
     }
-    return buildHeroBoat(style);
+    const hero = buildHeroBoat(style);
+    const fpv = buildHeroBoatFPV(hero, style);
+    hero.userData.fpv = fpv;
+    return hero;
   }
   const g = new THREE.Group();
   g.rotation.order = 'YXZ';
@@ -152,10 +156,12 @@ export class Boat {
       try { savedSkin = localStorage.getItem('boom_boats_skin') || style.skin || 'hero'; } catch {}
       this.currentSkin = savedSkin;
       this.group = buildModel({ ...this.style, skin: this.currentSkin, isPlayer: true });
+      this.fpv = this.group.userData?.fpv || null;
     } else {
       // Enemy boats & other small boats always keep their original models & skins
       this.currentSkin = 'original';
       this.group = buildModel({ ...this.style, isPlayer: false });
+      this.fpv = null;
     }
 
     this.scale = style.scale || 1;
@@ -167,6 +173,9 @@ export class Boat {
     scene.add(this.group);
   }
 
+  get hp() { return this.playerRef?.hp ?? null; }
+  get maxHp() { return this.playerRef?.maxHp ?? null; }
+
   setSkin(skinName) {
     if (!this.isPlayer) return this.currentSkin;
     if (skinName !== 'hero' && skinName !== 'classic') return this.currentSkin;
@@ -176,6 +185,7 @@ export class Boat {
       this.scene.remove(this.group);
     }
     this.group = buildModel({ ...this.style, skin: this.currentSkin, isPlayer: true });
+    this.fpv = this.group.userData?.fpv || null;
     this.scene.add(this.group);
     this.group.position.set(this.state.x, 0, this.state.z);
     this.group.rotation.y = this.state.yaw;
@@ -282,6 +292,9 @@ export class Boat {
 
     if (g.userData && typeof g.userData.update === 'function') {
       g.userData.update(dt, t, this);
+    }
+    if (this.fpv?.userData && typeof this.fpv.userData.update === 'function') {
+      this.fpv.userData.update(dt, t, this);
     }
   }
 

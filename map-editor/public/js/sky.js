@@ -79,10 +79,13 @@ export function createSky(scene) {
     clouds.add(s);
   }
 
+  const _camWorld = new THREE.Vector3();
   return {
     update(camera, t) {
-      dome.position.copy(camera.position);
-      follow.position.set(camera.position.x, 0, camera.position.z);
+      if (camera.getWorldPosition) camera.getWorldPosition(_camWorld);
+      else _camWorld.copy(camera.position);
+      dome.position.copy(_camWorld);
+      follow.position.set(_camWorld.x, 0, _camWorld.z);
       clouds.rotation.y = t * 0.004;
     },
   };

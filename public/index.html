@@ -97,6 +97,8 @@
     #settings-btn:hover { background:#fff0c4; transform:scale(1.05); }
     #settings-btn:active { transform:translateY(2px); box-shadow:0 2px 0 var(--wood-dark), 0 6px 12px rgba(0,70,100,.25); }
 
+    body.fpv-mode #hp, body.fpv-mode #speed { opacity:0; pointer-events:none; transition:opacity .25s ease; }
+
     #settings-modal { top:68px; left:16px; width:min(380px,92vw); padding:16px; z-index:50;
       display:flex; flex-direction:column; gap:14px; animation:popIn 0.16s cubic-bezier(0.18, 0.89, 0.32, 1.25); }
     #settings-modal.hidden { display:none; }
@@ -187,7 +189,7 @@
       <button id="settings-audio-btn" class="settings-btn-action">
         <span id="settings-audio-icon">🔊</span> <span id="settings-audio-text">Sound: On (M)</span>
       </button>
-      <div class="settings-tip">Tip: Press <kbd>O</kbd> in-game to switch skins instantly!</div>
+      <div class="settings-tip">Tip: Press <kbd>O</kbd> to switch skins &bull; <kbd>V</kbd> for cockpit view!</div>
     </div>
   </div>
 
@@ -256,7 +258,7 @@
     <kbd>Left click</kbd> fire (hold for gun)<br />
     <kbd>Shift</kbd> toggle boost (8s, refills) &mdash; ram!<br />
     <kbd>Space</kbd> brake (easier steering)<br />
-    <kbd>H</kbd> sail home &nbsp; <kbd>O</kbd> boat skin &nbsp; <kbd>M</kbd> sound on/off
+    <kbd>H</kbd> sail home &nbsp; <kbd>O</kbd> boat skin &nbsp; <kbd>V</kbd> cockpit view &nbsp; <kbd>M</kbd> sound on/off
   </div>
   <div id="minimap-wrap" class="panel"><canvas id="minimap" width="200" height="200"></canvas></div>
 
