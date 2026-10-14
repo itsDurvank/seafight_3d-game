@@ -274,7 +274,7 @@ export function buildHeroBoatFPV(hero, style = {}) {
   u.mount = (camera) => {
     cam = camera; eye.add(camera);
     camera.position.set(0, 0, 0); camera.rotation.set(0, 0, 0); camera.rotation.order = 'YXZ';
-    camera.near = 0.05; baseFov = camera.fov; camera.updateProjectionMatrix();
+    camera.near = 0.15; baseFov = camera.fov; camera.updateProjectionMatrix();
     camera.add(hud); fitHUD(camera);
     return camera;
   };

@@ -3,7 +3,7 @@ import { BOAT, WORLD } from './config.js?v=orig_boost_formula';
 import { waveHeight } from './waves.js';
 import { buildHeroBoat } from './new_assets/heroBoat.js';
 import { buildClassicBoat } from './classicBoat.js';
-import { buildHeroBoatFPV } from './heroBoatFPV.js?v=smooth_fpp_20261015';
+import { buildHeroBoatFPV } from './heroBoatFPV.js?v=depth_buffer_fix_20261015';
 import { buildMultiplayerBoat, MULTIPLAYER_BOATS } from './multiplayerBoats.js';
 
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));

@@ -12,7 +12,7 @@ import { buildReefbreakerBoat } from './multiplayer_assets/boat2_reefbreaker.js'
 import { buildMantaBoat } from './multiplayer_assets/boat3_manta.js';
 import { buildTwinhullBoat } from './multiplayer_assets/boat4_twinhull.js';
 import { buildBlazeRunnerBoat } from './multiplayer_assets/boat5_blazerunner.js';
-import { buildHeroBoatFPV } from './heroBoatFPV.js?v=smooth_fpp_20261015';
+import { buildHeroBoatFPV } from './heroBoatFPV.js?v=depth_buffer_fix_20261015';
 
 export const MULTIPLAYER_BOATS = [
   {
