@@ -1359,11 +1359,6 @@ renderer.setAnimationLoop(() => {
     marker.rotation.y += dt * 0.8;
   }
 
-  for (const g of assetGroups.values()) {
-    if (g.userData && g.userData.tick) {
-      g.userData.tick(t, dt);
-    }
-  }
 
   renderer.render(scene, camera);
 });
