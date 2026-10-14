@@ -26,7 +26,7 @@ renderer.outputColorSpace = THREE.SRGBColorSpace;
 const scene = new THREE.Scene();
 scene.fog = new THREE.Fog(COLORS.horizon, 110, 380);
 
-const camera = new THREE.PerspectiveCamera(60, 1, 0.5, 700);
+const camera = new THREE.PerspectiveCamera(60, 1, 0.5, 1200);
 const BASE_FOV = 60;
 
 function resize() {
