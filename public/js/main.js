@@ -156,7 +156,6 @@ let gunSide = 1;
 let ramCd = 0;
 let boostPuff = 0;
 let camYaw = boat.state.yaw;
-const camOffset = new THREE.Vector3(0, 7.5, -15);
 let wasBoosting = false;
 let wasBraking = false;
 let huntWarned = false;
@@ -271,9 +270,6 @@ function respawnPlayer() {
   audio.respawn();
   player.invuln = PLAYER.invuln;
   camYaw = boat.state.yaw;
-  const rfx = Math.sin(camYaw), rfz = Math.cos(camYaw);
-  camOffset.set(-rfx * 14, 7.5, -rfz * 14);
-  camera.position.set(boat.state.x + camOffset.x, camOffset.y, boat.state.z + camOffset.z);
   hud.toast('Back at the harbor. Sail out and try again! ⚓', 3000);
 }
 
@@ -351,9 +347,6 @@ input.onPress('KeyH', () => {
   const dx = -home.x / len, dz = -home.z / len; // direction toward the harbor
   boat.teleport(home.x + dx * (home.r + 8), home.z + dz * (home.r + 8), Math.atan2(dx, dz));
   camYaw = boat.state.yaw;
-  const hfx = Math.sin(camYaw), hfz = Math.cos(camYaw);
-  camOffset.set(-hfx * 14, 7.5, -hfz * 14);
-  camera.position.set(boat.state.x + camOffset.x, camOffset.y, boat.state.z + camOffset.z);
   hud.toast('Welcome home! Your resort will grow here.', 3000);
 });
 
@@ -386,9 +379,6 @@ function setFPV(active) {
     camera.fov = BASE_FOV;
     camera.updateProjectionMatrix();
     camYaw = boat.state.yaw;
-    const efx = Math.sin(camYaw), efz = Math.cos(camYaw);
-    camOffset.set(-efx * 14, 7.5, -efz * 14);
-    camera.position.set(boat.state.x + camOffset.x, camOffset.y, boat.state.z + camOffset.z);
     document.body.classList.remove('fpv-mode');
     hud.toast('⛵ Third-Person View', 1200);
   }
@@ -443,24 +433,19 @@ function tutorial() {
 const angleDiff = (a, b) => ((b - a + Math.PI) % (Math.PI * 2) + Math.PI * 2) % (Math.PI * 2) - Math.PI;
 const camTarget = new THREE.Vector3();
 const look = new THREE.Vector3();
-const fxInit = Math.sin(camYaw), fzInit = Math.cos(camYaw);
-camOffset.set(-fxInit * 14, 7.5, -fzInit * 14);
-camera.position.set(boat.state.x + camOffset.x, camOffset.y, boat.state.z + camOffset.z);
+camera.position.set(boat.state.x, 7.5, boat.state.z - 15);
 
 function updateCamera(dt) {
   const s = boat.state;
-  camFar += ((boat.boosting ? 0.22 : 1) - camFar) * Math.min(1, dt * 4);
+  camFar += ((boat.boosting ? 0.35 : 1) - camFar) * Math.min(1, dt * 4);
   const speedFrac = Math.min(1.0, Math.max(0, s.speed) / BOAT.topCap) * camFar;
   camYaw += angleDiff(camYaw, s.yaw) * Math.min(1, dt * (boat.boosting ? 4.5 : 2.5)); // keeps up with fast turns
-  camZoom += ((boat.boosting ? 0.9 : 1) - camZoom) * Math.min(1, dt * 4);
+  camZoom += ((boat.boosting ? 0.94 : 1) - camZoom) * Math.min(1, dt * 4);
   const fx = Math.sin(camYaw), fz = Math.cos(camYaw);
-  const backBase = boat.boosting ? 12.5 : 14;
-  const backPull = boat.boosting ? 1.2 : 2.5;
-  const heightPull = boat.boosting ? 0.65 : 1.2;
-  const back = (backBase + speedFrac * backPull) * camZoom; // stays close while boosting
-  camTarget.set(-fx * back, (7 + speedFrac * heightPull) * camZoom, -fz * back); // offset only
-  camOffset.lerp(camTarget, 1 - Math.exp(-dt * 4.5));
-  camera.position.set(s.x + camOffset.x, camOffset.y, s.z + camOffset.z);
+  const back = (14 + speedFrac * 2.5) * camZoom; // stays close: only a small pull-back at speed
+  camTarget.set(s.x - fx * back, (7 + speedFrac * 1.2) * camZoom, s.z - fz * back);
+  const followRate = boat.boosting ? 7 : 5.5; // higher = camera trails less
+  camera.position.lerp(camTarget, 1 - Math.exp(-dt * followRate));
 
   shake = Math.max(0, shake - dt * 2.5);
   look.set(
@@ -470,8 +455,7 @@ function updateCamera(dt) {
   );
   camera.lookAt(look);
 
-  const speedFov = Math.min(1.0, Math.max(0, s.speed) / BOAT.topCap) * (boat.boosting ? 4 : 8);
-  const fov = BASE_FOV + speedFov + (boat.boosting ? 1.5 : 0); // boost keeps speed feel without pulling too far back
+  const fov = BASE_FOV + Math.min(1.0, Math.max(0, s.speed) / BOAT.topCap) * 8 + (boat.boosting ? 5 : 0); // subtle zoom-out for speed feel without losing the action
   if (Math.abs(camera.fov - fov) > 0.05) {
     camera.fov += (fov - camera.fov) * Math.min(1, dt * 4);
     camera.updateProjectionMatrix();
