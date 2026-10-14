@@ -266,18 +266,35 @@ export function createWorld(scene) {
   scene.add(makeDock());
   for (const def of WORLD.islands) scene.add(makeIsland(def));
   const animatedAssets = [];
+  const allAssetMeshes = [];
   if (Array.isArray(WORLD.assets)) {
     for (const a of WORLD.assets) {
       const m = makeAsset(a);
       scene.add(m);
+      allAssetMeshes.push(m);
       if (m.userData && m.userData.tick) animatedAssets.push(m);
     }
   }
   const flutter = makeButterflies(scene);
   return {
-    update: (t) => {
+    update: (t, px = 0, pz = 0) => {
       flutter(t);
-      for (const m of animatedAssets) m.userData.tick(t);
+      // Distance culling: only tick animations if within 140m of player boat
+      for (let i = 0; i < animatedAssets.length; i++) {
+        const m = animatedAssets[i];
+        const dx = m.position.x - px;
+        const dz = m.position.z - pz;
+        if (dx * dx + dz * dz < 140 * 140) {
+          m.userData.tick(t);
+        }
+      }
+      // Visibility culling: hide assets beyond 280m where horizon fog fully obscures them
+      for (let i = 0; i < allAssetMeshes.length; i++) {
+        const m = allAssetMeshes[i];
+        const dx = m.position.x - px;
+        const dz = m.position.z - pz;
+        m.visible = (dx * dx + dz * dz) < 280 * 280;
+      }
     }
   };
 }

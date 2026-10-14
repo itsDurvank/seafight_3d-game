@@ -42,9 +42,9 @@ function skull(p, x, y, z, s = 1, eye = null, reg = null, ry = 0) {
 }
 const flame = (p, x, y, z, s, c, reg) => { const f = add(p, new THREE.Mesh(new THREE.ConeGeometry(0.4, 1.1, 6), lit(c, 1.7, { transparent: true, opacity: 0.9 })), x, y + 0.55 * s, z); f.scale.setScalar(s); reg.push({ f, s, ph: reg.length * 1.7 }); return f; };
 const flick = (reg, t) => reg.forEach(({ f, s, ph }) => { const k = 1 + Math.sin(t * 9 + ph) * 0.18 + Math.sin(t * 15 + ph * 2) * 0.1; f.scale.set(s * (2 - k), s * k, s * (2 - k)); f.rotation.y = t * 2 + ph; });
-const puffs = (p, n, x, y, z, col, op = 0.35, sz = 0.6) => Array.from({ length: n }, (_, i) => ({ m: add(p, new THREE.Mesh(new THREE.SphereGeometry(sz, 7, 5), new THREE.MeshStandardMaterial({ color: col, transparent: true, opacity: op, depthWrite: false })), x, y, z), ph: i / n, x, y, z, op }));
+const puffs = (p, n, x, y, z, col, op = 0.35, sz = 0.6) => Array.from({ length: n }, (_, i) => ({ m: add(p, new THREE.Mesh(new THREE.SphereGeometry(sz, 6, 4), new THREE.MeshBasicMaterial({ color: col, transparent: true, opacity: op, depthWrite: false })), x, y, z), ph: i / n, x, y, z, op }));
 const stepPuffs = (arr, t, rise, spd = 0.25, grow = 1.8, drift = 0.5) => arr.forEach((s, i) => { const k = (t * spd + s.ph) % 1; s.m.position.set(s.x + Math.sin(t * 0.8 + i * 2) * drift * k, s.y + k * rise, s.z + Math.cos(t * 0.7 + i) * drift * k); s.m.scale.setScalar(0.6 + k * grow); s.m.material.opacity = s.op * (1 - k); });
-const glowCol = (c, h, r0, r1, op = 0.12) => new THREE.Mesh(new THREE.CylinderGeometry(r0, r1, h, 14, 1, true), new THREE.MeshBasicMaterial({ color: c, transparent: true, opacity: op, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide }));
+const glowCol = (c, h, r0, r1, op = 0.12) => new THREE.Mesh(new THREE.CylinderGeometry(r0, r1, h, 8, 1, true), new THREE.MeshBasicMaterial({ color: c, transparent: true, opacity: op, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.FrontSide }));
 
 // ================================================================== 1. skeleton fort
 export function makeSkeletonFort() {
@@ -52,16 +52,34 @@ export function makeSkeletonFort() {
   cyl(g, 9, 10, 0.7, STONE_D, 0, 0.35, 0, 16);
   const W = 5.0; const wall = (x, z, w, d) => box(g, w, 2.8, d, STONE, x, 2.1, z);
   wall(0, -W, 10.6, 0.9); wall(-W, 0, 0.9, 10.6); wall(W, 0, 0.9, 10.6); wall(-3.5, W, 3.8, 0.9); wall(3.5, W, 3.8, 0.9);
-  for (let i = 0; i < 11; i++) { const x = -5 + i * 1.0; for (const z of [-W, W]) if (z < 0 || Math.abs(x) > 1.7) cone(g, 0.2, 1.0, BONE, x, 4.0, z, 4); }
-  for (let i = 0; i < 11; i++) for (const x of [-W, W]) cone(g, 0.2, 1.0, BONE, x, 4.0, -5 + i * 1.0, 4);
+  // Optimized: All 81 wall & tower bone spikes combined into 1 single InstancedMesh
+  const spikeTransforms = [];
+  for (let i = 0; i < 11; i++) { const x = -5 + i * 1.0; for (const z of [-W, W]) if (z < 0 || Math.abs(x) > 1.7) spikeTransforms.push({ x, y: 4.0, z, rx: 0, ry: 0, rz: 0, s: 1.0 }); }
+  for (let i = 0; i < 11; i++) for (const x of [-W, W]) spikeTransforms.push({ x, y: 4.0, z: -5 + i * 1.0, rx: 0, ry: 0, rz: 0, s: 1.0 });
+  for (let i = 0; i < 8; i++) spikeTransforms.push({ x: -1.5 + i * 0.43, y: 2.75, z: W + 0.45, rx: Math.PI, ry: 0, rz: 0, s: 0.8 });
+  for (const [sx, sz] of [[-1, -1], [1, -1], [-1, 1], [1, 1]]) {
+    const tx = sx * 5.4, tz = sz * 5.4;
+    for (let i = 0; i < 8; i++) { const a = (i / 8) * 6.28; spikeTransforms.push({ x: tx + Math.cos(a) * 1.55, y: 6.9, z: tz + Math.sin(a) * 1.55, rx: 0, ry: 0, rz: 0, s: 0.9 }); }
+  }
+  const spikeMesh = new THREE.InstancedMesh(new THREE.ConeGeometry(0.2, 1.0, 4), flat(BONE), spikeTransforms.length);
+  const dummySpike = new THREE.Object3D();
+  spikeTransforms.forEach((st, idx) => {
+    dummySpike.position.set(st.x, st.y, st.z);
+    dummySpike.rotation.set(st.rx, st.ry, st.rz);
+    dummySpike.scale.setScalar(st.s);
+    dummySpike.updateMatrix();
+    spikeMesh.setMatrixAt(idx, dummySpike.matrix);
+  });
+  spikeMesh.instanceMatrix.needsUpdate = true;
+  g.add(spikeMesh);
+
   for (let i = 0; i < 5; i++) { const x = -3.6 + i * 1.8, rb = add(g, new THREE.Mesh(new THREE.TorusGeometry(1.15, 0.13, 5, 8, Math.PI), flat(BONE)), x, 0.7, -W + 0.55); }
   for (const s of [-1, 1]) for (let i = 0; i < 2; i++) skull(g, s * (2.6 + i * 1.7), 2.4, W + 0.55, 0.75, GREEN, eyes);
-  box(g, 3.8, 1.1, 1.0, STONE_D, 0, 3.75, W); for (let i = 0; i < 8; i++) cone(g, 0.14, 0.9, BONE, -1.5 + i * 0.43, 2.75, W + 0.45, 4).rotation.x = Math.PI;
+  box(g, 3.8, 1.1, 1.0, STONE_D, 0, 3.75, W);
   const big = egg(g, 1.9, 1.5, 1.3, BONE, 0, 5.6, W); for (const s of [-1, 1]) { ball(big, 0.4, 0x111111, s * 0.42, 0.1, 0.78); const e = add(g, new THREE.Mesh(new THREE.SphereGeometry(0.28, 8, 6), lit(GREEN, 1.9)), s * 0.8, 5.7, W + 1.0); eyes.push(e); }
   cone(g, 0.3, 0.6, 0x111111, 0, 5.2, W + 1.25, 3).rotation.x = Math.PI; for (let i = -3; i <= 3; i++) box(g, 0.22, 0.4, 0.3, BONE_D, i * 0.4, 4.55, W + 1.0);
   for (const [sx, sz] of [[-1, -1], [1, -1], [-1, 1], [1, 1]]) {
     const x = sx * 5.4, z = sz * 5.4; cyl(g, 1.3, 1.55, 5.4, STONE, x, 3.4, z, 8); cyl(g, 1.7, 1.45, 0.5, STONE_D, x, 6.3, z, 8);
-    for (let i = 0; i < 8; i++) { const a = (i / 8) * 6.28; cone(g, 0.18, 1.0, BONE, x + Math.cos(a) * 1.55, 6.9, z + Math.sin(a) * 1.55, 4); }
     cyl(g, 0.5, 0.35, 0.5, 0x222222, x, 6.7, z, 6); flame(g, x, 6.9, z, 1.0, GREEN, fl);
     if (sz < 0) { rod(g, [x, 6.5, z], [x, 9.5, z], 0.07, DARK); const f = add(g, new THREE.Mesh(new THREE.PlaneGeometry(1.8, 1.3), new THREE.MeshStandardMaterial({ map: tex, side: THREE.DoubleSide })), x + 0.9, 8.8, z); flags.push(f); }
   }
@@ -82,7 +100,7 @@ export function makeGhostShip() {
   const tex = canvasTex(128, 128, (x, w, h) => { x.clearRect(0, 0, w, h); x.fillStyle = '#d6efe6'; x.beginPath(); x.moveTo(0, 0); x.lineTo(w, 0); for (let i = 0; i <= 8; i++) x.lineTo(w - i * (w / 8), h * (0.78 + ((i * 7) % 5) * 0.045)); x.closePath(); x.fill(); x.fillStyle = 'rgba(40,70,60,0.5)'; x.fillRect(w * 0.15, h * 0.3, 3, h * 0.4); });
   const sails = [];
   rod(ship, [0.5, 2.4, 0], [0.9, 9.6, 0], 0.22, 0x23312f); rod(ship, [3.6, 2.3, 0], [3.8, 7.6, 0], 0.17, 0x23312f); rod(ship, [-3.5, 2.4, 0], [-3.7, 4.8, 0], 0.17, 0x23312f);
-  for (const [x, y, w, hh] of [[0.8, 8.4, 4.2, 3.4], [0.75, 5.6, 4.6, 2.9], [3.75, 6.4, 3.0, 2.4]]) { box(ship, 0.12, 0.12, w, 0x23312f, x, y + hh * 0.5, 0); const geo = new THREE.PlaneGeometry(w, hh, 8, 5); const sl = add(ship, new THREE.Mesh(geo, new THREE.MeshStandardMaterial({ map: tex, transparent: true, alphaTest: 0.3, side: THREE.DoubleSide, emissive: 0x3fbf9a, emissiveIntensity: 0.25 })), x + 0.12, y - hh * 0.5 + hh * 0.5, 0); sl.rotation.y = Math.PI / 2; sails.push({ geo, ox: Array.from(geo.attributes.position.array), h: hh }); }
+  for (const [x, y, w, hh] of [[0.8, 8.4, 4.2, 3.4], [0.75, 5.6, 4.6, 2.9], [3.75, 6.4, 3.0, 2.4]]) { box(ship, 0.12, 0.12, w, 0x23312f, x, y + hh * 0.5, 0); const geo = new THREE.PlaneGeometry(w, hh, 2, 2); const sl = add(ship, new THREE.Mesh(geo, new THREE.MeshStandardMaterial({ map: tex, transparent: true, alphaTest: 0.3, side: THREE.DoubleSide, emissive: 0x3fbf9a, emissiveIntensity: 0.25 })), x + 0.12, y - hh * 0.5 + hh * 0.5, 0); sl.rotation.y = Math.PI / 2; sails.push({ sl, h: hh }); }
   const lamps = [], eyes = [];
   for (const [x, y, z] of [[0.8, 5.0, 1.9], [0.8, 8.0, -1.8], [3.7, 6.0, 1.5], [-4.2, 3.4, 1.2], [5.3, 3.4, 0.0]]) { rod(ship, [x, y + 0.45, z], [x, y + 0.2, z], 0.02, 0x2a3a38); lamps.push(add(ship, new THREE.Mesh(new THREE.SphereGeometry(0.2, 8, 6), lit(GREEN, 1.7)), x, y, z)); }
   add(ship, new THREE.Mesh(new THREE.TorusGeometry(0.55, 0.07, 5, 12), flat(0x23312f)), -4.2, 3.4, 0); for (let i = 0; i < 6; i++) { const a = (i / 6) * 6.28; box(ship, 0.05, 0.05, 1.25, 0x23312f, -4.2, 3.4, 0).rotation.x = a; }
@@ -91,7 +109,7 @@ export function makeGhostShip() {
   const mist = puffs(g, 9, 0, 0.8, 0, 0x9fffd8, 0.3, 0.9);
   const aura = add(g, glowCol(GREEN, 9, 2.0, 3.2, 0.06), 0, 4.5, 0);
   g.userData.tick = (t) => { ship.rotation.z = -0.13 + Math.sin(t * 0.8) * 0.04; ship.rotation.x = Math.sin(t * 0.6) * 0.03; ship.position.y = -0.5 + Math.sin(t * 1.1) * 0.12; lamps.forEach((l, i) => { l.material.emissiveIntensity = 1.5 + Math.sin(t * 6 + i * 2) * 0.4 + Math.sin(t * 13 + i) * 0.2; }); eyes.forEach((e) => { e.material.emissiveIntensity = 1.6 + Math.sin(t * 3) * 0.5; });
-    sails.forEach(({ geo, ox, h }) => { const pos = geo.attributes.position; for (let i = 0; i < pos.count; i++) { const y = ox[i * 3 + 1]; pos.setZ(i, Math.sin(ox[i * 3] * 1.6 + t * 2.5) * 0.18 * (0.5 - y / h)); } pos.needsUpdate = true; });
+    sails.forEach(({ sl }, i) => { sl.rotation.y = Math.PI / 2 + Math.sin(t * 2.2 + i * 1.3) * 0.08; sl.rotation.z = Math.sin(t * 1.8 + i) * 0.04; });
     stepPuffs(mist, t, 4.5, 0.2, 2.0, 1.2); aura.material.opacity = 0.05 + Math.sin(t * 2) * 0.02; };
   return g;
 }
@@ -202,11 +220,11 @@ export function makeReaperTotem() {
   const big = new THREE.Group(); add(g, big, 0, 9.1, 0.3); egg(big, 1.4, 1.25, 1.2, BONE, 0, 0.1, 0); box(big, 1.1, 0.6, 0.9, BONE_D, 0, -1.05, 0.2);
   for (const s of [-1, 1]) { ball(big, 0.38, 0x111111, s * 0.5, 0.2, 0.92); eyes.push(add(big, new THREE.Mesh(new THREE.SphereGeometry(0.22, 8, 6), lit(0xff3030, 2)), s * 0.5, 0.2, 1.1)); const h = cone(big, 0.35, 2.2, 0x15131a, s * 1.2, 1.3, 0, 5); h.rotation.z = -s * 0.7; const h2 = cone(big, 0.22, 1.2, BONE_D, s * 2.0, 2.4, 0, 5); h2.rotation.z = -s * 0.2; }
   cone(big, 0.28, 0.6, 0x111111, 0, -0.15, 1.15, 3).rotation.x = Math.PI; for (let i = -3; i <= 3; i++) cone(big, 0.1, 0.4, BONE, i * 0.28, -0.92, 0.75, 4).rotation.x = Math.PI;
-  for (const s of [-1, 1]) { const arm = rod(g, [0, 8.0, 0], [s * 3.0, 8.2, 0], 0.14, DARK); const geo = new THREE.PlaneGeometry(2.2, 3.4, 6, 8); geo.translate(0, -1.7, 0); const cl = add(g, new THREE.Mesh(geo, new THREE.MeshStandardMaterial({ map: tex, side: THREE.DoubleSide, roughness: 1 })), s * 2.2, 8.15, 0); cloths.push({ geo, ox: Array.from(geo.attributes.position.array), s }); for (let k = 0; k < 4; k++) cone(g, 0.12, 0.4, BONE, s * (0.6 + k * 0.7), 8.0, 0, 4).rotation.z = Math.PI / 2 * s; }
+  for (const s of [-1, 1]) { const arm = rod(g, [0, 8.0, 0], [s * 3.0, 8.2, 0], 0.14, DARK); const geo = new THREE.PlaneGeometry(2.2, 3.4, 1, 1); geo.translate(0, -1.7, 0); const cl = add(g, new THREE.Mesh(geo, new THREE.MeshStandardMaterial({ map: tex, side: THREE.DoubleSide, roughness: 1 })), s * 2.2, 8.15, 0); cloths.push({ cl, s }); for (let k = 0; k < 4; k++) cone(g, 0.12, 0.4, BONE, s * (0.6 + k * 0.7), 8.0, 0, 4).rotation.z = Math.PI / 2 * s; }
   for (const s of [-1, 1]) { rod(g, [s * 0.5, 7.0, 0.55], [s * 1.5, 4.8, 0.7], 0.04, 0x888c94); add(g, new THREE.Mesh(new THREE.TorusGeometry(0.22, 0.05, 5, 8, 4.5), flat(0x888c94)), s * 1.5, 4.55, 0.7); }
   for (const a of [0.8, 2.4, 3.9, 5.4]) { const x = Math.cos(a) * 1.8, z = Math.sin(a) * 1.8; cyl(g, 0.18, 0.22, 0.6, 0xf1e6c8, x, 1.5, z, 6); flame(g, x, 1.8, z, 0.35, GREEN, fl); }
   const aura = add(g, glowCol(0xff3030, 11, 0.6, 1.8, 0.06), 0, 6, 0);
-  g.userData.tick = (t) => { flick(fl, t); eyes.forEach((e, i) => { e.material.emissiveIntensity = 1.6 + Math.sin(t * 3 + i) * 0.6; }); cloths.forEach(({ geo, ox, s }) => { const pos = geo.attributes.position; for (let i = 0; i < pos.count; i++) { const y = ox[i * 3 + 1]; pos.setZ(i, Math.sin(ox[i * 3] * 2 + t * 3 - y) * 0.2 * (-y / 3.4)); } pos.needsUpdate = true; }); aura.material.opacity = 0.05 + Math.sin(t * 2.1) * 0.02; };
+  g.userData.tick = (t) => { flick(fl, t); eyes.forEach((e, i) => { e.material.emissiveIntensity = 1.6 + Math.sin(t * 3 + i) * 0.6; }); cloths.forEach(({ cl, s }, i) => { cl.rotation.y = Math.sin(t * 2.5 + i * 1.4) * 0.12 * s; cl.rotation.z = Math.sin(t * 1.8 + i) * 0.06 * s; }); aura.material.opacity = 0.05 + Math.sin(t * 2.1) * 0.02; };
   return g;
 }
 

@@ -49,10 +49,12 @@ export function makeJollyRoger() {
     x.fillStyle = '#16161c'; x.fillRect(0, 0, w, h); x.strokeStyle = '#f3efe2'; x.lineWidth = 9; x.lineCap = 'round';
     x.beginPath(); x.moveTo(60, 125); x.lineTo(196, 45); x.moveTo(196, 125); x.lineTo(60, 45); x.stroke(); skullArt(x, w / 2, h / 2 - 2, 100);
   });
-  const geo = new THREE.PlaneGeometry(3.2, 2.1, 14, 6); geo.translate(1.6, 0, 0);
-  add(g, new THREE.Mesh(geo, new THREE.MeshStandardMaterial({ map: tex, side: THREE.DoubleSide, roughness: 0.9 })), 0.14, 7.2, 0);
-  const pos = geo.attributes.position, ox = Array.from(pos.array);
-  g.userData.tick = (t) => { for (let i = 0; i < pos.count; i++) { const x = ox[i * 3]; pos.setZ(i, Math.sin(x * 2.2 - t * 4.2) * 0.2 * (x / 3.2)); } pos.needsUpdate = true; };
+  const geo = new THREE.PlaneGeometry(3.2, 2.1, 2, 2); geo.translate(1.6, 0, 0);
+  const flagMesh = add(g, new THREE.Mesh(geo, new THREE.MeshStandardMaterial({ map: tex, side: THREE.DoubleSide, roughness: 0.9 })), 0.14, 7.2, 0);
+  g.userData.tick = (t) => {
+    flagMesh.rotation.y = Math.sin(t * 3.8) * 0.14;
+    flagMesh.rotation.z = Math.sin(t * 2.5) * 0.05;
+  };
   return g;
 }
 

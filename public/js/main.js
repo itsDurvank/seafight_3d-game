@@ -504,7 +504,7 @@ function frame() {
   wake.update(dt, t, boat, player.alive);
   enemies.forEach((e, i) => wakes[i].update(dt, t, e.boat, e.alive));
   water.update(s.x, s.z, t);
-  world.update(t);
+  world.update(t, s.x, s.z);
   updateCamera(dt);
   sky.update(camera, t);
   minimap.draw(boat, enemies, potions.list());

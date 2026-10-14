@@ -600,17 +600,27 @@ export function makeSeaCastle(def) {
   keep.position.y = 3.5 + 4.25;
   g.add(keep);
 
-  // Battlements / Crenellations along the main wall roofline
+  // Battlements / Crenellations along the main wall roofline (Optimized via InstancedMesh: 24 meshes -> 1 draw call)
   const wallTopY = 3.5 + 8.5;
+  const merlonGeo = new THREE.BoxGeometry(1.6, 1.2, 0.6);
+  const merlons = new THREE.InstancedMesh(merlonGeo, stoneLight, 24);
+  const dummy = new THREE.Object3D();
+  let mIdx = 0;
   for (let i = -7; i <= 7; i += 2.8) {
     for (const side of [-1, 1]) {
-      const merlonZ = new THREE.Mesh(new THREE.BoxGeometry(1.6, 1.2, 0.6), stoneLight);
-      merlonZ.position.set(i, wallTopY + 0.6, side * 8.0);
-      const merlonX = new THREE.Mesh(new THREE.BoxGeometry(0.6, 1.2, 1.6), stoneLight);
-      merlonX.position.set(side * 8.0, wallTopY + 0.6, i);
-      g.add(merlonZ, merlonX);
+      dummy.position.set(i, wallTopY + 0.6, side * 8.0);
+      dummy.rotation.set(0, 0, 0);
+      dummy.updateMatrix();
+      merlons.setMatrixAt(mIdx++, dummy.matrix);
+
+      dummy.position.set(side * 8.0, wallTopY + 0.6, i);
+      dummy.rotation.set(0, Math.PI / 2, 0);
+      dummy.updateMatrix();
+      merlons.setMatrixAt(mIdx++, dummy.matrix);
     }
   }
+  merlons.instanceMatrix.needsUpdate = true;
+  g.add(merlons);
 
   // 3. Four Corner Bastion Towers
   const towerCoords = [[-8.2, -8.2], [8.2, -8.2], [-8.2, 8.2], [8.2, 8.2]];
