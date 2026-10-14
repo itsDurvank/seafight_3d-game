@@ -306,7 +306,7 @@ export function buildHeroBoatFPV(hero, style = {}) {
     fireT = Math.max(0, fireT - dt);
 
     // wheel follows steering (flip the sign here if it feels backwards)
-    steer += (clamp(-turn * 0.7, -0.5, 0.5) - steer) * (1 - Math.exp(-10 * dt));
+    steer += (clamp(-turn * 0.7, -0.5, 0.5) - steer) * (1 - Math.exp(-14 * dt));
     wheel.rotation.z = steer; placeSleeves();
     needle.rotation.z = 2.2 - speedK * 4.4;
     boostBar.scale.x = Math.max(0.03, boostK);
@@ -331,7 +331,7 @@ export function buildHeroBoatFPV(hero, style = {}) {
       const L = u.look;
       if (L.recenter && !L.active) { const k = 1 - Math.exp(-5 * dt); L.yaw -= L.yaw * k; L.pitch -= L.pitch * k; }
       cam.rotation.y = L.yaw; cam.rotation.x = L.pitch;
-      cam.rotation.z += (clamp(turn * 0.12, -0.15, 0.15) - cam.rotation.z) * (1 - Math.exp(-6 * dt));
+      cam.rotation.z += (clamp(turn * 0.08, -0.10, 0.10) - cam.rotation.z) * (1 - Math.exp(-12 * dt));
       const fov = baseFov + speedK * 4 + boostK * 9;
       if (Math.abs(cam.fov - fov) > 0.05) { cam.fov += (fov - cam.fov) * (1 - Math.exp(-8 * dt)); cam.updateProjectionMatrix(); }
       fitHUD(cam); hud.rotation.z = -cam.rotation.z;                  // HUD stays level while the camera leans

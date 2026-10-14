@@ -3,7 +3,7 @@ import { BOAT, WORLD } from './config.js?v=orig_boost_formula';
 import { waveHeight } from './waves.js';
 import { buildHeroBoat } from './new_assets/heroBoat.js';
 import { buildClassicBoat } from './classicBoat.js';
-import { buildHeroBoatFPV } from './heroBoatFPV.js';
+import { buildHeroBoatFPV } from './heroBoatFPV.js?v=smooth_fpp_20261015';
 import { buildMultiplayerBoat, MULTIPLAYER_BOATS } from './multiplayerBoats.js';
 
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
@@ -302,13 +302,17 @@ export class Boat {
     s.speed = Math.max(s.speed, -BOAT.maxReverse);
 
     const steer = (input.left ? 1 : 0) - (input.right ? 1 : 0);
-    const grip = clamp(Math.abs(s.speed) / 5, 0.3, 1);
+    const grip = clamp(Math.abs(s.speed) / 5, 0.4, 1);
     // Normal sailing steers a bit wider when very fast. While boosting there is no such
     // penalty, and the rudder bites harder so the boat stays as easy to steer as normal.
     const stability = boosting || braking ? 1 : 1 / (1 + Math.max(0, s.speed - BOAT.baseTop) / 100);
     const turnMul = boosting ? BOAT.boostTurnMul : braking ? BOAT.brakeTurnMul : 1;
     const target = steer * BOAT.turnRate * turnMul * grip * stability * (s.speed < -0.2 ? -1 : 1);
-    s.turnVel += (target - s.turnVel) * (1 - Math.exp(-4 * dt));
+
+    // Responsive rudder: snaps in and out cleanly when turning over or centering without sluggish delay
+    const isReversing = steer === 0 || (Math.sign(steer) !== Math.sign(s.turnVel) && Math.abs(s.turnVel) > 0.05);
+    const turnRateK = isReversing ? 14 : 9;
+    s.turnVel += (target - s.turnVel) * (1 - Math.exp(-turnRateK * dt));
     s.yaw += s.turnVel * dt;
 
     s.x += Math.sin(s.yaw) * s.speed * dt;
@@ -329,9 +333,11 @@ export class Boat {
 
     const y = (hF + hB + hL + hR) / 4 + 0.1;
     const pitchT = -Math.atan2(hF - hB, 2 * L);
-    const rollT = Math.atan2(hL - hR, 2 * W) - s.turnVel * 0.12 * clamp(s.speed / 8, 0, 1.5);
+    const bankGrip = clamp(s.speed / 14, 0, 1.2);
+    const rollT = Math.atan2(hL - hR, 2 * W) - s.turnVel * 0.08 * bankGrip;
 
-    const k = 1 - Math.exp(-6 * dt);
+    // Responsive wave tracking (rate 12): prevents stale pitch/roll from lingering across yaw turns
+    const k = 1 - Math.exp(-12 * dt);
     const g = this.group;
     g.position.set(s.x, y, s.z);
     g.rotation.y = s.yaw;

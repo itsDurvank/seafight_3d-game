@@ -4,7 +4,7 @@ import { WORLD, BOAT, PLAYER, WEAPONS, COLORS, SWARM, KILL_REWARD, POTION, MP } 
 import { createWater } from './waves.js';
 import { createSky } from './sky.js';
 import { createWorld, resolveCollisions } from './world.js';
-import { Boat, PLAYER_STYLE } from './boat.js?v=orig_boost_formula';
+import { Boat, PLAYER_STYLE } from './boat.js?v=smooth_fpp_20261015';
 import { Wake } from './wake.js';
 import { Minimap } from './minimap.js';
 import { createInput } from './input.js';
