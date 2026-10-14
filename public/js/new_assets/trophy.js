@@ -87,7 +87,7 @@ export function buildTrophy({ carried = false } = {}) {
 
   let held = false;
   root.userData.setHeld = (v) => { held = !!v; };
-  root.userData.tick = (t, dt = 0.016) => {
+  // tick disabled: (t, dt = 0.016) => {
     body.position.y = Math.sin(t * 1.8) * (carried ? 0.1 : 0.18);
     body.rotation.y += dt * (held ? 1.4 : 0.6);                          // slow showy spin
     if (ring) { ring.rotation.z = Math.sin(t * 1.3) * 0.05; ring.rotation.x = Math.cos(t * 1.1) * 0.04; } // rocks with the waves

@@ -119,7 +119,7 @@ export function buildCozyChest({ float = true } = {}) {
   };
   api.close = () => { isOpen = false; for (const c of coins) c.m.visible = false; };
   api.isOpen = () => isOpen;
-  api.tick = (t, dt = 0.016) => {
+  // tick disabled: (t, dt = 0.016) => {
     body.position.y = Math.sin(t * 1.4) * 0.14;
     body.rotation.z = Math.sin(t * 1.0) * 0.045; body.rotation.x = Math.cos(t * 0.9) * 0.035;
     if (ring) { ring.rotation.z = Math.sin(t * 1.1) * 0.045; ring.rotation.x = Math.cos(t * 0.95) * 0.035; }

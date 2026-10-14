@@ -1717,9 +1717,6 @@ export function makeAsset(def) {
   root.add(visual);
   root.userData.isAsset = true;
   root.userData.assetDef = def;
-  if (visual && visual.userData && visual.userData.tick) {
-    root.userData.tick = (t, dt) => visual.userData.tick(t, dt);
-  }
   return root;
 }
 

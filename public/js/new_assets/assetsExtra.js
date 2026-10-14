@@ -27,7 +27,7 @@ export function makeWindmill() {
     box(arm, 0.8, 2.3, 0.05, 0xf6efe0, 0.46, 2.3, 0.02);
     box(arm, 0.8, 0.08, 0.07, 0xc2552d, 0.46, 1.2, 0.02);
   }
-  g.userData.tick = (t) => { blades.rotation.z = t * 0.9; };
+  // tick disabled: (t) => { blades.rotation.z = t * 0.9; };
   return g;
 }
 
@@ -47,7 +47,7 @@ export function makeFountain() {
     const d = add(g, new THREE.Mesh(new THREE.SphereGeometry(0.1, 6, 5), glow(0xbff2ff, 0.9)), 0, 3, 0);
     drops.push({ d, a: (i / 14) * Math.PI * 2, ph: (i % 7) / 7 });
   }
-  g.userData.tick = (t) => drops.forEach((o) => {
+  // tick disabled: (t) => drops.forEach((o) => {
     const k = (t * 0.9 + o.ph) % 1, r = Math.sin(k * Math.PI) * 1.1 + k * 0.4;
     o.d.position.set(Math.cos(o.a) * r, 3.1 + Math.sin(k * Math.PI) * 0.9 - k * k * 1.1, Math.sin(o.a) * r);
   });
@@ -70,7 +70,7 @@ export function makeMarketStall() {
     for (let i = 0; i < 5; i++) add(g, new THREE.Mesh(new THREE.SphereGeometry(0.15, 7, 6), std(fruit[(c + i) % 4])), x + ((i % 3) - 1) * 0.2, 1.38, 0.45 + (i > 2 ? 0.2 : -0.1));
   });
   const lamp = add(g, new THREE.Mesh(new THREE.SphereGeometry(0.16, 8, 6), glow(0xffe08a)), 0.8, 2.15, 1.1);
-  g.userData.tick = (t) => { lamp.position.x = 0.8 + Math.sin(t * 1.4) * 0.05; };
+  // tick disabled: (t) => { lamp.position.x = 0.8 + Math.sin(t * 1.4) * 0.05; };
   return g;
 }
 
@@ -85,7 +85,7 @@ export function makeTikiTorches() {
     add(g, new THREE.Mesh(new THREE.ConeGeometry(0.11, 0.45, 6), glow(0xffe08a)), x, 3.05, 0);
     flames.push({ f, ph: i * 2 });
   });
-  g.userData.tick = (t) => flames.forEach(({ f, ph }) => { f.scale.set(1 + Math.sin(t * 17 + ph) * 0.12, 1 + Math.sin(t * 23 + ph) * 0.18, 1); });
+  // tick disabled: (t) => flames.forEach(({ f, ph }) => { f.scale.set(1 + Math.sin(t * 17 + ph) * 0.12, 1 + Math.sin(t * 23 + ph) * 0.18, 1); });
   return g;
 }
 
@@ -121,7 +121,7 @@ export function makeCrystalCluster(def = {}) {
     c.scale.set(w, h * 0.5, w); c.rotation.set((r() - 0.5) * 0.35, r() * 6, (r() - 0.5) * 0.35);
     mats.push(m);
   }
-  g.userData.tick = (t) => mats.forEach((m, i) => { m.emissiveIntensity = 0.5 + Math.sin(t * 1.8 + i) * 0.25; });
+  // tick disabled: (t) => mats.forEach((m, i) => { m.emissiveIntensity = 0.5 + Math.sin(t * 1.8 + i) * 0.25; });
   return g;
 }
 

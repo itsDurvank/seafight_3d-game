@@ -85,7 +85,7 @@ export function makeSkeletonFort() {
   }
   cone(g, 2.1, 2.6, STONE, 0, 1.9, 0, 9); for (let i = 0; i < 9; i++) { const a = i * 2.4, d = 0.4 + (i % 4) * 0.4; skull(g, Math.cos(a) * d, 1.2 + (4 - Math.min(d, 1.6)) * 0.3, Math.sin(a) * d, 0.55, null, null, a); }
   cyl(g, 0.6, 0.8, 0.4, 0x222222, 0, 3.2, 0, 7); flame(g, 0, 3.4, 0, 2.0, GREEN, fl); const aura = add(g, glowCol(GREEN, 12, 0.8, 2.0, 0.1), 0, 8.6, 0);
-  g.userData.tick = (t) => { flick(fl, t); eyes.forEach((e, i) => { e.material.emissiveIntensity = 1.5 + Math.sin(t * 3 + i) * 0.5; }); flags.forEach((f, i) => { f.rotation.y = Math.sin(t * 3 + i) * 0.25; }); aura.material.opacity = 0.09 + Math.sin(t * 2.4) * 0.03; };
+  // tick disabled: (t) => { flick(fl, t); eyes.forEach((e, i) => { e.material.emissiveIntensity = 1.5 + Math.sin(t * 3 + i) * 0.5; }); flags.forEach((f, i) => { f.rotation.y = Math.sin(t * 3 + i) * 0.25; }); aura.material.opacity = 0.09 + Math.sin(t * 2.4) * 0.03; };
   return g;
 }
 
@@ -108,7 +108,7 @@ export function makeGhostShip() {
   for (let i = 0; i < 6; i++) box(ship, 0.18, 0.9 + (i % 3) * 0.5, 0.04, 0x2f7a52, 4.6 - i * 1.7, 1.5, 1.45 * (i % 2 ? -1 : 1));
   const mist = puffs(g, 9, 0, 0.8, 0, 0x9fffd8, 0.3, 0.9);
   const aura = add(g, glowCol(GREEN, 9, 2.0, 3.2, 0.06), 0, 4.5, 0);
-  g.userData.tick = (t) => { ship.rotation.z = -0.13 + Math.sin(t * 0.8) * 0.04; ship.rotation.x = Math.sin(t * 0.6) * 0.03; ship.position.y = -0.5 + Math.sin(t * 1.1) * 0.12; lamps.forEach((l, i) => { l.material.emissiveIntensity = 1.5 + Math.sin(t * 6 + i * 2) * 0.4 + Math.sin(t * 13 + i) * 0.2; }); eyes.forEach((e) => { e.material.emissiveIntensity = 1.6 + Math.sin(t * 3) * 0.5; });
+  // tick disabled: (t) => { ship.rotation.z = -0.13 + Math.sin(t * 0.8) * 0.04; ship.rotation.x = Math.sin(t * 0.6) * 0.03; ship.position.y = -0.5 + Math.sin(t * 1.1) * 0.12; lamps.forEach((l, i) => { l.material.emissiveIntensity = 1.5 + Math.sin(t * 6 + i * 2) * 0.4 + Math.sin(t * 13 + i) * 0.2; }); eyes.forEach((e) => { e.material.emissiveIntensity = 1.6 + Math.sin(t * 3) * 0.5; });
     sails.forEach(({ sl }, i) => { sl.rotation.y = Math.PI / 2 + Math.sin(t * 2.2 + i * 1.3) * 0.08; sl.rotation.z = Math.sin(t * 1.8 + i) * 0.04; });
     stepPuffs(mist, t, 4.5, 0.2, 2.0, 1.2); aura.material.opacity = 0.05 + Math.sin(t * 2) * 0.02; };
   return g;
@@ -134,7 +134,7 @@ export function makeGibbetCages() {
   }
   for (const [x, ry] of [[-3.0, 0.4], [3.2, -0.5]]) { const c = new THREE.Group(); add(g, c, x, 8.25, 0); c.rotation.y = ry; egg(c, 0.5, 0.4, 0.28, 0x15151b, 0, 0.3, 0); const head = new THREE.Group(); add(c, head, 0.45, 0.65, 0); ball(head, 0.22, 0x15151b, 0, 0, 0); cone(head, 0.09, 0.35, 0xe08a1f, 0.28, -0.02, 0, 4).rotation.z = -Math.PI / 2; ball(head, 0.05, 0xff3030, 0.1, 0.07, 0.17); cone(c, 0.2, 0.8, 0x15151b, -0.65, 0.2, 0, 3).rotation.z = Math.PI / 2; crows.push({ head, ph: x }); }
   const fog = puffs(g, 5, 0, 0.5, 0, 0xcfe8ff, 0.18, 1.0);
-  g.userData.tick = (t) => { pivots.forEach(({ pv, ph }) => { pv.rotation.z = Math.sin(t * 0.9 + ph) * 0.12; pv.rotation.x = Math.sin(t * 0.7 + ph) * 0.05; }); eyes.forEach((e) => { e.material.emissiveIntensity = 1.5 + Math.sin(t * 3) * 0.5; }); crows.forEach(({ head, ph }) => { head.rotation.z = Math.max(0, Math.sin(t * 2 + ph)) * -0.7; head.rotation.y = Math.sin(t * 0.8 + ph) * 0.6; }); stepPuffs(fog, t, 1.2, 0.12, 1.5, 3); };
+  // tick disabled: (t) => { pivots.forEach(({ pv, ph }) => { pv.rotation.z = Math.sin(t * 0.9 + ph) * 0.12; pv.rotation.x = Math.sin(t * 0.7 + ph) * 0.05; }); eyes.forEach((e) => { e.material.emissiveIntensity = 1.5 + Math.sin(t * 3) * 0.5; }); crows.forEach(({ head, ph }) => { head.rotation.z = Math.max(0, Math.sin(t * 2 + ph)) * -0.7; head.rotation.y = Math.sin(t * 0.8 + ph) * 0.6; }); stepPuffs(fog, t, 1.2, 0.12, 1.5, 3); };
   return g;
 }
 
@@ -154,7 +154,7 @@ export function makeSirenShrine() {
   const orb = add(g, new THREE.Mesh(new THREE.SphereGeometry(0.55, 12, 9), lit(TEAL, 1.2, { transparent: true, opacity: 0.9 })), 0, 8.0, 0.2); const halo = add(g, new THREE.Mesh(new THREE.SphereGeometry(1.0, 12, 9), new THREE.MeshBasicMaterial({ color: TEAL, transparent: true, opacity: 0.18, blending: THREE.AdditiveBlending, depthWrite: false })), 0, 8.0, 0.2);
   for (let i = 0; i < 4; i++) { const a = (i / 4) * 6.28 + 0.8, x = Math.cos(a) * 4.2, z = Math.sin(a) * 4.2; cyl(g, 0.4, 0.5, 4.6, STONE_G, x, 2.7, z, 6); cyl(g, 0.6, 0.45, 0.4, STONE, x, 5.2, z, 6); const r = add(g, new THREE.Mesh(new THREE.PlaneGeometry(0.5, 0.9), lit(TEAL, 1.4, { side: THREE.DoubleSide })), x * 0.88, 2.9, z * 0.88); r.lookAt(0, 2.9, 0); runes.push(r); for (let k = 0; k < 3; k++) box(g, 0.08, 0.5, 0.08, 0x2f7a52, x + 0.3 * Math.cos(a + 1) + k * 0.1, 3.8 - k * 0.5, z + 0.3 * Math.sin(a + 1)); }
   const pearls = Array.from({ length: 6 }, (_, i) => ({ m: add(g, new THREE.Mesh(new THREE.SphereGeometry(0.2, 8, 6), new THREE.MeshStandardMaterial({ color: 0xffffff, emissive: 0xbfe6ff, emissiveIntensity: 0.8 })), 0, 3, 0), a: (i / 6) * 6.28 }));
-  g.userData.tick = (t) => { orb.material.emissiveIntensity = 1.1 + Math.sin(t * 2.4) * 0.4; halo.scale.setScalar(1 + Math.sin(t * 2.4) * 0.12); orb.position.y = halo.position.y = 8.0 + Math.sin(t * 1.4) * 0.2; runes.forEach((r, i) => { r.material.emissiveIntensity = 1.2 + Math.sin(t * 2 + i * 1.3) * 0.7; }); hair.forEach(({ pv, ph }) => { pv.rotation.z = Math.sin(t * 1.2 + ph) * 0.08; pv.rotation.x = Math.cos(t + ph) * 0.06; }); pearls.forEach(({ m, a }, i) => { const aa = a + t * 0.6; m.position.set(Math.cos(aa) * 2.6, 3.2 + Math.sin(t * 1.5 + i) * 0.5, Math.sin(aa) * 2.6); }); };
+  // tick disabled: (t) => { orb.material.emissiveIntensity = 1.1 + Math.sin(t * 2.4) * 0.4; halo.scale.setScalar(1 + Math.sin(t * 2.4) * 0.12); orb.position.y = halo.position.y = 8.0 + Math.sin(t * 1.4) * 0.2; runes.forEach((r, i) => { r.material.emissiveIntensity = 1.2 + Math.sin(t * 2 + i * 1.3) * 0.7; }); hair.forEach(({ pv, ph }) => { pv.rotation.z = Math.sin(t * 1.2 + ph) * 0.08; pv.rotation.x = Math.cos(t + ph) * 0.06; }); pearls.forEach(({ m, a }, i) => { const aa = a + t * 0.6; m.position.set(Math.cos(aa) * 2.6, 3.2 + Math.sin(t * 1.5 + i) * 0.5, Math.sin(aa) * 2.6); }); };
   return g;
 }
 
@@ -171,7 +171,7 @@ export function makeVolcano() {
   const balls = Array.from({ length: 5 }, (_, i) => ({ m: add(g, new THREE.Mesh(new THREE.SphereGeometry(0.42, 8, 6), lit(0xff7a2a, 1.8)), 0, 8, 0), ph: i / 5, a: i * 1.3, d: 3 + i * 0.7 }));
   const smoke = puffs(g, 9, 0, 7.6, 0, 0x2c2c33, 0.5, 1.0);
   const glow = add(g, glowCol(0xff7a2a, 16, 1.2, 2.6, 0.1), 0, 14, 0);
-  g.userData.tick = (t) => { lava.material.emissiveIntensity = 1.4 + Math.sin(t * 3) * 0.4; streams.forEach((m, i) => { m.material.emissiveIntensity = 1.1 + Math.sin(t * 2 + i * 1.6) * 0.4; }); balls.forEach((b) => { const k = (t * 0.28 + b.ph) % 1; b.m.position.set(Math.cos(b.a) * b.d * k, 7.6 + 8.5 * Math.sin(Math.PI * k) - (k > 0.5 ? 0 : 0), Math.sin(b.a) * b.d * k); b.m.scale.setScalar(1 - k * 0.4); }); stepPuffs(smoke, t, 9, 0.12, 3.0, 1.2); glow.material.opacity = 0.08 + Math.sin(t * 2.6) * 0.03; };
+  // tick disabled: (t) => { lava.material.emissiveIntensity = 1.4 + Math.sin(t * 3) * 0.4; streams.forEach((m, i) => { m.material.emissiveIntensity = 1.1 + Math.sin(t * 2 + i * 1.6) * 0.4; }); balls.forEach((b) => { const k = (t * 0.28 + b.ph) % 1; b.m.position.set(Math.cos(b.a) * b.d * k, 7.6 + 8.5 * Math.sin(Math.PI * k) - (k > 0.5 ? 0 : 0), Math.sin(b.a) * b.d * k); b.m.scale.setScalar(1 - k * 0.4); }); stepPuffs(smoke, t, 9, 0.12, 3.0, 1.2); glow.material.opacity = 0.08 + Math.sin(t * 2.6) * 0.03; };
   return g;
 }
 
@@ -189,7 +189,7 @@ export function makeBoneThrone() {
   rod(g, [-2.0, 1.5, 2.9], [-2.9, 4.3, 3.3], 0.07, 0xb0b4bc); box(g, 0.9, 0.12, 0.14, 0xe0a824, -2.7, 3.9, 3.2).rotation.z = 0.3;
   for (let i = 0; i < 5; i++) skull(g, -3.6 + i * 1.8, 0.95, 4.0 - (i % 2) * 0.3, 0.6, null, null, 0.3 * i);
   const aura = add(g, glowCol(0xff3a3a, 8, 1.2, 2.6, 0.07), 0, 5, -1);
-  g.userData.tick = (t) => { flick(fl, t); eyes.forEach((e, i) => { e.material.emissiveIntensity = 1.5 + Math.sin(t * 2.6 + i) * 0.6; }); aura.material.opacity = 0.06 + Math.sin(t * 2.2) * 0.02; };
+  // tick disabled: (t) => { flick(fl, t); eyes.forEach((e, i) => { e.material.emissiveIntensity = 1.5 + Math.sin(t * 2.6 + i) * 0.6; }); aura.material.opacity = 0.06 + Math.sin(t * 2.2) * 0.02; };
   return g;
 }
 
@@ -208,7 +208,7 @@ export function makeGraveyard(def = {}) {
   for (let i = 0; i < 5; i++) { const a = (i - 2) * 0.45, fg = new THREE.Group(); add(hand, fg, Math.sin(a) * 0.25, 0.55, Math.cos(a) * 0.1); rod(fg, [0, 0, 0], [Math.sin(a) * 0.1, 0.6, 0], 0.045, BONE); rod(fg, [Math.sin(a) * 0.1, 0.6, 0], [Math.sin(a) * 0.2, 1.05, -0.1], 0.04, BONE); fingers.push({ fg, i }); } rod(hand, [0, 0.4, 0], [0, -0.4, 0], 0.09, BONE);
   for (const [x, z] of [[-4.6, 4.0], [4.7, 3.8]]) { rod(g, [x, 0.4, z], [x, 3.4, z], 0.08, 0x2a2a30); rod(g, [x, 3.4, z], [x + 0.5, 3.4, z], 0.05, 0x2a2a30); lamps.push(add(g, new THREE.Mesh(new THREE.SphereGeometry(0.25, 8, 6), lit(GREEN, 1.7)), x + 0.5, 3.1, z)); }
   const fog = puffs(g, 9, 0, 0.6, 0, 0xcfe8e0, 0.2, 1.1); fog.forEach((f, i) => { const a = i * 0.7, d = 1.5 + (i % 3) * 1.6; f.x = Math.cos(a) * d; f.z = Math.sin(a) * d; });
-  g.userData.tick = (t) => { inner.material.emissiveIntensity = 0.8 + Math.sin(t * 3) * 0.3; glowC.material.opacity = 0.08 + Math.sin(t * 2.5) * 0.03; lamps.forEach((l, i) => { l.material.emissiveIntensity = 1.5 + Math.sin(t * 6 + i * 2) * 0.4; }); hand.position.y = 0.3 + (Math.sin(t * 0.8) + 1) * 0.12; fingers.forEach(({ fg, i }) => { fg.rotation.x = Math.sin(t * 2.4 + i * 0.8) * 0.3; }); stepPuffs(fog, t, 0.5, 0.1, 1.2, 1.2); };
+  // tick disabled: (t) => { inner.material.emissiveIntensity = 0.8 + Math.sin(t * 3) * 0.3; glowC.material.opacity = 0.08 + Math.sin(t * 2.5) * 0.03; lamps.forEach((l, i) => { l.material.emissiveIntensity = 1.5 + Math.sin(t * 6 + i * 2) * 0.4; }); hand.position.y = 0.3 + (Math.sin(t * 0.8) + 1) * 0.12; fingers.forEach(({ fg, i }) => { fg.rotation.x = Math.sin(t * 2.4 + i * 0.8) * 0.3; }); stepPuffs(fog, t, 0.5, 0.1, 1.2, 1.2); };
   return g;
 }
 
@@ -224,7 +224,7 @@ export function makeReaperTotem() {
   for (const s of [-1, 1]) { rod(g, [s * 0.5, 7.0, 0.55], [s * 1.5, 4.8, 0.7], 0.04, 0x888c94); add(g, new THREE.Mesh(new THREE.TorusGeometry(0.22, 0.05, 5, 8, 4.5), flat(0x888c94)), s * 1.5, 4.55, 0.7); }
   for (const a of [0.8, 2.4, 3.9, 5.4]) { const x = Math.cos(a) * 1.8, z = Math.sin(a) * 1.8; cyl(g, 0.18, 0.22, 0.6, 0xf1e6c8, x, 1.5, z, 6); flame(g, x, 1.8, z, 0.35, GREEN, fl); }
   const aura = add(g, glowCol(0xff3030, 11, 0.6, 1.8, 0.06), 0, 6, 0);
-  g.userData.tick = (t) => { flick(fl, t); eyes.forEach((e, i) => { e.material.emissiveIntensity = 1.6 + Math.sin(t * 3 + i) * 0.6; }); cloths.forEach(({ cl, s }, i) => { cl.rotation.y = Math.sin(t * 2.5 + i * 1.4) * 0.12 * s; cl.rotation.z = Math.sin(t * 1.8 + i) * 0.06 * s; }); aura.material.opacity = 0.05 + Math.sin(t * 2.1) * 0.02; };
+  // tick disabled: (t) => { flick(fl, t); eyes.forEach((e, i) => { e.material.emissiveIntensity = 1.6 + Math.sin(t * 3 + i) * 0.6; }); cloths.forEach(({ cl, s }, i) => { cl.rotation.y = Math.sin(t * 2.5 + i * 1.4) * 0.12 * s; cl.rotation.z = Math.sin(t * 1.8 + i) * 0.06 * s; }); aura.material.opacity = 0.05 + Math.sin(t * 2.1) * 0.02; };
   return g;
 }
 
@@ -240,7 +240,7 @@ export function makeHauntedTree(def = {}) {
   tips.slice(0, 9).forEach(([x, yy, z], i) => { const pv = new THREE.Group(); add(g, pv, x, yy, z); rod(pv, [0, 0, 0], [0, -1.2, 0], 0.02, 0x6b5a3a, 3); if (i % 3 === 0) skull(pv, 0, -1.5, 0, 0.5, i === 0 ? GREEN : null, eyes); else { lamps.push(add(pv, new THREE.Mesh(new THREE.SphereGeometry(0.22, 8, 6), lit(GREEN, 1.7)), 0, -1.4, 0)); } swing.push({ pv, ph: i * 1.3 }); });
   tips.slice(9, 12).forEach(([x, yy, z], i) => { const c = new THREE.Group(); add(g, c, x, yy + 0.1, z); egg(c, 0.3, 0.25, 0.2, 0x15151b, 0, 0.25, 0); const h = new THREE.Group(); add(c, h, 0.28, 0.5, 0); ball(h, 0.14, 0x15151b, 0, 0, 0); cone(h, 0.06, 0.22, 0xe08a1f, 0.18, 0, 0, 4).rotation.z = -Math.PI / 2; ball(h, 0.04, 0xff3030, 0.06, 0.05, 0.1); crows.push({ h, ph: i * 2 }); });
   const fog = puffs(g, 8, 0, 0.6, 0, 0xcfe8e0, 0.18, 1.0); fog.forEach((f, i) => { f.x = Math.cos(i * 0.8) * (1.5 + (i % 3) * 1.1); f.z = Math.sin(i * 0.8) * (1.5 + (i % 3) * 1.1); });
-  g.userData.tick = (t) => { swing.forEach(({ pv, ph }) => { pv.rotation.z = Math.sin(t * 1.1 + ph) * 0.14; pv.rotation.x = Math.cos(t * 0.9 + ph) * 0.1; }); eyes.forEach((e, i) => { e.material.emissiveIntensity = 1.6 + Math.sin(t * 3 + i) * 0.6; }); lamps.forEach((l, i) => { l.material.emissiveIntensity = 1.5 + Math.sin(t * 6 + i * 2) * 0.4; }); crows.forEach(({ h, ph }) => { h.rotation.z = Math.max(0, Math.sin(t * 2 + ph)) * -0.7; h.rotation.y = Math.sin(t * 0.7 + ph) * 0.6; }); stepPuffs(fog, t, 0.5, 0.1, 1.2, 1.2); };
+  // tick disabled: (t) => { swing.forEach(({ pv, ph }) => { pv.rotation.z = Math.sin(t * 1.1 + ph) * 0.14; pv.rotation.x = Math.cos(t * 0.9 + ph) * 0.1; }); eyes.forEach((e, i) => { e.material.emissiveIntensity = 1.6 + Math.sin(t * 3 + i) * 0.6; }); lamps.forEach((l, i) => { l.material.emissiveIntensity = 1.5 + Math.sin(t * 6 + i * 2) * 0.4; }); crows.forEach(({ h, ph }) => { h.rotation.z = Math.max(0, Math.sin(t * 2 + ph)) * -0.7; h.rotation.y = Math.sin(t * 0.7 + ph) * 0.6; }); stepPuffs(fog, t, 0.5, 0.1, 1.2, 1.2); };
   return g;
 }
 
@@ -253,7 +253,7 @@ export function makeMaelstrom() {
   for (let i = 0; i < 8; i++) { const m = new THREE.Group(); add(g, m, 0, 0, 0); const kind = i % 4; if (kind === 0) box(m, 1.8, 0.16, 0.4, 0x6b4a2b, 0, 0, 0); else if (kind === 1) { cyl(m, 0.4, 0.4, 0.8, 0x8a5a33, 0, 0, 0, 8); cyl(m, 0.42, 0.42, 0.07, 0x2a2d34, 0, 0.2, 0, 8); } else if (kind === 2) skull(m, 0, 0, 0, 0.6); else { box(m, 0.9, 0.9, 0.9, 0x8a5a33, 0, 0, 0); } debris.push({ m, ph: i / 8, a0: i * 0.9 }); }
   const ring = add(g, new THREE.Mesh(new THREE.TorusGeometry(5.6, 0.18, 5, 36), new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.45 })), 0, 0.05, 0); ring.rotation.x = Math.PI / 2;
   const beamG = add(g, glowCol(0x1fffa0, 7, 0.5, 1.2, 0.08), 0, 0.5, 0);
-  g.userData.tick = (t) => { arms.rotation.y = t * 0.9; ring.scale.setScalar(1 + Math.sin(t * 1.5) * 0.03); beamG.material.opacity = 0.07 + Math.sin(t * 2.4) * 0.03; debris.forEach(({ m, ph, a0 }, i) => { const k = (t * 0.1 + ph) % 1, rad = 5.0 * (1 - k) + 0.6, a = a0 + t * 0.9 + k * 7; m.position.set(Math.cos(a) * rad, -k * 3.0 + 0.1, Math.sin(a) * rad); m.rotation.y = a * 2; m.rotation.z = Math.sin(t * 2 + i) * 0.3; m.scale.setScalar(1 - k * 0.6); }); };
+  // tick disabled: (t) => { arms.rotation.y = t * 0.9; ring.scale.setScalar(1 + Math.sin(t * 1.5) * 0.03); beamG.material.opacity = 0.07 + Math.sin(t * 2.4) * 0.03; debris.forEach(({ m, ph, a0 }, i) => { const k = (t * 0.1 + ph) % 1, rad = 5.0 * (1 - k) + 0.6, a = a0 + t * 0.9 + k * 7; m.position.set(Math.cos(a) * rad, -k * 3.0 + 0.1, Math.sin(a) * rad); m.rotation.y = a * 2; m.rotation.z = Math.sin(t * 2 + i) * 0.3; m.scale.setScalar(1 - k * 0.6); }); };
   return g;
 }
 
