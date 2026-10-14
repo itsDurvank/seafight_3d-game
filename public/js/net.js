@@ -38,6 +38,11 @@ export class NetworkClient {
   }
 
   connect() {
+    this.manualDisconnect = false;
+    if (this.reconnectTimer) {
+      clearTimeout(this.reconnectTimer);
+      this.reconnectTimer = null;
+    }
     if (this.ws && (this.ws.readyState === WebSocket.OPEN || this.ws.readyState === WebSocket.CONNECTING)) {
       return;
     }
@@ -83,6 +88,13 @@ export class NetworkClient {
       this.isConnected = false;
       this.stopHeartbeat();
       if (this.onStatusChange) this.onStatusChange('disconnected');
+      if (!this.manualDisconnect) {
+        if (this.reconnectTimer) clearTimeout(this.reconnectTimer);
+        this.reconnectTimer = setTimeout(() => {
+          console.log('[Net] Reconnecting WebSocket...');
+          this.connect();
+        }, 2000);
+      }
     };
 
     this.ws.onerror = (err) => {
@@ -151,6 +163,11 @@ export class NetworkClient {
   }
 
   disconnect() {
+    this.manualDisconnect = true;
+    if (this.reconnectTimer) {
+      clearTimeout(this.reconnectTimer);
+      this.reconnectTimer = null;
+    }
     this.stopHeartbeat();
     if (this.ws) {
       this.ws.close();

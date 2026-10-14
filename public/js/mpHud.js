@@ -191,10 +191,27 @@ export class MultiplayerHUD {
       });
     }
 
-    // Ping update
+    // Ping & Network Status update
     this.mp.net.onPing = (rtt) => {
       if (this.elPingIndicator) {
         this.elPingIndicator.textContent = `📶 ${rtt}ms`;
+        this.elPingIndicator.style.color = '';
+      }
+    };
+
+    this.mp.net.onStatusChange = (status) => {
+      if (status === 'disconnected') {
+        if (this.elPingIndicator) {
+          this.elPingIndicator.textContent = '⚠️ Reconnecting...';
+          this.elPingIndicator.style.color = '#ff6b6b';
+        }
+        if (this.mp.game?.hud?.toast) {
+          this.mp.game.hud.toast('⚠️ Connection lost to server. Reconnecting…', 2500);
+        }
+      } else if (status === 'connected') {
+        if (this.elPingIndicator) {
+          this.elPingIndicator.style.color = '';
+        }
       }
     };
 

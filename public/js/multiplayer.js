@@ -166,7 +166,16 @@ export class RemotePlayer {
 
   addSnapshot(s) {
     const now = performance.now();
-    const hpVal = s.hp !== undefined ? s.hp : this.hp;
+    const hpVal = s.hp !== undefined ? Number(s.hp) : this.hp;
+
+    if (s.alive !== undefined) {
+      const isAlive = !!s.alive;
+      if (this.alive !== isAlive) {
+        this.alive = isAlive;
+        this.boatGroup.visible = isAlive;
+      }
+    }
+
     this.snapshots.push({
       t: now,
       x: s.x,
@@ -175,7 +184,7 @@ export class RemotePlayer {
       speed: s.speed || 0,
       boosting: !!s.boosting,
       hp: hpVal,
-      alive: s.alive !== undefined ? s.alive : this.alive,
+      alive: this.alive,
     });
 
     if (hpVal !== this.hp) {
