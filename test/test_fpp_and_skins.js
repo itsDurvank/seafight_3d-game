@@ -17,11 +17,21 @@ const expectedFiles = [
   'boat3_manta.js',
   'boat4_twinhull.js',
   'boat5_blazerunner.js',
+  'boat6_thunderpike.js',
+  'boat7_emeralddrake.js',
+  'boat8_brassleviathan.js',
+  'boat9_nightshade.js',
+  'boat10_buzzsawbarracuda.js',
+  'boat11_skyfoilfalcon.js',
+  'boat12_krakenhulk.js',
+  'boat13_jollyrogerrocketeer.js',
+  'boat14_auroragyro.js',
+  'boat15_crabcrusher.js',
 ];
 for (const file of expectedFiles) {
   assert(fs.existsSync(path.join(assetsDir, file)), `Missing asset file: ${file}`);
 }
-console.log('✓ All 5 multiplayer boat asset files exist in public/js/multiplayer_assets/');
+console.log('✓ All 15 multiplayer boat asset files exist in public/js/multiplayer_assets/');
 
 // 2. Check public/js/multiplayerBoats.js
 const mpBoatsCode = fs.readFileSync(path.join(__dirname, '..', 'public', 'js', 'multiplayerBoats.js'), 'utf8');
@@ -30,8 +40,18 @@ assert(mpBoatsCode.includes('buildReefbreakerBoat'), 'multiplayerBoats.js missin
 assert(mpBoatsCode.includes('buildMantaBoat'), 'multiplayerBoats.js missing buildMantaBoat');
 assert(mpBoatsCode.includes('buildTwinhullBoat'), 'multiplayerBoats.js missing buildTwinhullBoat');
 assert(mpBoatsCode.includes('buildBlazeRunnerBoat'), 'multiplayerBoats.js missing buildBlazeRunnerBoat');
+assert(mpBoatsCode.includes('buildThunderpikeBoat'), 'multiplayerBoats.js missing buildThunderpikeBoat');
+assert(mpBoatsCode.includes('buildEmeraldDrakeBoat'), 'multiplayerBoats.js missing buildEmeraldDrakeBoat');
+assert(mpBoatsCode.includes('buildBrassLeviathanBoat'), 'multiplayerBoats.js missing buildBrassLeviathanBoat');
+assert(mpBoatsCode.includes('buildNightshadeBoat'), 'multiplayerBoats.js missing buildNightshadeBoat');
+assert(mpBoatsCode.includes('buildBuzzsawBarracudaBoat'), 'multiplayerBoats.js missing buildBuzzsawBarracudaBoat');
+assert(mpBoatsCode.includes('buildSkyfoilFalconBoat'), 'multiplayerBoats.js missing buildSkyfoilFalconBoat');
+assert(mpBoatsCode.includes('buildKrakenhulkBoat'), 'multiplayerBoats.js missing buildKrakenhulkBoat');
+assert(mpBoatsCode.includes('buildJollyRogerRocketeerBoat'), 'multiplayerBoats.js missing buildJollyRogerRocketeerBoat');
+assert(mpBoatsCode.includes('buildAuroraGyroBoat'), 'multiplayerBoats.js missing buildAuroraGyroBoat');
+assert(mpBoatsCode.includes('buildCrabCrusherBoat'), 'multiplayerBoats.js missing buildCrabCrusherBoat');
 assert(mpBoatsCode.includes('buildHeroBoatFPV'), 'multiplayerBoats.js missing buildHeroBoatFPV for cockpit FPV support');
-console.log('✓ multiplayerBoats.js correctly imports and registers all 5 multiplayer boat builders with FPV cockpit support');
+console.log('✓ multiplayerBoats.js correctly imports and registers all 15 multiplayer boat builders with FPV cockpit support');
 
 // 3. Check public/js/boat.js
 const boatCode = fs.readFileSync(path.join(__dirname, '..', 'public', 'js', 'boat.js'), 'utf8');
@@ -44,7 +64,7 @@ console.log('✓ boat.js dynamically builds multiplayer boats and attaches FPV c
 // 4. Check public/js/multiplayer.js
 const mpCode = fs.readFileSync(path.join(__dirname, '..', 'public', 'js', 'multiplayer.js'), 'utf8');
 assert(mpCode.includes("import { buildMultiplayerBoat } from './multiplayerBoats.js'"), 'multiplayer.js missing buildMultiplayerBoat import');
-assert(mpCode.includes('buildMultiplayerBoat(this.boatSkin, this.color.style, false)'), 'RemotePlayer not using buildMultiplayerBoat with boatSkin');
+assert(mpCode.includes('buildMultiplayerBoat(this.boatSkin'), 'RemotePlayer not using buildMultiplayerBoat with boatSkin');
 assert(mpCode.includes('applySkinStyle(this.localColor.style, this.localColorIndex, this.localBoatSkin)'), 'multiplayer.js roomJoined not passing localColorIndex and localBoatSkin to applySkinStyle');
 console.log('✓ multiplayer.js assigns unique multiplayer boat skins to each player by boatSkin');
 

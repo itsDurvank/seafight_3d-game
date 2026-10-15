@@ -11,7 +11,7 @@
     * { box-sizing: border-box; }
     html, body { margin:0; height:100%; overflow:hidden; background:#7fe0ef;
       font-family: "Fredoka", "Trebuchet MS", "Segoe UI", system-ui, sans-serif; color:var(--ink); user-select:none; }
-    #game { position:fixed; inset:0; display:block; }
+    #game { position:fixed; inset:0; display:block; touch-action:none; }
 
     /* chunky warm "wooden sign" panels, matching the dock in the art */
     .panel { position:fixed; background:rgba(255,243,222,.93); border:3px solid #e8a35a; border-radius:16px;
@@ -49,8 +49,8 @@
     #boost-fill { height:100%; width:0; background:linear-gradient(90deg,#1fd1c9,#ff8a3d); }
     #speed .small { font-size:13px; opacity:.85; }
 
-    #weapons { position:fixed; bottom:14px; left:50%; transform:translateX(-50%); display:flex; gap:9px; }
-    .slot { position:relative; width:80px; padding:5px 4px 4px; text-align:center; overflow:hidden;
+    #weapons { position:fixed; bottom:14px; left:50%; transform:translateX(-50%); display:flex; gap:9px; z-index:10; }
+    .slot { position:relative; width:80px; padding:5px 4px 4px; text-align:center; overflow:hidden; cursor:pointer;
       background:rgba(255,243,222,.93); border:3px solid #e8a35a; border-radius:16px;
       box-shadow:0 4px 0 var(--wood-dark), 0 10px 22px rgba(0,70,100,.28); transition:transform .08s ease; }
     .slot kbd { position:absolute; top:4px; left:5px; font-size:10px; padding:0 5px; }
@@ -146,12 +146,54 @@
     .skin-card.active .skin-status { background:#ff8a3d; color:#fff; box-shadow:0 2px 6px rgba(255,138,61,0.35); }
 
     .settings-footer { display:flex; flex-direction:column; gap:8px; padding-top:4px; border-top:1px dashed #e4cfb2; }
+    .settings-footer-row { display:flex; gap:8px; width:100%; }
+    .settings-footer-row .settings-btn-action { flex:1; min-width:0; padding:7px 4px; font-size:12px; }
     .settings-btn-action { background:#fff; border:2px solid #e3d0b3; border-radius:10px; padding:7px 10px;
       font:inherit; font-size:12.5px; font-weight:600; color:var(--ink); cursor:pointer; display:flex;
       align-items:center; justify-content:center; gap:6px; transition:all .1s ease; }
     .settings-btn-action:hover { background:#fff5e3; border-color:#e8a35a; }
     .settings-btn-action:disabled { opacity:0.5; cursor:not-allowed; border-color:#e3d0b3; background:#f4ece1; }
     .settings-tip { font-size:11px; text-align:center; color:#8c674b; }
+
+    /* Keybinds and Boost Mode view */
+    #settings-keybinds-view { display:flex; flex-direction:column; gap:12px; animation:popIn 0.14s ease-out; }
+    #settings-keybinds-view.hidden { display:none !important; }
+    .boost-mode-toggle { display:flex; border-radius:10px; background:#e8d5be; padding:3px; gap:4px; }
+    .boost-mode-btn { flex:1; border:none; background:transparent; border-radius:8px; padding:6px 2px;
+      font:inherit; font-size:12px; font-weight:700; color:var(--ink); cursor:pointer; transition:all .15s ease;
+      display:flex; align-items:center; justify-content:center; gap:5px; }
+    .boost-mode-btn.active { background:#fff; color:var(--ink); box-shadow:0 2px 4px rgba(0,0,0,.12); }
+    .boost-mode-hint { font-size:11px; color:#8c674b; text-align:center; margin-top:2px; font-weight:600; line-height:1.3; }
+
+    .keybinds-header-row { display:flex; align-items:center; justify-content:space-between; }
+    .keybinds-reset-btn { background:transparent; border:none; color:#b9642a; font:inherit; font-size:11px;
+      font-weight:700; cursor:pointer; text-decoration:underline; padding:2px 4px; }
+    .keybinds-reset-btn:hover { color:#e04646; }
+
+    .keybinds-list { display:flex; flex-direction:column; gap:6px; max-height:210px; overflow-y:auto; padding-right:3px; }
+    .keybind-row { display:flex; align-items:center; justify-content:space-between; gap:6px; padding:6px 10px;
+      background:#fff; border:2px solid #e3d0b3; border-radius:10px; transition:border-color .15s ease; }
+    .keybind-row:hover { border-color:#f2a33a; background:#fffbf5; }
+    .keybind-info { display:flex; align-items:center; gap:8px; flex:1; min-width:0; }
+    .keybind-icon { font-size:15px; line-height:1; flex-shrink:0; }
+    .keybind-labels { display:flex; flex-direction:column; min-width:0; }
+    .keybind-name { font-weight:700; color:var(--ink); font-size:12px; line-height:1.2; }
+    .keybind-desc { font-size:10px; color:#8c674b; line-height:1.2; }
+    .keybind-badge-btn {
+      background:#fff3de; border:2px solid #e8a35a; border-radius:8px; padding:3px 9px;
+      font:inherit; font-size:11.5px; font-weight:700; color:var(--ink); cursor:pointer;
+      box-shadow:0 2px 0 var(--wood-dark); min-width:54px; text-align:center;
+      transition:transform .08s ease, background .15s ease, border-color .15s ease;
+    }
+    .keybind-badge-btn:hover { background:#ffe2a8; transform:translateY(-1px); }
+    .keybind-badge-btn.recording {
+      background:#ff8a3d; color:#fff; border-color:#d2451e; box-shadow:0 0 8px rgba(255,138,61,0.6);
+      animation:pulseBind 0.7s infinite alternate;
+    }
+    @keyframes pulseBind {
+      from { transform:scale(0.96); opacity:0.85; }
+      to { transform:scale(1.04); opacity:1; }
+    }
 
     /* Multiplayer Styles */
     .mp-mode-toggle { display:flex; border-radius:10px; background:#e8d5be; padding:3px; gap:4px; }
@@ -227,18 +269,19 @@
     .mp-skin-active-title-row { display:flex; align-items:center; justify-content:space-between; }
     .mp-skin-active-name { font-size:13px; font-weight:800; color:#3b281c; }
     .mp-skin-active-badge { font-size:9px; font-weight:800; padding:2px 6px; border-radius:5px; background:#ff8a3d; color:#fff; letter-spacing:0.5px; }
-    .mp-skin-active-desc { font-size:10.5px; color:#7d593c; line-height:1.25; }
-    .mp-paint-palette-row { display:flex; align-items:center; justify-content:space-between; gap:8px; padding-top:6px; border-top:1px solid #f0e2cf; }
+    .mp-paint-palette-row { display:flex; align-items:center; justify-content:space-between; gap:6px; padding-top:6px; border-top:1px solid #f0e2cf; }
     .mp-paint-label { font-size:11px; font-weight:700; color:#8c674b; }
-    .mp-paint-swatches { display:flex; align-items:center; gap:6px; }
+    .mp-paint-swatches { display:flex; align-items:center; gap:5px; flex-wrap:wrap; }
     .mp-paint-swatch-btn {
-      width:22px; height:22px; border-radius:50%; border:2px solid #fff; box-shadow:0 0 0 1.5px rgba(0,0,0,0.18);
-      cursor:pointer; transition:all 0.15s ease; display:flex; align-items:center; justify-content:center; font-size:11px;
+      height:22px; padding:0 8px; border-radius:11px; border:2px solid #fff; box-shadow:0 0 0 1.5px rgba(0,0,0,0.18);
+      cursor:pointer; transition:all 0.15s ease; display:flex; align-items:center; justify-content:center; font-size:10.5px; font-weight:700;
+      white-space:nowrap;
     }
-    .mp-paint-swatch-btn:hover { transform:scale(1.15); }
-    .mp-paint-swatch-btn.active { box-shadow:0 0 0 2px #3b281c, 0 0 8px rgba(0,0,0,0.25); transform:scale(1.18); font-weight:700; }
+    .mp-paint-swatch-btn.circle { width:22px; padding:0; border-radius:50%; }
+    .mp-paint-swatch-btn:hover { transform:scale(1.12); }
+    .mp-paint-swatch-btn.active { box-shadow:0 0 0 2px #3b281c, 0 0 8px rgba(0,0,0,0.25); transform:scale(1.15); font-weight:800; }
     .mp-skin-options-header { font-size:11px; font-weight:700; color:#8c674b; text-transform:uppercase; letter-spacing:0.5px; margin-top:2px; }
-    .mp-lobby-boat-picker { display:flex; flex-direction:column; gap:6px; max-height:220px; overflow-y:auto; padding-right:2px; }
+    .mp-lobby-boat-picker { display:flex; flex-direction:column; gap:6px; max-height:240px; overflow-y:auto; padding-right:2px; }
     .mp-skin-option-card {
       display:flex; align-items:center; gap:10px; background:#fff; border:2px solid #e8dac3;
       border-radius:10px; padding:7px 10px; cursor:pointer; transition:all 0.15s ease;
@@ -423,7 +466,7 @@
             </div>
           </div>
           <div class="mp-paint-palette-row">
-            <span class="mp-paint-label">🎨 Paint Color:</span>
+            <span class="mp-paint-label">🎨 Color / Theme:</span>
             <div id="settings-online-paint-swatches" class="mp-paint-swatches"></div>
           </div>
           <div class="mp-skin-options-header">Select Boat:</div>
@@ -439,10 +482,47 @@
       </div>
     </div>
 
+    <!-- Keybinds & Custom Controls View -->
+    <div id="settings-keybinds-view" class="hidden">
+      <!-- 1. Boost Mode at the TOP -->
+      <div class="settings-section">
+        <div class="settings-subtitle">🚀 Boost Activation Mode</div>
+        <div class="boost-mode-toggle">
+          <button id="boost-mode-toggle-btn" class="boost-mode-btn active" type="button" data-mode="toggle">
+            <span>🔘</span> <span>Toggle Mode</span>
+          </button>
+          <button id="boost-mode-hold-btn" class="boost-mode-btn" type="button" data-mode="hold">
+            <span>⚡</span> <span>Hold Mode</span>
+          </button>
+        </div>
+        <div id="boost-mode-desc" class="boost-mode-hint">Toggle: Press Shift once to start or stop boost.</div>
+      </div>
+
+      <!-- 2. Custom Keybutton Mapping Options below Boost Mode -->
+      <div class="settings-section">
+        <div class="keybinds-header-row">
+          <span class="settings-subtitle">⌨️ Custom Keybindings</span>
+          <button id="keybinds-reset-btn" class="keybinds-reset-btn" type="button" title="Reset all keybinds to defaults">🔄 Defaults</button>
+        </div>
+        <div id="keybinds-list" class="keybinds-list"></div>
+      </div>
+
+      <div style="padding-top:4px;">
+        <button id="keybinds-back-btn" class="settings-btn-action" type="button">
+          <span>← Back to Settings</span>
+        </button>
+      </div>
+    </div>
+
     <div class="settings-footer">
-      <button id="settings-audio-btn" class="settings-btn-action">
-        <span id="settings-audio-icon">🔊</span> <span id="settings-audio-text">Sound: On (M)</span>
-      </button>
+      <div class="settings-footer-row">
+        <button id="settings-keybinds-btn" class="settings-btn-action" type="button">
+          <span id="settings-keybinds-icon">⌨️</span> <span id="settings-keybinds-text">Keybinds</span>
+        </button>
+        <button id="settings-audio-btn" class="settings-btn-action" type="button">
+          <span id="settings-audio-icon">🔊</span> <span id="settings-audio-text">Sound: On (M)</span>
+        </button>
+      </div>
       <div id="settings-tip-text" class="settings-tip">Tip: Press <kbd>O</kbd> to switch skins &bull; <kbd>V</kbd> for cockpit view!</div>
     </div>
   </div>
@@ -487,7 +567,7 @@
           </div>
         </div>
         <div class="mp-paint-palette-row">
-          <span class="mp-paint-label">🎨 Paint Color:</span>
+          <span class="mp-paint-label">🎨 Color / Theme:</span>
           <div id="mp-lobby-paint-swatches" class="mp-paint-swatches"></div>
         </div>
         <div class="mp-skin-options-header">Select Boat:</div>
@@ -608,6 +688,6 @@
   <script type="importmap">
     { "imports": { "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js" } }
   </script>
-  <script type="module" src="/js/main.js?v=pure_manual_guns_20261015"></script>
+  <script type="module" src="/js/main.js?v=combat_fix_20261015"></script>
 </body>
 </html>

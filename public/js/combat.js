@@ -387,10 +387,10 @@ export class Combat {
       m.age += dt;
       if (m.target) {
         if (!m.target.alive || m.age > cfg.track) m.target = null;
-        else if (m.age > 0.2) { // brief straight launch before it starts steering
+        else if (m.age > 0.08) { // quick launch flare before homing starts
           const want = Math.atan2(m.target.state.x - m.x, m.target.state.z - m.z);
           const diff = angleDiff(m.h, want);
-          if (Math.abs(diff) > cfg.loseCone) m.target = null;
+          if (cfg.loseCone && Math.abs(diff) > cfg.loseCone) m.target = null;
           else m.h += clamp(diff, -cfg.turn * dt, cfg.turn * dt);
         }
       }

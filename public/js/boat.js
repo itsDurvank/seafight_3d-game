@@ -1,9 +1,9 @@
 import * as THREE from 'three';
-import { BOAT, WORLD } from './config.js?v=orig_boost_formula';
+import { BOAT, WORLD } from './config.js';
 import { waveHeight } from './waves.js';
 import { buildHeroBoat } from './new_assets/heroBoat.js';
 import { buildClassicBoat } from './classicBoat.js';
-import { buildHeroBoatFPV } from './heroBoatFPV.js?v=smooth_fpp_20261015';
+import { buildHeroBoatFPV } from './heroBoatFPV.js';
 import { buildMultiplayerBoat, MULTIPLAYER_BOATS } from './multiplayerBoats.js';
 
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
@@ -16,7 +16,7 @@ export const PLAYER_STYLE = {
   hull: 0xfff4e0,
   chine: 0xdce5e8,
   accent: 0xff7a59,
-  cabin: 0xfff4e0,
+  cabin: 0xff7a59,
   roof: 0xd9803f,
   flag: 0xffe066,
   dark: 0x2b3440,
@@ -193,6 +193,11 @@ export class Boat {
     delete this.style.mpBoatSkin;
     try { localStorage.setItem('boom_boats_skin', skinName); } catch {}
     if (this.group && this.scene) {
+      if (this.fpv?.userData?.dispose) {
+        this.fpv.userData.dispose();
+      } else if (this.fpv?.userData?.unmount) {
+        this.fpv.userData.unmount();
+      }
       this.scene.remove(this.group);
     }
     this.group = buildModel({ ...this.style, skin: this.currentSkin, isPlayer: true });
@@ -214,6 +219,11 @@ export class Boat {
       this.style.skin = boatSkin;
     }
     if (this.group && this.scene) {
+      if (this.fpv?.userData?.dispose) {
+        this.fpv.userData.dispose();
+      } else if (this.fpv?.userData?.unmount) {
+        this.fpv.userData.unmount();
+      }
       this.scene.remove(this.group);
     }
     this.group = buildModel({ ...this.style, isPlayer: true });
@@ -225,6 +235,11 @@ export class Boat {
   }
 
   resetStyle() {
+    if (this.fpv?.userData?.dispose) {
+      this.fpv.userData.dispose();
+    } else if (this.fpv?.userData?.unmount) {
+      this.fpv.userData.unmount();
+    }
     this.style = { ...PLAYER_STYLE };
     delete this.style.mpColorIndex;
     delete this.style.mpBoatSkin;
@@ -239,6 +254,24 @@ export class Boat {
   }
 
   get boosting() { return this.boostOn; }
+
+  // Direct set for hold mode or program control
+  setBoost(on) {
+    if (on) {
+      if (this.boostOn) return true;
+      if (this.boostEnergy < BOAT.boostMin) return false;
+      this.boostOn = true;
+      this.boostT = 0;
+      return true;
+    } else {
+      if (this.boostOn) {
+        this.boostOn = false;
+        this.boostIdle = 0;
+        this.boostT = 0;
+      }
+      return false;
+    }
+  }
 
   // Shift toggles the boost on and off. It drains the meter while on; once it has been
   // off for a couple of seconds the meter refills.
@@ -302,13 +335,13 @@ export class Boat {
     s.speed = Math.max(s.speed, -BOAT.maxReverse);
 
     const steer = (input.left ? 1 : 0) - (input.right ? 1 : 0);
-    const grip = clamp(Math.abs(s.speed) / 5, 0.4, 1);
+    const grip = clamp(Math.abs(s.speed) / 5, 0.6, 1);
     const turnMul = boosting ? BOAT.boostTurnMul : braking ? BOAT.brakeTurnMul : 1;
     const target = steer * BOAT.turnRate * turnMul * grip * (s.speed < -0.2 ? -1 : 1);
 
-    // Responsive rudder: snaps in and out cleanly when turning over or centering without sluggish delay
+    // Responsive rudder: snappy input response without sluggish lag
     const isReversing = steer === 0 || (Math.sign(steer) !== Math.sign(s.turnVel) && Math.abs(s.turnVel) > 0.05);
-    const turnRateK = isReversing ? 14 : 9;
+    const turnRateK = isReversing ? 18 : 16;
     s.turnVel += (target - s.turnVel) * (1 - Math.exp(-turnRateK * dt));
     s.yaw += s.turnVel * dt;
 
@@ -332,11 +365,11 @@ export class Boat {
     const rawY = (hF + hB + hL + hR) / 4 + 0.1;
     this.curY = (this.curY !== undefined) ? this.curY + (rawY - this.curY) * (1 - Math.exp(-12 * dt)) : rawY;
 
-    const turnActivity = clamp(Math.abs(s.turnVel) / 1.4, 0, 1);
-    // When turning, centrifugal banking smoothly dominates, preventing high-frequency
-    // wave chop from shaking the roll axis and vibrating side islands in FPP
-    const waveRollWeight = 1 - turnActivity * 0.75;
-    const wavePitchWeight = 1 - turnActivity * 0.40;
+    const turnActivity = clamp(Math.abs(s.turnVel) / 1.2, 0, 1);
+    // When turning, centrifugal banking smoothly dominates, preventing wave chop
+    // from shaking the roll/pitch axes and vibrating nearby islands in FPP
+    const waveRollWeight = Math.max(0, 1 - turnActivity * 1.2);
+    const wavePitchWeight = Math.max(0.15, 1 - turnActivity * 0.85);
 
     const pitchT = -Math.atan2(hF - hB, 2 * L) * wavePitchWeight;
     const bankGrip = clamp(s.speed / 14, 0, 1.2);

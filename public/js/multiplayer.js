@@ -4,7 +4,7 @@
 // combat broadcast/hits, server-driven health orbs, and match state.
 
 import * as THREE from 'three';
-import { MP, BOAT, PLAYER, WEAPONS, POTION, KILL_REWARD, WORLD } from './config.js?v=firm_guns_20261015';
+import { MP, BOAT, PLAYER, WEAPONS, POTION, KILL_REWARD, WORLD } from './config.js';
 import { buildMultiplayerBoat } from './multiplayerBoats.js';
 import { Wake } from './wake.js';
 import { makePotion, glowTexture } from './potions.js';
@@ -121,8 +121,9 @@ export class RemotePlayer {
     // Snapshot buffer for ~100ms interpolation
     this.snapshots = [];
 
-    // 3D boat model using multiplayer boat assets
-    this.boatGroup = buildMultiplayerBoat(this.boatSkin, this.color.style, false);
+    // 3D boat model using multiplayer boat assets (original theme if colorIndex === -1)
+    const boatStyle = (this.colorIndex >= 0 && this.color && this.color.style) ? { ...this.color.style, colorIndex: this.colorIndex } : { colorIndex: -1 };
+    this.boatGroup = buildMultiplayerBoat(this.boatSkin, boatStyle, false);
     this.scene.add(this.boatGroup);
 
     // Wake
@@ -140,14 +141,15 @@ export class RemotePlayer {
 
   setSkinAndColor(boatSkin, colorIndex, color) {
     this.boatSkin = boatSkin;
-    this.colorIndex = colorIndex;
-    this.color = color || MP.colors[colorIndex] || MP.colors[0];
+    this.colorIndex = (colorIndex !== undefined) ? colorIndex : -1;
+    this.color = color || (this.colorIndex >= 0 && MP.colors[this.colorIndex]) ? MP.colors[this.colorIndex] : { name: 'Original', hex: '#ffd166', style: null };
 
     // Rebuild 3D mesh
     if (this.boatGroup) {
       this.scene.remove(this.boatGroup);
     }
-    this.boatGroup = buildMultiplayerBoat(this.boatSkin, this.color.style, false);
+    const boatStyle = (this.colorIndex >= 0 && this.color && this.color.style) ? { ...this.color.style, colorIndex: this.colorIndex } : { colorIndex: -1 };
+    this.boatGroup = buildMultiplayerBoat(this.boatSkin, boatStyle, false);
     this.scene.add(this.boatGroup);
 
     if (this.nametagSprite) {
@@ -325,6 +327,7 @@ export class MultiplayerManager {
     this.localPlayerId = null;
     this.localColorIndex = 0;
     this.localColor = MP.colors[0];
+    this.localBoatSkin = 'sunfire';
     this.isHost = false;
     this.localReady = false;
     this.playerName = 'Captain';
@@ -348,7 +351,7 @@ export class MultiplayerManager {
       this.localPlayerId = msg.playerId;
       this.localColorIndex = msg.colorIndex;
       this.localColor = msg.color;
-      this.localBoatSkin = msg.boatSkin || 'reefbreaker';
+      this.localBoatSkin = msg.boatSkin || 'sunfire';
       this.isHost = true;
       this.localReady = true;
       this.matchState = 'lobby';
@@ -376,7 +379,7 @@ export class MultiplayerManager {
       this.localPlayerId = msg.playerId;
       this.localColorIndex = msg.colorIndex;
       this.localColor = msg.color;
-      this.localBoatSkin = msg.boatSkin || 'reefbreaker';
+      this.localBoatSkin = msg.boatSkin || 'sunfire';
       this.isHost = !!msg.isHost;
       this.localReady = this.isHost;
       this.matchState = msg.matchState || 'lobby';
@@ -407,6 +410,7 @@ export class MultiplayerManager {
           isHost: this.isHost,
           players: msg.players,
           color: this.localColor,
+          boatSkin: this.localBoatSkin,
         });
       }
     });
@@ -720,13 +724,16 @@ export class MultiplayerManager {
   selectSkin(boatSkin, colorIndex) {
     if (this.mode !== 'online' || !this.net.isConnected) return;
     this.localBoatSkin = boatSkin;
-    this.localColorIndex = colorIndex;
-    this.localColor = MP.colors[colorIndex];
-    this.game.applySkinStyle(this.localColor.style, this.localColorIndex, this.localBoatSkin);
+    this.localColorIndex = (colorIndex !== undefined) ? colorIndex : -1;
+    this.localColor = (this.localColorIndex >= 0 && MP.colors[this.localColorIndex])
+      ? MP.colors[this.localColorIndex]
+      : { id: -1, name: 'Original', hex: '#ffd166', style: null };
+    const style = (this.localColorIndex >= 0 && this.localColor) ? this.localColor.style : null;
+    this.game.applySkinStyle(style, this.localColorIndex, this.localBoatSkin);
     this.net.send({
       type: 'selectSkin',
       boatSkin,
-      colorIndex,
+      colorIndex: this.localColorIndex,
     });
   }
 

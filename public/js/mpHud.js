@@ -276,34 +276,65 @@ export class MultiplayerHUD {
     const swatchesContainer = document.getElementById(`${prefix}-paint-swatches`);
     const optionsContainer = document.getElementById(prefix === 'mp-lobby' ? 'mp-lobby-boat-picker' : 'settings-online-boat-picker');
 
-    const currentSkin = this.mp.localBoatSkin || 'reefbreaker';
-    const currentColorIndex = this.mp.localColorIndex !== undefined ? this.mp.localColorIndex : 0;
-    const currentColor = MP.colors[currentColorIndex] || MP.colors[0];
+    const currentSkin = this.mp.localBoatSkin || 'sunfire';
+    const currentColorIndex = (this.mp.localColorIndex !== undefined) ? this.mp.localColorIndex : -1;
+    const currentBoatDef = (typeof MULTIPLAYER_BOATS !== 'undefined' ? MULTIPLAYER_BOATS.find(b => b.id === currentSkin) : null)
+      || (typeof MULTIPLAYER_BOATS !== 'undefined' ? MULTIPLAYER_BOATS[0] : null)
+      || { name: 'Sunfire (Hero Boat)', icon: '🔥', desc: 'The iconic Sunfire hero boat', themeColor: '#ff7a59', badge: 'ORIGINAL' };
 
-    const currentBoatDef = MULTIPLAYER_BOATS.find(b => b.id === currentSkin) || MULTIPLAYER_BOATS[0];
+    const isOriginal = (currentColorIndex === -1);
+    const customColor = (!isOriginal && typeof MP !== 'undefined' && MP.colors && MP.colors[currentColorIndex]) ? MP.colors[currentColorIndex] : null;
 
     // 1. Update Skin Toggle Button
     if (btnTitle) btnTitle.textContent = `Skin: ${currentBoatDef.name}`;
     if (btnIcon) btnIcon.textContent = currentBoatDef.icon;
-    if (btnDot) btnDot.style.backgroundColor = currentColor.hex || '#ff7a59';
-    if (btnColorName) btnColorName.textContent = currentColor.name || 'Color';
+    if (btnDot) btnDot.style.backgroundColor = customColor ? customColor.hex : (currentBoatDef.themeColor || '#ff9a3c');
+    if (btnColorName) btnColorName.textContent = customColor ? customColor.name : '✨ Original';
 
     // 2. Update Active Boat Preview Card
     if (activeIcon) activeIcon.textContent = currentBoatDef.icon;
     if (activeName) activeName.textContent = currentBoatDef.name;
     if (activeBadge) {
-      activeBadge.textContent = currentBoatDef.badge || 'PRO';
-      activeBadge.style.backgroundColor = currentColor.hex || '#ff8a3d';
+      activeBadge.textContent = customColor ? customColor.name.toUpperCase() : (currentBoatDef.badge || 'ORIGINAL');
+      activeBadge.style.backgroundColor = customColor ? customColor.hex : (currentBoatDef.themeColor || '#ff8a3d');
     }
-    if (activeDesc) activeDesc.textContent = currentBoatDef.desc || 'Multiplayer combat vessel';
+    if (activeDesc) {
+      activeDesc.textContent = customColor
+        ? `${currentBoatDef.desc} • Painted in ${customColor.name}`
+        : `${currentBoatDef.desc} • Original Handcrafted Palette`;
+    }
 
-    // 3. Render Paint Color Swatches
+    // 3. Render Paint Color Swatches: "✨ Original" + the 5 custom palettes
     if (swatchesContainer) {
       swatchesContainer.innerHTML = '';
+
+      // Original Theme swatch
+      const origSwatch = document.createElement('button');
+      origSwatch.type = 'button';
+      origSwatch.className = 'mp-paint-swatch-btn';
+      origSwatch.title = 'Original Handcrafted Theme (✨)';
+      origSwatch.style.background = currentBoatDef.themeColor || '#e8dac3';
+      origSwatch.style.color = '#fff';
+      origSwatch.style.textShadow = '0 1px 2px rgba(0,0,0,0.5)';
+      if (isOriginal) {
+        origSwatch.classList.add('active');
+        origSwatch.textContent = '✨ Orig ✓';
+      } else {
+        origSwatch.textContent = '✨ Orig';
+      }
+      origSwatch.addEventListener('click', (e) => {
+        e.stopPropagation();
+        this.mp.selectSkin(currentSkin, -1);
+        this.renderLobbyBoatPicker();
+        this.renderSettingsBoatPicker();
+      });
+      swatchesContainer.appendChild(origSwatch);
+
+      // Custom Color swatches: Sunfire, Azure, Jade, Violet, Rose
       MP.colors.forEach((c, idx) => {
         const swatch = document.createElement('button');
         swatch.type = 'button';
-        swatch.className = 'mp-paint-swatch-btn';
+        swatch.className = 'mp-paint-swatch-btn circle';
         swatch.style.backgroundColor = c.hex;
         swatch.title = `${c.name} (${c.icon || '🎨'})`;
         if (idx === currentColorIndex) {
@@ -328,9 +359,10 @@ export class MultiplayerHUD {
         const card = document.createElement('div');
         card.className = 'mp-skin-option-card';
         const isActive = (currentSkin === b.id);
+        const activeColor = customColor ? customColor.hex : (b.themeColor || '#ff8a3d');
         if (isActive) {
           card.classList.add('active');
-          card.style.borderColor = currentColor.hex || '#ff8a3d';
+          card.style.borderColor = activeColor;
         }
 
         const iconEl = document.createElement('div');
@@ -349,9 +381,9 @@ export class MultiplayerHUD {
 
         const badgeEl = document.createElement('span');
         badgeEl.className = 'mp-skin-option-badge';
-        badgeEl.textContent = b.badge || 'PRO';
+        badgeEl.textContent = b.badge || 'ORIGINAL';
         if (isActive) {
-          badgeEl.style.backgroundColor = currentColor.hex || '#ff8a3d';
+          badgeEl.style.backgroundColor = activeColor;
           badgeEl.style.color = '#fff';
         }
 
@@ -369,7 +401,8 @@ export class MultiplayerHUD {
         actionEl.className = 'mp-skin-option-action';
         actionEl.textContent = isActive ? 'Equipped ✓' : 'Select';
         if (isActive) {
-          actionEl.style.backgroundColor = currentColor.hex || '#22c55e';
+          actionEl.style.backgroundColor = activeColor;
+          actionEl.style.color = '#fff';
         }
 
         card.appendChild(iconEl);
@@ -379,11 +412,12 @@ export class MultiplayerHUD {
         card.addEventListener('click', (e) => {
           e.stopPropagation();
           if (currentSkin === b.id) {
-            // Clicked already equipped skin -> cycle to next paint color!
-            const nextColorIdx = (currentColorIndex + 1) % MP.colors.length;
+            // Clicked already equipped skin -> cycle paint: Original (-1) -> Sunfire (0) ... -> Rose (4) -> Original (-1)
+            let nextColorIdx = currentColorIndex + 1;
+            if (nextColorIdx >= MP.colors.length) nextColorIdx = -1;
             this.mp.selectSkin(b.id, nextColorIdx);
           } else {
-            // Clicked different skin -> equip it with current paint color!
+            // Clicked different skin -> equip it with current paint preference
             this.mp.selectSkin(b.id, currentColorIndex);
           }
           this.renderLobbyBoatPicker();
@@ -411,13 +445,23 @@ export class MultiplayerHUD {
   }
 
   updateReadyButtonUI() {
-    if (!this.elReadyBtn) return;
-    if (this.isReady) {
-      this.elReadyBtn.textContent = '❌ Cancel Ready';
-      this.elReadyBtn.classList.add('is-ready');
-    } else {
-      this.elReadyBtn.textContent = '✅ Ready';
-      this.elReadyBtn.classList.remove('is-ready');
+    const isHost = !!this.mp.isHost;
+    if (this.elReadyBtn) {
+      this.elReadyBtn.classList.toggle('hidden', isHost);
+      this.elReadyBtn.style.display = isHost ? 'none' : 'flex';
+      if (!isHost) {
+        if (this.isReady) {
+          this.elReadyBtn.textContent = '❌ Cancel Ready';
+          this.elReadyBtn.classList.add('is-ready');
+        } else {
+          this.elReadyBtn.textContent = '✅ Ready';
+          this.elReadyBtn.classList.remove('is-ready');
+        }
+      }
+    }
+    if (this.elStartMatchBtn) {
+      this.elStartMatchBtn.classList.toggle('hidden', !isHost);
+      this.elStartMatchBtn.style.display = isHost ? 'flex' : 'none';
     }
   }
 
@@ -490,7 +534,7 @@ export class MultiplayerHUD {
       const selfP = info.players?.find(p => p.id === this.mp.localPlayerId);
       const isHost = selfP ? !!selfP.isHost : (info.isHost ?? this.mp.isHost);
       this.mp.isHost = isHost;
-      this.isReady = isHost;
+      this.isReady = isHost ? true : (selfP ? !!selfP.ready : false);
       this.updateReadyButtonUI();
       this.renderLobbyBoatPicker();
       this.updateLobbyPlayerList(info.players);

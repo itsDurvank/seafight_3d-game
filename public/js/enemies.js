@@ -1,8 +1,8 @@
 import * as THREE from 'three';
-import { ENEMY_TYPES, WEAPONS, WORLD, DIFFICULTY as D, SWARM, ENEMY_SPEED, POTION, AI } from './config.js?v=orig_boost_formula';
+import { ENEMY_TYPES, WEAPONS, WORLD, DIFFICULTY as D, SWARM, ENEMY_SPEED, POTION, AI } from './config.js';
 import { Boat } from './boat.js';
 import { audio } from './audio.js';
-import { resolveCollisions } from './world.js';
+import { resolveCollisions, getObstacles } from './world.js';
 import { Helmsman } from './steering.js';
 
 const TAU = Math.PI * 2;
@@ -13,28 +13,11 @@ const angleDiff = (a, b) => ((b - a + Math.PI) % TAU + TAU) % TAU - Math.PI;
 const BAR_W = 5;
 const BAR_H = 0.55;
 
-// Everything a boat must steer around: dynamically reflects current islands and dock
-function getObstacles() {
-  const obs = [];
-  if (Array.isArray(WORLD.islands)) {
-    for (let i = 0; i < WORLD.islands.length; i++) {
-      const isl = WORLD.islands[i];
-      obs.push({ x: isl.x, z: isl.z, r: isl.r });
-    }
-  }
-  if (WORLD.dock) {
-    obs.push({ x: WORLD.dock.x, z: WORLD.dock.z, r: 8 });
-  }
-  return obs;
-}
-
 // A clear spot of open water (inside the sea, away from islands and the harbor).
 function freeSpot(x, z, margin = 28) {
   if (Math.hypot(x, z) > WORLD.radius - 70) return false;
   return getObstacles().every((o) => Math.hypot(x - o.x, z - o.z) > o.r + margin);
 }
-
-
 
 // How hard the swarm is hunting you right now (0..1): rises while you sit still.
 // HUNT.n = how many boats are currently going after you (used to keep the whole sea from piling on you).
@@ -42,13 +25,14 @@ export const HUNT = { k: 0, n: 0 };
 
 let UID = 0;
 
-const TACTICS = ['circle', 'rush', 'pass', 'flank', 'kite', 'disengage', 'ram'];
+const TACTICS = ['circle', 'rush', 'pass', 'flank', 'kite', 'disengage', 'ram', 'intercept', 'tail', 'pincer'];
 const TAC_TIME = {
   circle: [2, 3.5], rush: [1.8, 3.0], pass: [2, 3.5], flank: [2, 3.2], kite: [1.5, 2.5],
   disengage: [1.0, 1.8], ram: [1.8, 2.5], turnabout: [1.0, 1.8], counter: [1.4, 2.2],
+  intercept: [2.5, 4], tail: [3, 5], pincer: [2.5, 4],
 };
 // chance (x boostLove) that a tactic starts with a boost burst
-const TAC_BOOST = { rush: 0.45, flank: 0.35, pass: 0.3, ram: 10, counter: 0.35, kite: 0.2 };
+const TAC_BOOST = { rush: 0.45, flank: 0.35, pass: 0.3, ram: 10, counter: 0.35, kite: 0.2, intercept: 0.6, pincer: 0.4 };
 
 function pickWeighted(entries) { // [[key, weight], ...]
   let sum = 0;
@@ -73,29 +57,46 @@ export class Director {
 
   update(dt, enemies, player) {
     HUNT.k = 0.6 + clamp(((player.idle || 0) - 1.0) / 4, 0, 0.4);
-    this.timer -= dt;
-    if (this.timer > 0) return;
-    this.timer = 0.35;
+
     let n = 0;
     for (const e of enemies) if (e.alive && e.target && e.target.team === 'player') n++;
     HUNT.n = n;
+
+    this.pulse = (this.pulse ?? 6) - dt;
+    if (this.pulse <= 0) {
+      this.pulse = rand(7, 12);
+      const cap = Math.min(AI.playerCap || 3, 2);
+      if (player.alive && HUNT.n < cap) {
+        const c = enemies.filter(e => e.alive && e.mode !== 'flee' && e.hp / e.maxHp > 0.5 && e.target !== player);
+        c.sort((a, b) => Math.hypot(a.state.x - player.state.x, a.state.z - player.state.z)
+                       - Math.hypot(b.state.x - player.state.x, b.state.z - player.state.z));
+        if (c[0]) {
+          c[0].target = player; c[0].targetLock = rand(7, 10); c[0].mode = 'attack';
+          c[0].nextTac = Math.random() < 0.5 ? 'intercept' : 'tail'; c[0].tac = null;
+          HUNT.n++;
+        }
+      }
+    }
+    this.timer -= dt;
+    if (this.timer > 0) return;
+    this.timer = 0.35;
   }
 }
 
-// Where a sunk boat comes back: out of sight-ish, near the action, away from the other boats.
+// Where a sunk boat comes back: distributed in open water around its home island
 function pickRespawn(self, enemies, player) {
-  const px = player.state.x, pz = player.state.z;
-  let best = null, bestScore = -1;
+  const isl = self.island;
   for (let i = 0; i < 16; i++) {
-    const a = Math.random() * TAU, R = rand(SWARM.respawnRing[0], SWARM.respawnRing[1]);
-    const x = px + Math.cos(a) * R, z = pz + Math.sin(a) * R;
-    if (!freeSpot(x, z, 34)) continue;
+    const a = Math.random() * TAU, R = isl.r + rand(38, 75);
+    const x = isl.x + Math.cos(a) * R, z = isl.z + Math.sin(a) * R;
+    if (!freeSpot(x, z, 30)) continue;
     let md = 1e9;
     for (const o of enemies) if (o !== self && o.alive) md = Math.min(md, Math.hypot(x - o.state.x, z - o.state.z));
-    const sc = Math.min(md, 150) + Math.random() * 15; // prefer open water
-    if (sc > bestScore) { bestScore = sc; best = { x, z, yaw: Math.atan2(px - x, pz - z) + rand(-0.8, 0.8) }; }
+    if (md > 25) {
+      return { x, z, yaw: a + Math.PI / 2 + rand(-0.4, 0.4) };
+    }
   }
-  return best;
+  return self.spawnPoint();
 }
 
 // One AI boat. Every enemy boat is on its own team, so they fight each other as well as you, a bit like
@@ -131,10 +132,9 @@ export class EnemyBoat {
     this.hp = this.maxHp;
     // small boats 100%, big boats 70% of both cruise and boost speed (these are TOP speeds:
     // the actual throttle changes with what the boat is doing, see the speed section in update())
-    const sm = this.big ? ENEMY_SPEED.bigMul : 1;
-    this.spd = ENEMY_SPEED.cruise * sm;
-    this.boostSpd = ENEMY_SPEED.boost * sm;
-    this.maxRun = ENEMY_SPEED.cruise * ENEMY_SPEED.run * sm; // fastest it goes without boost, when hunting something quick
+    this.spd      = ENEMY_SPEED.cruise;
+    this.boostSpd = ENEMY_SPEED.boost;
+    this.maxRun   = ENEMY_SPEED.cruise * ENEMY_SPEED.run;      // 99
     this.wobPh = rand(0, TAU); // each boat drifts its throttle on its own slow rhythm
     this.wobRate = rand(0.25, 0.5);
     this.alive = true;
@@ -208,6 +208,7 @@ export class EnemyBoat {
     this.wpTimer = 0;
     this.noEnemyTimer = 0; // after wandering too far out, ignore other boats for a while and come back
     this.bumpCd = 0;
+    this.bumpScore = 0;
     this.rival = null;
     this.rivalTimer = 0;
     this.dodging = null; // the missile we are currently side-stepping
@@ -333,13 +334,21 @@ export class EnemyBoat {
     this.rival = foes[Math.floor(Math.random() * Math.min(2, foes.length))];
   }
 
-  // Roam: head for our rival or somebody else's fight, otherwise wander the arena.
+  // Roam: patrol around home island, duel a rival, or cruise the arena.
   pickWaypoint(player, all) {
     const s = this.state;
     this.wp = null;
     this.wpHunt = false;
-    if (Math.random() < AI.roamHunt) {
-      const pool = all.filter((o) => o !== this && o.alive && o.team !== this.team);
+    const roll = Math.random();
+    if (roll < 0.45) {
+      // 45% patrol own island territory
+      const isl = this.island;
+      const a = Math.random() * TAU, r = isl.r + rand(38, 85);
+      const x = isl.x + Math.cos(a) * r, z = isl.z + Math.sin(a) * r;
+      if (freeSpot(x, z)) this.wp = { x, z };
+    } else if (roll < 0.75) {
+      // 30% roam toward rival or another enemy boat
+      const pool = all.filter((o) => o !== this && o.alive && o.team !== this.team && o.team !== 'player');
       if (pool.length) {
         const o = (this.rival && this.rival.alive) ? this.rival : pool[Math.floor(Math.random() * pool.length)];
         for (let k = 0; k < 8; k++) {
@@ -350,6 +359,7 @@ export class EnemyBoat {
       }
     }
     if (!this.wp) {
+      // 25% wander open arena
       const ar = WORLD.arena;
       for (let tries = 0; tries < 10; tries++) {
         const ang = Math.random() * TAU, r = rand(ar.inner, ar.outer);
@@ -357,7 +367,7 @@ export class EnemyBoat {
         if (freeSpot(x, z)) { this.wp = { x, z }; break; }
       }
     }
-    this.wpTimer = rand(3, 6);
+    this.wpTimer = rand(3.5, 7);
     void s;
   }
 
@@ -371,7 +381,7 @@ export class EnemyBoat {
 
   // ------------------------------------------------------------ target choice
 
-  // Utility scoring: treats player and other ships equally, prioritizing whoever is closest
+  // Utility scoring: treats player and other ships naturally, engaging player on proximity or retaliation
   chooseTarget(player, all, hpR) {
     const s = this.state, ty = this.type;
     if (this.jitT <= 0) { this.jit = {}; this.jitT = rand(4, 8); }
@@ -382,23 +392,28 @@ export class EnemyBoat {
       const d = Math.hypot(t.state.x - s.x, t.state.z - s.z);
       if (d < 65) near++;
 
-      // Fair distance reach
-      const baseReach = ty.detect * (isP ? 1.3 : 1.5) * D.detectMul;
-      const reach = (t === this.target ? baseReach * 1.5 : baseReach);
-      if (d > reach) continue;
+      // Active combat detection reach:
+      // Player: engages actively when player enters local territory (< 135m), or if already targeting (< 220m)
+      // Enemies: fight each other across local sectors (< 220m)
+      const baseReach = isP ? (t === this.target ? 220 : 135) : Math.min(220, ty.detect * D.detectMul);
+      if (d > baseReach) continue;
 
-      let sc = AI.wProx * (1 - clamp(d / 280, 0, 1));
+      let sc = AI.wProx * (1 - clamp(d / 220, 0, 1));
 
       // Limit player hunters to playerCap (prevents all boats swarming and congesting on player)
       if (isP) {
         sc += this.playerBias;
         const others = HUNT.n - (this.target === t ? 1 : 0);
-        if (others >= AI.playerCap) {
-          sc -= 6.0; // soft cap: fight rivals instead so boats do not dogpile player
+        if (others >= (AI.playerCap || 3)) {
+          sc -= 8.0; // hard penalty: dogfight other enemy boats instead so boats do not dogpile player
         }
+        // When player gets close into their territory, attack!
+        if (d < 110) sc += 3.0;
       } else {
-        sc += 2.2; // strong base motivation to dogfight other enemy boats
-        if (t === this.rival) sc += 2.8; // rival dogfight motivation
+        sc += 2.6; // strong base motivation to dogfight other enemy boats
+        if (t === this.rival) sc += 3.0; // rival dogfight motivation
+        const toIsl = Math.hypot(s.x - this.island.x, s.z - this.island.z);
+        if (toIsl < this.island.r + 90) sc += 1.8; // defend island
       }
 
       // Wounded targets
@@ -555,6 +570,7 @@ export class EnemyBoat {
     const calm = tg.team === 'player' ? 1 - HUNT.k : 1; // no lulls for a sitting duck
     const canBoost = this.bEnergy >= D.boost.min * 1.2 && this.bCool <= 0;
     const cautious = this.stance === 'cautious', finisher = this.stance === 'finisher';
+    const mates = EnemyBoat.ctx?.enemies ? EnemyBoat.ctx.enemies.some(e => e !== this && e.alive && e.target === tg) : false;
     const w = [
       ['circle', 1.0 * (r < 1.8 ? 1 : 0.35)],
       ['rush', (0.35 + this.aggr) * (r > 1.15 ? 1.3 : 0.25) * (finisher ? 1.8 : 1)],
@@ -563,10 +579,13 @@ export class EnemyBoat {
       ['kite', (0.15 + (1 - this.aggr) * 0.9 + (cautious ? 0.8 : 0) + (this.crowd >= 3 ? 0.5 : 0)) * (r < 1.6 ? 1 : 0.35) * calm],
       ['disengage', (0.18 + (this.engagedT > 10 ? 0.7 : 0) + (this.crowd >= 4 ? 0.4 : 0) + (1 - this.aggr) * 0.2) * calm],
       ['ram', canBoost && hpR > 0.35 ? 0.3 * this.boostLove * (tg.big || tr < 0.35 ? 1.6 : 0.6) * (r > 1.2 && r < 4 ? 1 : 0.2) : 0],
+      ['intercept', r > 2.0 ? 1.8 * (0.5 + this.aggr) : 0],
+      ['tail', (facing < -0.2 ? 1.5 : 0.3) * (r < 2.2 ? 1 : 0.4)],
+      ['pincer', mates ? 1.6 : 0.3],
     ];
     const mm = this.mood === 'aggressive'
-      ? { rush: 1.3, pass: 1.3, ram: 1.3, flank: 1.1, circle: 0.9, kite: 0.6, disengage: 0.6 }
-      : { rush: 0.5, pass: 0.7, ram: 0.4, flank: 1.1, circle: 1.3, kite: 1.6, disengage: 1.3 };
+      ? { rush: 1.3, pass: 1.3, ram: 1.3, flank: 1.1, circle: 0.9, kite: 0.6, disengage: 0.6, intercept: 1.3, tail: 1.0, pincer: 1.2 }
+      : { rush: 0.5, pass: 0.7, ram: 0.4, flank: 1.1, circle: 1.3, kite: 1.6, disengage: 1.3, intercept: 0.6, tail: 1.1, pincer: 0.8 };
     for (const e of w) {
       e[1] *= this.taste[e[0]] * mm[e[0]];
       if (e[0] === this.lastTac) e[1] *= 0.3; // avoid doing the same thing twice in a row
@@ -598,7 +617,8 @@ export class EnemyBoat {
       icpt = Math.atan2(tg.state.x + Math.sin(tg.state.yaw) * tsp * lead - s.x, tg.state.z + Math.cos(tg.state.yaw) * tsp * lead - s.z);
     }
     const far = clamp((tdist - pref) / 140, 0, 1);
-    const chase = clamp(tsp + 14, spd, this.maxRun);
+    const gapK  = clamp((tdist - pref) / 120, 0, 1);
+    const chase = clamp(tsp + 18 + gapK * 40, spd, this.maxRun);
     const arrive = clamp(tsp * 0.9, spd * ENEMY_SPEED.circle, this.maxRun);
     const turnFight = spd * ENEMY_SPEED.circle;
     const aimErr = Math.abs(angleDiff(s.yaw, direct));
@@ -658,6 +678,32 @@ export class EnemyBoat {
         }
         if (tdist > pref * 2.3) end(pickWeighted([['rush', 1], ['flank', 0.8], ['circle', 0.5]]));
         break;
+      case 'intercept': {   // cut it off at its predicted position; boost if far
+        const T = clamp(tdist / Math.max(60, s.speed + tsp), 0, 3);
+        out.yaw = Math.atan2(tg.state.x + fx * tsp * T - s.x, tg.state.z + fz * tsp * T - s.z);
+        out.speed = this.bOn ? this.boostSpd : this.maxRun;
+        if (tdist < pref * 1.1) end(pickWeighted([['rush', 1], ['circle', 0.6], ['pass', 0.6]]));
+        break;
+      }
+      case 'tail': {        // sit behind its stern, match speed, guns on target
+        const bx = tg.state.x - fx * pref * 0.8, bz = tg.state.z - fz * pref * 0.8;
+        out.yaw = Math.atan2(bx - s.x, bz - s.z);
+        out.speed = clamp(tsp + (tdist - pref * 0.8) * 0.8, spd * 0.6, this.maxRun);
+        if (aimErr > 1.6 && tdist < pref * 1.5) end('turnabout');
+        break;
+      }
+      case 'pincer': {      // two boats take opposite sides of the same target
+        if (tac.age <= dt * 1.5) {
+          const mate = EnemyBoat.ctx?.enemies ? EnemyBoat.ctx.enemies.find(e => e !== this && e.alive && e.target === tg && e.tac) : null;
+          if (mate) tac.side = -(mate.tac.side || 1);
+        }
+        const ax = tg.state.x + fx * tsp * 0.8 + px * pref * 1.2;
+        const az = tg.state.z + fz * tsp * 0.8 + pz * pref * 1.2;
+        out.yaw = Math.atan2(ax - s.x, az - s.z);
+        out.speed = chase;
+        if (Math.hypot(ax - s.x, az - s.z) < 18 || tdist < pref * 0.7) end('rush');
+        break;
+      }
       case 'disengage': // break off, reposition
         out.yaw = Math.atan2(-tdx, -tdz) + tac.side * 0.9;
         out.speed = spd * 0.9;
@@ -791,7 +837,13 @@ export class EnemyBoat {
 
     const prev = this.target;
     const res = this.chooseTarget(player, all, hpR);
-    this.target = res.target;
+    const lockHeld = prev && prev.alive && this.targetLock > 0 && !this.hitEvent && this.lastStandT <= 0;
+    let effectiveLock = lockHeld;
+    if (effectiveLock && prev.team === 'player') {
+      const pdist = Math.hypot(prev.state.x - s.x, prev.state.z - s.z);
+      if (pdist > 220 && res.target && res.target.team !== 'player') effectiveLock = false;
+    }
+    this.target = effectiveLock ? prev : res.target;
     this.crowd = res.near;
     if (this.target !== prev) { this.targetLock = rand(AI.lockTime[0], AI.lockTime[1]); this.tac = null; this.engagedT = 0; }
 
@@ -855,6 +907,7 @@ export class EnemyBoat {
     this.evadeTimer -= dt;
     this.wpTimer -= dt;
     this.bumpCd -= dt;
+    this.bumpScore = Math.max(0, this.bumpScore - dt);
     this.noEnemyTimer -= dt;
     this.dodgeCd -= dt;
     this.fireDodgeCd -= dt;
@@ -1065,6 +1118,7 @@ export class EnemyBoat {
     // 1. Natural Island & Harbor Shore Avoidance
     // Repels outward into open water without forcing an artificial circular orbit trap
     const islandLookAhead = Math.max(45, curSpd * 1.6);
+    let islandPush = 0;
     for (const o of obstacles) {
       const toX = o.x - s.x, toZ = o.z - s.z;
       const d = Math.hypot(toX, toZ) || 0.001;
@@ -1091,6 +1145,7 @@ export class EnemyBoat {
       }
 
       const avoidWeight = Math.max(proxW, rayW);
+      islandPush = Math.max(islandPush, avoidWeight);
       if (avoidWeight > 0) {
         if (avoidWeight > 0.2) urgent = true;
 
@@ -1129,7 +1184,7 @@ export class EnemyBoat {
       if (o === this || !o.alive) continue;
       const dx = s.x - o.state.x, dz = s.z - o.state.z;
       const d = Math.hypot(dx, dz) || 0.001;
-      const margin = this.radius + o.radius + (o === tg ? 8 : Math.max(20, SWARM.personalSpace + 6));
+      const margin = this.radius + o.radius + (o === tg ? (tacName === 'ram' ? 0 : 8) : Math.max(20, SWARM.personalSpace + 6));
       if (d < margin) {
         const w = (margin - d) / margin;
         if (w > 0.35) urgent = true;
@@ -1148,15 +1203,6 @@ export class EnemyBoat {
         vx += (mdx / md) * w * 1.2; vz += (mdz / md) * w * 1.2;
       }
     }
-    if (this.mode === 'attack' && tg && tg.team !== 'player' && player.alive) {
-      const pdx = player.state.x - s.x, pdz = player.state.z - s.z;
-      const pd = Math.hypot(pdx, pdz) || 1;
-      const lim = SWARM.fightLeash * 1.1;
-      if (pd > lim) {
-        const w = clamp((pd - lim) / 120, 0, 1);
-        vx += (pdx / pd) * w * 1.2; vz += (pdz / pd) * w * 1.2;
-      }
-    }
 
     // 2. Predictive Map Edge Avoidance with Circular Perimeter Banking
     const fromMid = Math.hypot(s.x, s.z) || 1;
@@ -1164,11 +1210,12 @@ export class EnemyBoat {
     const aheadX = s.x + fx * edgeLookAhead;
     const aheadZ = s.z + fz * edgeLookAhead;
     const aheadFromMid = Math.hypot(aheadX, aheadZ);
-    const edgeWarnRadius = WORLD.radius - 85;
+    const outward = (s.x * fx + s.z * fz) > 0; // heading toward the edge
+    const edgeWarnRadius = WORLD.radius - 60;
     const effEdgeDist = Math.max(fromMid, aheadFromMid);
 
-    if (effEdgeDist > edgeWarnRadius) {
-      const edgeW = clamp((effEdgeDist - edgeWarnRadius) / 85, 0, 1);
+    if (outward && effEdgeDist > edgeWarnRadius) {
+      const edgeW = clamp((effEdgeDist - edgeWarnRadius) / 85, 0, 1) * (1 - islandPush);
       if (edgeW > 0.15) urgent = true;
 
       // Inward radial normal toward center of sea
@@ -1193,7 +1240,7 @@ export class EnemyBoat {
     desiredYaw = Math.atan2(vx, vz);
 
     const diff = angleDiff(s.yaw, desiredYaw);
-    const stab = 1 / (1 + Math.max(0, s.speed - 60) / 100); // fast boats turn wider
+    const stab = 1; // remove the speed-based turn penalty
     const maxTurn = ty.turn * D.turnMul * turnBoost * stab;
     const reactive = tacName === 'counter' || tacName === 'turnabout' || this.afterDodge;
     const hs = this.helm.step(dt, s.yaw, desiredYaw, {
@@ -1217,13 +1264,20 @@ export class EnemyBoat {
     if (resolveCollisions(s, this.radius, dt)) {
       this.islandGlideTimer = 1.0;
       s.speed = Math.max(34, spd * 0.55);
+      let nearestObs = null, minD = 1e9;
+      for (const o of obstacles) {
+        const d = Math.hypot(s.x - o.x, s.z - o.z) - o.r;
+        if (d < minD) { minD = d; nearestObs = o; }
+      }
+      this.bumpScore += 0.5;
+      if (this.bumpScore > 2) {
+        this.bumpScore = 0;
+        const o = nearestObs || { x: 0, z: 0 };
+        this.fleePt = { x: o.x, z: o.z }; // 'evade' runs AWAY from fleePt
+        this.mode = 'evade'; this.evadeTimer = 2.2; this.stopBoost();
+      }
       if (this.bumpCd <= 0) {
         this.bumpCd = 0.35;
-        let nearestObs = null, minD = 1e9;
-        for (const o of obstacles) {
-          const d = Math.hypot(s.x - o.x, s.z - o.z) - o.r;
-          if (d < minD) { minD = d; nearestObs = o; }
-        }
         const edgeD = WORLD.radius - Math.hypot(s.x, s.z);
         if (edgeD < minD) {
           const midD = Math.hypot(s.x, s.z) || 1;

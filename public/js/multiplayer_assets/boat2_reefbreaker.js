@@ -96,8 +96,8 @@ function finish(g, { flames: fl = [], under, mats = [], dome: dm, extra, fpvHide
 // side cannon pods with twin barrels, armoured ram bow. Faces +Z, muzzles at z = 3.9.
 export function buildReefbreakerBoat(style = {}) {
   const C = {
-    hull: style.hull ?? 0xff9a3c, chine: style.chine ?? 0xc2561f, accent: style.accent ?? 0xffe08a,
-    dark: style.dark ?? 0x39322e, neon: style.neon ?? 0xffb347, glass: style.glass ?? 0x8eeaff,
+    hull: style.hull ?? 0xfff4e0, chine: style.chine ?? 0xdce5e8, accent: style.accent ?? 0xff7a59,
+    dark: style.dark ?? 0x2b3440, neon: style.neon ?? 0x1fd1c9, glass: style.glass ?? 0x8eeaff,
   };
   const g = new THREE.Group(); g.rotation.order = 'YXZ';
 

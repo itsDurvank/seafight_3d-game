@@ -191,12 +191,14 @@ export function buildHeroBoatFPV(hero, style = {}) {
   const hudMat = new THREE.MeshBasicMaterial({ map: hudTex, transparent: true, depthTest: false, depthWrite: false, toneMapped: false });
   const hud = new THREE.Mesh(new THREE.PlaneGeometry(1, 1), hudMat);
   hud.renderOrder = 999; hud.position.set(0, 0, -1.6); hud.frustumCulled = false; // parented to the camera in mount()
+  hud.userData.isFPVHUD = true;
 
   const xc = document.createElement('canvas'); xc.width = xc.height = 128; const xx = xc.getContext('2d');
   const xTex = new THREE.CanvasTexture(xc); xTex.colorSpace = THREE.SRGBColorSpace;
   const aim = new THREE.Mesh(new THREE.PlaneGeometry(0.2, 0.2), new THREE.MeshBasicMaterial({
     map: xTex, transparent: true, depthTest: false, depthWrite: false, toneMapped: false }));
   aim.renderOrder = 999; aim.position.set(0, 0, -1.6); aim.frustumCulled = false; eye.add(aim);  // stays on the gun line when you look around
+  aim.userData.isFPVAim = true;
 
   let hudAspect = 0;
   const fitHUD = (camera) => {                                       // make the HUD plane exactly fill the view
@@ -210,7 +212,10 @@ export function buildHeroBoatFPV(hero, style = {}) {
     hud.scale.set(h * a, h, 1);
   };
 
+  let lastAimBoostK = -1;
   const drawAim = (boostK) => {
+    if (Math.abs(boostK - lastAimBoostK) < 0.01) return;
+    lastAimBoostK = boostK;
     xx.clearRect(0, 0, 128, 128);
     xx.strokeStyle = xx.fillStyle = '#39e6ff'; xx.lineWidth = 3; xx.shadowColor = '#39e6ff'; xx.shadowBlur = 6;
     xx.beginPath(); xx.arc(64, 64, 24 + boostK * 6, 0, Math.PI * 2); xx.stroke();
@@ -221,7 +226,15 @@ export function buildHeroBoatFPV(hero, style = {}) {
     xTex.needsUpdate = true;
   };
 
+  let lastSpd = -1, lastBst = -1, lastHp = -1, lastFl = -1;
   const drawHUD = (speed, speedK, boostK, flashK, boat) => {
+    const roundedSpeed = Math.round(speed);
+    const boostStep = Math.round(boostK * 25);
+    const hpStep = boat?.hp != null ? Math.round(boat.hp) : -1;
+    const flashStep = flashK > 0.01 ? Math.round(flashK * 10) : 0;
+    if (roundedSpeed === lastSpd && boostStep === lastBst && hpStep === lastHp && flashStep === lastFl) return;
+    lastSpd = roundedSpeed; lastBst = boostStep; lastHp = hpStep; lastFl = flashStep;
+
     const W = cv.width, H = cv.height, k = H / 981, Lo = u.hudLayout;   // k keeps the HUD at its original on-screen size
     cx.clearRect(0, 0, W, H);
     if (flashK > 0.01) { // damage flash: red glow in all four screen corners, middle of the view stays clear
@@ -269,16 +282,47 @@ export function buildHeroBoatFPV(hero, style = {}) {
   let boostK = 0, flashK = 0, fireT = 0, hudT = 0, steer = 0, cam = null, baseFov = 75;
   const u = g.userData;
   u.eye = eye;
+  u.hud = hud;
   u.hudLayout = { speed: [0.24, 0.68], boost: [0.75, 0.63], hull: [0.25, 0.41] };  // HUD element centres as fractions of the screen (x, y from top-left)
 
   u.mount = (camera) => {
-    cam = camera; eye.add(camera);
+    cam = camera;
+    // Strip ANY preexisting FPV HUD planes or orphaned HUD meshes attached to camera!
+    for (let i = camera.children.length - 1; i >= 0; i--) {
+      const c = camera.children[i];
+      if (c === hud || c.userData?.isFPVHUD || (c.material && (c.material === hudMat || c.material.map?.isCanvasTexture))) {
+        camera.remove(c);
+      }
+    }
+    eye.add(camera);
     camera.position.set(0, 0, 0); camera.rotation.set(0, 0, 0); camera.rotation.order = 'YXZ';
     camera.near = 0.05; baseFov = camera.fov; camera.updateProjectionMatrix();
     camera.add(hud); fitHUD(camera);
     return camera;
   };
-  u.unmount = () => { if (cam) { cam.remove(hud); eye.remove(cam); cam.fov = baseFov; cam.updateProjectionMatrix(); cam = null; } };
+  u.unmount = () => {
+    if (cam) {
+      cam.remove(hud);
+      for (let i = cam.children.length - 1; i >= 0; i--) {
+        const c = cam.children[i];
+        if (c === hud || c.userData?.isFPVHUD) {
+          cam.remove(c);
+        }
+      }
+      eye.remove(cam);
+      cam.fov = baseFov;
+      cam.updateProjectionMatrix();
+      cam = null;
+    }
+  };
+  u.dispose = () => {
+    u.unmount();
+    try {
+      hudTex.dispose();
+      hudMat.dispose();
+      xTex.dispose();
+    } catch {}
+  };
   u.setActive = (on) => {
     g.visible = on; hud.visible = on; aim.visible = on;
     (hero.userData.fpvHide || []).forEach((o) => { o.visible = !on; });
@@ -331,10 +375,10 @@ export function buildHeroBoatFPV(hero, style = {}) {
       const L = u.look;
       if (L.recenter && !L.active) { const k = 1 - Math.exp(-5 * dt); L.yaw -= L.yaw * k; L.pitch -= L.pitch * k; }
       cam.rotation.y = L.yaw; cam.rotation.x = L.pitch;
-      cam.rotation.z += (clamp(turn * 0.05, -0.07, 0.07) - cam.rotation.z) * (1 - Math.exp(-10 * dt));
-      const fov = baseFov + speedK * 4 + boostK * 9;
+      cam.rotation.z += (0 - cam.rotation.z) * (1 - Math.exp(-10 * dt));
+      const fov = baseFov + boostK * 9;
       if (Math.abs(cam.fov - fov) > 0.05) { cam.fov += (fov - cam.fov) * (1 - Math.exp(-8 * dt)); cam.updateProjectionMatrix(); }
-      fitHUD(cam); hud.rotation.z = -cam.rotation.z;                  // HUD stays level while the camera leans
+      fitHUD(cam); hud.rotation.z = -cam.rotation.z;
     }
   };
 

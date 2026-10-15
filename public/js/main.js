@@ -1,21 +1,21 @@
 import * as THREE from 'three';
 import './mapLoader.js'; // loads public/maps/default.json into WORLD before game initializes
-import { WORLD, BOAT, PLAYER, WEAPONS, COLORS, SWARM, KILL_REWARD, POTION, MP } from './config.js?v=pure_manual_guns_20261015';
+import { WORLD, BOAT, PLAYER, WEAPONS, COLORS, SWARM, KILL_REWARD, POTION, MP } from './config.js';
 import { createWater } from './waves.js';
 import { createSky } from './sky.js';
 import { createWorld, resolveCollisions } from './world.js';
-import { Boat, PLAYER_STYLE } from './boat.js?v=smooth_fpp_20261015';
+import { Boat, PLAYER_STYLE } from './boat.js';
 import { Wake } from './wake.js';
 import { Minimap } from './minimap.js';
-import { createInput } from './input.js';
+import { createInput, KEYBIND_DEFS, formatKeyName } from './input.js';
 import { createHud } from './hud.js';
-import { Combat } from './combat.js?v=pure_manual_guns_20261015';
+import { Combat } from './combat.js';
 import { Potions } from './potions.js';
-import { EnemyBoat, Director, HUNT } from './enemies.js?v=orig_boost_formula';
+import { EnemyBoat, Director, HUNT } from './enemies.js';
 import { audio } from './audio.js';
-import { NetworkClient } from './net.js?v=sg_20261015';
-import { MultiplayerManager } from './multiplayer.js?v=smooth_fpp_20261015';
-import { MultiplayerHUD } from './mpHud.js?v=skin_dropdown_20261015';
+import { NetworkClient } from './net.js';
+import { MultiplayerManager } from './multiplayer.js';
+import { MultiplayerHUD } from './mpHud.js';
 
 // ---------- renderer, scene, camera ----------
 const canvas = document.getElementById('game');
@@ -48,10 +48,18 @@ const sky = createSky(scene);
 const water = createWater(scene);
 const world = createWorld(scene);
 const input = createInput();
+window.__DEBUG = { input, get combat() { return combat; }, get boat() { return boat; }, get player() { return player; }, get enemies() { return enemies; }, get mp() { return mp; } };
 const hud = createHud();
 // browsers only start audio after a click or key press
 for (const ev of ['pointerdown', 'keydown']) addEventListener(ev, () => audio.init());
-input.onPress('KeyM', () => hud.toast(audio.toggleMute() ? '🔇 Sound off (M)' : '🔊 Sound on (M)', 1200));
+const toggleAudio = () => {
+  const isMuted = audio.toggleMute();
+  if (settingsAudioIcon) settingsAudioIcon.textContent = isMuted ? '🔇' : '🔊';
+  if (settingsAudioText) settingsAudioText.textContent = isMuted ? 'Sound: Muted (M)' : 'Sound: On (M)';
+  hud.toast(isMuted ? '🔇 Sound off (M)' : '🔊 Sound on (M)', 1200);
+};
+input.onPress('KeyM', toggleAudio);
+input.onAction('mute', toggleAudio);
 input.onWeapon(() => audio.click());
 
 // the controls tutorial lives behind a ? button (or the ? key)
@@ -60,6 +68,7 @@ const controls = document.getElementById('controls');
 const toggleHelp = () => controls.classList.toggle('hidden');
 helpBtn.addEventListener('click', toggleHelp);
 input.onPress('Slash', toggleHelp);
+input.onAction('help', toggleHelp);
 const combat = new Combat(scene);
 
 const boat = new Boat(scene);
@@ -77,10 +86,140 @@ const statusClassic = document.getElementById('status-classic');
 const settingsAudioBtn = document.getElementById('settings-audio-btn');
 const settingsAudioIcon = document.getElementById('settings-audio-icon');
 const settingsAudioText = document.getElementById('settings-audio-text');
+const settingsKeybindsBtn = document.getElementById('settings-keybinds-btn');
+const settingsKeybindsView = document.getElementById('settings-keybinds-view');
+const keybindsBackBtn = document.getElementById('keybinds-back-btn');
+const boostModeToggleBtn = document.getElementById('boost-mode-toggle-btn');
+const boostModeHoldBtn = document.getElementById('boost-mode-hold-btn');
+const boostModeDesc = document.getElementById('boost-mode-desc');
+const keybindsResetBtn = document.getElementById('keybinds-reset-btn');
+const keybindsList = document.getElementById('keybinds-list');
+let recordingAction = null;
 let mp = null;
 let mpHud = null;
 
+function renderKeybindsUI() {
+  if (!settingsKeybindsView || !keybindsList) return;
+  const currentBinds = input.getKeybinds();
+  const currentBoostMode = input.getBoostMode();
+
+  // 1. Boost Mode at the TOP
+  if (boostModeToggleBtn && boostModeHoldBtn) {
+    const isToggle = currentBoostMode === 'toggle';
+    boostModeToggleBtn.classList.toggle('active', isToggle);
+    boostModeHoldBtn.classList.toggle('active', !isToggle);
+    if (boostModeDesc) {
+      boostModeDesc.textContent = isToggle
+        ? 'Toggle: Press Shift once to start or stop boost.'
+        : 'Hold: Hold Shift down to surge; release to coast.';
+    }
+  }
+
+  // 2. Custom Keybutton Mapping Options below Boost Mode
+  keybindsList.innerHTML = '';
+  for (const def of KEYBIND_DEFS) {
+    const row = document.createElement('div');
+    row.className = 'keybind-row';
+
+    const info = document.createElement('div');
+    info.className = 'keybind-info';
+
+    const icon = document.createElement('span');
+    icon.className = 'keybind-icon';
+    icon.textContent = def.icon;
+
+    const labels = document.createElement('div');
+    labels.className = 'keybind-labels';
+
+    const name = document.createElement('div');
+    name.className = 'keybind-name';
+    name.textContent = def.name;
+
+    const desc = document.createElement('div');
+    desc.className = 'keybind-desc';
+    desc.textContent = def.desc;
+
+    labels.appendChild(name);
+    labels.appendChild(desc);
+    info.appendChild(icon);
+    info.appendChild(labels);
+
+    const badgeBtn = document.createElement('button');
+    badgeBtn.className = 'keybind-badge-btn';
+    badgeBtn.type = 'button';
+
+    const isRec = recordingAction === def.id;
+    if (isRec) {
+      badgeBtn.classList.add('recording');
+      badgeBtn.textContent = 'Press key...';
+    } else {
+      const boundKeys = currentBinds[def.id] || [];
+      const primaryKey = boundKeys[0];
+      badgeBtn.textContent = primaryKey ? formatKeyName(primaryKey) : 'None';
+    }
+
+    badgeBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      audio.click();
+      if (recordingAction === def.id) {
+        recordingAction = null;
+        renderKeybindsUI();
+        return;
+      }
+      recordingAction = def.id;
+      renderKeybindsUI();
+
+      const onKeyCapture = (evt) => {
+        evt.preventDefault();
+        evt.stopPropagation();
+        window.removeEventListener('keydown', onKeyCapture, true);
+        if (evt.code === 'Escape') {
+          recordingAction = null;
+          renderKeybindsUI();
+          return;
+        }
+        input.setKeybind(def.id, evt.code);
+        recordingAction = null;
+        audio.click();
+        hud.toast(`Bound ${def.name} to [${formatKeyName(evt.code)}]`, 1200);
+        renderKeybindsUI();
+      };
+
+      window.addEventListener('keydown', onKeyCapture, true);
+    });
+
+    row.appendChild(info);
+    row.appendChild(badgeBtn);
+    keybindsList.appendChild(row);
+  }
+}
+
+function openKeybindsView() {
+  if (!settingsKeybindsView) return;
+  const offlineView = document.getElementById('settings-offline-view');
+  const onlineView = document.getElementById('settings-online-view');
+  const titleEl = document.getElementById('settings-modal-title');
+  const tipEl = document.getElementById('settings-tip-text');
+
+  if (offlineView) offlineView.classList.add('hidden');
+  if (onlineView) onlineView.classList.add('hidden');
+  settingsKeybindsView.classList.remove('hidden');
+
+  if (titleEl) titleEl.textContent = '⌨️ Keybinds & Controls';
+  if (tipEl) tipEl.innerHTML = 'Click any key badge to customize your mapping!';
+
+  renderKeybindsUI();
+  audio.click();
+}
+
+function closeKeybindsView() {
+  if (settingsKeybindsView) settingsKeybindsView.classList.add('hidden');
+  updateSettingsUI();
+  audio.click();
+}
+
 function updateSettingsUI() {
+  if (settingsKeybindsView) settingsKeybindsView.classList.add('hidden');
   const isOnlineInRoom = !!(mp && mp.mode === 'online' && mp.roomCode);
   const offlineView = document.getElementById('settings-offline-view');
   const onlineView = document.getElementById('settings-online-view');
@@ -178,11 +317,13 @@ document.querySelectorAll('.skin-card').forEach((card) => {
 });
 
 // Quick toggle with 'O' key (offline only)
-input.onPress('KeyO', () => {
+const toggleSkinAction = () => {
   if (typeof mp !== 'undefined' && mp && mp.mode === 'online' && mp.roomCode) return;
   const next = boat.toggleSkin();
   applySkin(next);
-});
+};
+input.onPress('KeyO', toggleSkinAction);
+input.onAction('skin', toggleSkinAction);
 
 if (settingsAudioBtn) {
   settingsAudioBtn.addEventListener('click', () => {
@@ -193,15 +334,46 @@ if (settingsAudioBtn) {
   });
 }
 
+if (settingsKeybindsBtn) settingsKeybindsBtn.addEventListener('click', openKeybindsView);
+if (keybindsBackBtn) keybindsBackBtn.addEventListener('click', closeKeybindsView);
+
+if (boostModeToggleBtn) {
+  boostModeToggleBtn.addEventListener('click', () => {
+    input.setBoostMode('toggle');
+    audio.click();
+    hud.toast('🚀 Boost set to TOGGLE mode! (Tap Shift)', 1200);
+    renderKeybindsUI();
+  });
+}
+if (boostModeHoldBtn) {
+  boostModeHoldBtn.addEventListener('click', () => {
+    input.setBoostMode('hold');
+    audio.click();
+    hud.toast('⚡ Boost set to HOLD mode! (Hold Shift to boost)', 1200);
+    renderKeybindsUI();
+  });
+}
+
+if (keybindsResetBtn) {
+  keybindsResetBtn.addEventListener('click', () => {
+    input.resetKeybinds();
+    audio.click();
+    hud.toast('🔄 Keybinds reset to defaults!', 1400);
+    renderKeybindsUI();
+  });
+}
+
 updateSettingsUI();
 
 let kills = 0;
 let warned = false;
 let shake = 0;
 let missileCd = 0;
+let missileWarnTimer = 0;
 let gunTimer = 0;
 let gunSide = 1;
 let ramCd = 0;
+const enemyRamCds = new Map();
 let boostPuff = 0;
 let camYaw = boat.state.yaw;
 let wasBoosting = false;
@@ -304,8 +476,14 @@ const mainGame = {
   isFPV: () => isFPV,
   sink: (by, killerName, fromServer) => sink(by, killerName, fromServer),
   applySkinStyle: (style, colorIndex, boatSkin) => {
+    const wasInFPV = isFPV;
     boat.applyStyle(style, colorIndex, boatSkin);
-    if (isFPV && boat.fpv) {
+    if (wasInFPV && boat.fpv) {
+      for (let i = camera.children.length - 1; i >= 0; i--) {
+        if (camera.children[i].userData?.isFPVHUD) {
+          camera.remove(camera.children[i]);
+        }
+      }
       boat.fpv.userData.mount(camera);
       boat.fpv.userData.setActive(true);
     }
@@ -415,7 +593,7 @@ function respawnPlayer() {
 const angleDiff = (a, b) => ((b - a + Math.PI) % (Math.PI * 2) + Math.PI * 2) % (Math.PI * 2) - Math.PI;
 
 // Fighter-jet style: the missile locks onto the boat closest to your nose (inside a cone, within range) at launch,
-// tracks it for a short time, then flies on. No boat in the cone = no lock, it flies straight.
+// tracks it for a short time (2.5s), then flies on. No boat in the cone = no lock, it flies straight.
 function acquireLock() {
   const s = boat.state, W = WEAPONS.missile;
   let best = null, bestScore = 1e9;
@@ -424,10 +602,10 @@ function acquireLock() {
     if (!e.alive) continue;
     const dx = e.state.x - s.x, dz = e.state.z - s.z;
     const d = Math.hypot(dx, dz);
-    if (d > W.lockRange || d < 6) continue;
+    if (d > (W.lockRange || 360) || d < 4) continue;
     let off = Math.atan2(dx, dz) - s.yaw;
     off = Math.atan2(Math.sin(off), Math.cos(off));
-    if (Math.abs(off) > W.lockCone) continue;
+    if (Math.abs(off) > (W.lockCone || 1.25)) continue;
     const score = Math.abs(off) * 200 + d * 0.3; // prefer what you are aiming at, then what is closer
     if (score < bestScore) { bestScore = score; best = e; }
   }
@@ -441,7 +619,7 @@ function fireMissile() {
   combat.fireMissile('player', s.x + fx * 2.5, s.z + fz * 2.5, s.yaw, Math.max(WEAPONS.missile.speed, s.speed + 25), WEAPONS.missile, lock);
   audio.lock(!!lock);
   const targetLabel = lock ? (lock.name || lock.island?.enemyName || lock.type?.name) : null;
-  hud.toast(lock ? `🎯 Locked on ${targetLabel}!` : '🚀 No lock: aim at a boat', 900);
+  hud.toast(lock ? `🎯 Locked on ${targetLabel}! Tracking for 2.5s` : '🚀 No lock: aim at a boat', 1100);
   missileCd = WEAPONS.missile.cooldown;
 
   if (mp && mp.mode === 'online') {
@@ -449,7 +627,7 @@ function fireMissile() {
   }
 }
 
-// Shift: toggle the speed boost (8 s of energy; refills after 2 s of not boosting)
+// Shift: toggle or hold the speed boost (configured via Keybinds)
 const tryBoost = () => {
   if (!player.alive) return;
   const was = boat.boosting;
@@ -457,11 +635,30 @@ const tryBoost = () => {
   if (on) hud.toast('🔥 BOOST ON! Ram them!', 1200);
   else if (was) hud.toast('Boost off', 800);
 };
+
+const handleBoostAction = (isDown) => {
+  if (!player.alive) return;
+  const mode = input.getBoostMode();
+  if (mode === 'hold') {
+    if (isDown) {
+      const ok = boat.setBoost(true);
+      if (ok) hud.toast('🔥 BOOSTING! (Hold)', 900);
+    } else {
+      boat.setBoost(false);
+      hud.toast('Boost off', 600);
+    }
+  } else {
+    // Toggle Mode
+    if (isDown) tryBoost();
+  }
+};
+input.onBoostPress(handleBoostAction);
+
 input.onPress('ShiftLeft', tryBoost);
 input.onPress('ShiftRight', tryBoost);
 
 // Free fast travel home so nobody ever gets stuck
-input.onPress('KeyH', () => {
+const travelHome = () => {
   if (!player.alive) return;
   const home = WORLD.islands.find((i) => i.home);
   const len = Math.hypot(home.x, home.z) || 1;
@@ -469,7 +666,9 @@ input.onPress('KeyH', () => {
   boat.teleport(home.x + dx * (home.r + 8), home.z + dz * (home.r + 8), Math.atan2(dx, dz));
   camYaw = boat.state.yaw;
   hud.toast('Welcome home! Your resort will grow here.', 3000);
-});
+};
+input.onPress('KeyH', travelHome);
+input.onAction('home', travelHome);
 
 // Toggle first-person cockpit perspective (V)
 function setFPV(active, showToast = true) {
@@ -482,6 +681,11 @@ function setFPV(active, showToast = true) {
     if (!fpv) return;
     isFPV = true;
     camera.fov = 75;
+    for (let i = camera.children.length - 1; i >= 0; i--) {
+      if (camera.children[i].userData?.isFPVHUD) {
+        camera.remove(camera.children[i]);
+      }
+    }
     fpv.userData.mount(camera);
     fpv.userData.setActive(true);
     document.body.classList.add('fpv-mode');
@@ -494,6 +698,11 @@ function setFPV(active, showToast = true) {
     if (fpv) {
       fpv.userData.setActive(false);
       fpv.userData.unmount();
+    }
+    for (let i = camera.children.length - 1; i >= 0; i--) {
+      if (camera.children[i].userData?.isFPVHUD) {
+        camera.remove(camera.children[i]);
+      }
     }
     scene.add(camera);
     camera.near = 0.5;
@@ -517,6 +726,7 @@ function toggleFPV() {
 }
 
 input.onPress('KeyV', toggleFPV);
+input.onAction('fpv', toggleFPV);
 
 let isFreeLooking = false;
 addEventListener('pointerdown', (e) => {
@@ -670,8 +880,16 @@ function frame() {
         }
       }
     }
-    // The missile fires whenever it is ready and the button is down.
-    if (controlsActive && input.state.fire && input.state.weapon === 'missile' && missileCd <= 0) fireMissile();
+    // The missile fires whenever it is ready and fire button/key is triggered.
+    missileWarnTimer -= dt;
+    if (controlsActive && input.state.fire && input.state.weapon === 'missile') {
+      if (missileCd <= 0) {
+        fireMissile();
+      } else if (missileWarnTimer <= 0) {
+        missileWarnTimer = 1.0;
+        hud.toast(`⏳ Missile reloading (${missileCd.toFixed(1)}s)! Press 1 for Machine Gun`, 1100);
+      }
+    }
 
     // boost exhaust
     if (boat.boosting) {
@@ -763,8 +981,8 @@ function frame() {
         e.state.x -= nx * push * 0.4; e.state.z -= nz * push * 0.4;
         if (ramCd <= 0 && boat.boosting) {
           ramCd = 0.9;
-          e.takeDamage(e.maxHp * BOAT.boostRamEnemyPct, 'player');
-          player.takeDamage(player.maxHp * BOAT.boostRamSelfPct, e.team);
+          e.takeDamage(Math.min(e.maxHp * BOAT.boostRamEnemyPct, e.maxHp * 0.15), 'player');
+          player.takeDamage(Math.min(player.maxHp * BOAT.boostRamSelfPct, player.maxHp * 0.15), e.team);
           combat.explode(s.x - nx * 2, s.z - nz * 2, 5, 0.4);
           combat.ring(s.x - nx * 2, s.z - nz * 2, 9, 0.45, 0xffffff, 0.8);
           shake = Math.max(shake, 1.0);
@@ -772,12 +990,18 @@ function frame() {
         } else if (ramCd <= 0 && s.speed > 22) {
           ramCd = 0.9;
           const hit = s.speed;
-          e.takeDamage(Math.min(hit * 0.8, e.maxHp * 0.3), 'player'); // a ram never takes more than 30% of a boat's health
-          player.takeDamage(hit * 0.12, e.team);
+          e.takeDamage(Math.min(hit * 0.8, e.maxHp * 0.15), 'player'); // capped at 15% of max HP
+          player.takeDamage(Math.min(hit * 0.12, player.maxHp * 0.15), e.team);
           combat.explode(s.x + nx * -2, s.z + nz * -2, 4, 0.35);
           shake = Math.max(shake, 0.8);
           s.speed *= 0.6;
           boat.top = Math.max(BOAT.baseTop, boat.top - 8);
+        } else if (ramCd <= 0 && e.bOn) {            // enemy rammed us while boosting
+          ramCd = 0.9;
+          player.takeDamage(player.maxHp * 0.12, e.team);   // player.takeDamage already respects invuln
+          e.takeDamage(e.maxHp * 0.05, null);
+          combat.explode(s.x, s.z, 4, 0.35); shake = Math.max(shake, 0.9);
+          s.speed *= 0.85;
         }
       }
     }
@@ -793,6 +1017,25 @@ function frame() {
         const push = (min - d) / 2;
         a.state.x += (dx / d) * push; a.state.z += (dz / d) * push;
         b.state.x -= (dx / d) * push; b.state.z -= (dz / d) * push;
+
+        const pairKey = `${i}_${j}`;
+        const cd = enemyRamCds.get(pairKey) || 0;
+        if (cd <= t && (a.bOn || b.bOn)) {
+          enemyRamCds.set(pairKey, t + 0.9);
+          if (a.bOn && !b.bOn) {
+            b.takeDamage(Math.min(b.maxHp * 0.15, b.maxHp * 0.15), a.team);
+            a.takeDamage(Math.min(a.maxHp * 0.05, a.maxHp * 0.15), null);
+            combat.explode(b.state.x, b.state.z, 3.5, 0.3);
+          } else if (b.bOn && !a.bOn) {
+            a.takeDamage(Math.min(a.maxHp * 0.15, a.maxHp * 0.15), b.team);
+            b.takeDamage(Math.min(b.maxHp * 0.05, b.maxHp * 0.15), null);
+            combat.explode(a.state.x, a.state.z, 3.5, 0.3);
+          } else if (a.bOn && b.bOn) {
+            a.takeDamage(Math.min(a.maxHp * 0.10, a.maxHp * 0.15), b.team);
+            b.takeDamage(Math.min(b.maxHp * 0.10, b.maxHp * 0.15), a.team);
+            combat.explode((a.state.x + b.state.x) * 0.5, (a.state.z + b.state.z) * 0.5, 4, 0.35);
+          }
+        }
       }
     }
 

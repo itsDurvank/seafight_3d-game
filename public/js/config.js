@@ -61,25 +61,25 @@ export const WORLD = {
 };
 
 export const BOAT = {
-  baseTop: 100, // normal cruising speed
-  topCap: 128, // normal top speed: climbs from baseTop to this flat out
-  topGain: 10, // top speed gained per second while sailing flat out
-  topDecay: 3, // top speed lost per second when you let go of W
+  baseTop: 90, // normal cruising speed
+  topCap: 110, // normal top speed: climbs from baseTop to this flat out
+  topGain: 6, // top speed gained per second while sailing flat out
+  topDecay: 4, // top speed lost per second when you let go of W
   pull: 2.2, // how quickly speed catches up to the top speed
   maxReverse: 5,
   accel: 9,
   drag: 0.5,
-  turnRate: 1.8, // radians per second at full grip
+  turnRate: 1.7, // radians per second at full grip
   radius: 2.4, // collision radius
   // Shift boost
-  boostTime: 8, // seconds of boost energy (toggle with Shift)
-  boostRefillDelay: 2, // seconds without boosting before the energy starts refilling
-  boostRefillTime: 4, // seconds to refill a completely empty boost meter
+  boostTime: 5, // seconds of boost energy (toggle with Shift)
+  boostRefillDelay: 2.5, // seconds without boosting before the energy starts refilling
+  boostRefillTime: 7, // seconds to refill a completely empty boost meter
   boostMin: 0.6, // minimum energy (seconds) needed to switch the boost on
   boostMul: 1.3, // top speed multiplier while boosting
-  boostAdd: 14, // flat extra speed on top of that
+  boostAdd: 8, // flat extra speed on top of that
   boostPull: 1.6, // how fast speed ramps up into the boost
-  boostMax: 170, // absolute speed limit while boosting
+  boostMax: 150, // absolute speed limit while boosting
   boostRamp: 0.5, // seconds of ease-in at boost start
   boostMinAccel: 25, // units/s^2 floor so the surge never crawls
   brakeMin: 12, // Space slows you down to about this speed
@@ -106,10 +106,10 @@ export const WEAPONS = {
   // fire (inside `lockCone` radians either side of your heading, within `lockRange`), steers at it for
   // `track` seconds, then goes ballistic. It also loses the lock if the target slips outside `loseCone`
   // (it can't turn that hard). A dodged missile just flies on and blows up on whatever island is in the way.
-  missile: { cooldown: 5, speed: 60, maxSpeed: 210, accel: 65, turn: 1.35, homing: true, track: 2.2, loseCone: 1.0, lockCone: 0.38, lockRange: 280, dmg: 70, blast: 11, life: 5 }, // burst weapon
+  missile: { cooldown: 5, speed: 60, maxSpeed: 215, accel: 68, turn: 3.2, homing: true, track: 2.5, loseCone: 2.8, lockCone: 1.25, lockRange: 360, dmg: 70, blast: 11, life: 5 }, // burst weapon
   enemyBullet: { speed: 120, life: 1.4 }, // shots inherit boat speed
   // Enemy missile: small boats 50 DMG (50% player HP), big boats 58 DMG (heavy hit)
-  enemyMissile: { speed: 58, maxSpeed: 195, accel: 60, turn: 1.30, homing: true, track: 2.0, loseCone: 0.95, dmg: 50, dmgSmall: 50, dmgBig: 58, blast: 10, life: 5 },
+  enemyMissile: { speed: 58, maxSpeed: 195, accel: 60, turn: 1.80, homing: true, track: 2.2, loseCone: 2.2, dmg: 50, dmgSmall: 50, dmgBig: 58, blast: 10, life: 5 },
 };
 
 // One enemy boat type per island.
@@ -118,35 +118,35 @@ export const WEAPONS = {
 // - Machine gun: 3.6 DMG per bullet (player: 4.0 DMG)
 export const ENEMY_TYPES = {
   skiff: {
-    name: 'Mango Skiff', boost: 1.75, hp: 76, speed: 28, turn: 2.3, scale: 0.85, radius: 2.4,
+    name: 'Mango Skiff', boost: 1.75, hp: 76, speed: 28, turn: 1.7, scale: 0.85, radius: 2.4,
     pref: 28, range: 75, detect: 300,
     gun: { rate: 0.12, burst: 6, pause: 0.65, dmg: 3.6, spread: 0.05 },
     missile: { cd: 7 },
     style: { hull: 0xffa62b, accent: 0xffffff, cabin: 0xffe0a3, roof: 0xff7a1a, flag: 0xffffff, look: 'sail' },
   },
   cruiser: {
-    name: 'Coral Cruiser', boost: 1.3, hp: 110, speed: 18, turn: 1.2, scale: 1.5, radius: 3.6,
+    name: 'Coral Cruiser', boost: 1.3, hp: 110, speed: 18, turn: 1.7, scale: 1.5, radius: 3.6,
     pref: 44, range: 85, detect: 300,
     gun: { rate: 0.14, burst: 6, pause: 0.6, dmg: 4.0, spread: 0.05 },
     missile: { cd: 5.5 },
     style: { hull: 0xff7aa8, accent: 0xfff0f5, cabin: 0xffc2d6, roof: 0xe84a82, flag: 0xffffff, look: 'pod' },
   },
   raider: {
-    name: 'Violet Raider', boost: 1.7, hp: 84, speed: 32, turn: 2.1, scale: 1.0, radius: 2.6,
+    name: 'Violet Raider', boost: 1.7, hp: 84, speed: 32, turn: 1.7, scale: 1.0, radius: 2.6,
     pref: 32, range: 78, detect: 300,
     gun: { rate: 0.12, burst: 6, pause: 0.6, dmg: 3.6, spread: 0.05 },
     missile: { cd: 6 },
     style: { hull: 0x8e6bff, accent: 0x39e6ff, cabin: 0xd9ccff, roof: 0x5b3fd1, flag: 0x39e6ff, look: 'raider' },
   },
   gunboat: {
-    name: 'Jade Gunboat', boost: 1.45, hp: 110, speed: 22, turn: 1.5, scale: 1.25, radius: 3.1,
+    name: 'Jade Gunboat', boost: 1.45, hp: 110, speed: 22, turn: 1.7, scale: 1.25, radius: 3.1,
     pref: 38, range: 82, detect: 300,
     gun: { rate: 0.14, burst: 6, pause: 0.6, dmg: 4.0, spread: 0.05, twin: true },
     missile: { cd: 5.5 },
     style: { hull: 0x1fb36b, accent: 0xfff3b0, cabin: 0xc8f5dc, roof: 0x0b7d49, flag: 0xfff3b0, look: 'twin' },
   },
   dread: {
-    name: 'Sunset Dreadnought', boost: 1.25, hp: 110, speed: 18, turn: 1.0, scale: 1.8, radius: 4.2,
+    name: 'Sunset Dreadnought', boost: 1.25, hp: 110, speed: 18, turn: 1.7, scale: 1.8, radius: 4.2,
     pref: 48, range: 90, detect: 300,
     gun: { rate: 0.12, burst: 8, pause: 0.6, dmg: 4.0, spread: 0.05 },
     missile: { cd: 5.5 },
@@ -154,16 +154,16 @@ export const ENEMY_TYPES = {
   },
 };
 
-// Enemy speed: still below the player, with a 5% speed bump across cruise/boost
+// Enemy speed: exactly 10% below the player across all boats
 export const ENEMY_SPEED = {
-  cruise: 71.82,
-  run: 1.50,
-  boost: 151.2,
-  bigMul: 0.85,
-  circle: 0.72,
-  roam: 0.85, // active cruising towards action
-  backoff: 0.80,
-  wobble: 0.05,
+  cruise: 81,
+  run: 1.222,
+  boost: 135,
+  bigMul: 1.0,
+  roam: 0.95,
+  circle: 0.8,
+  backoff: 0.85,
+  wobble: 0.03,
 };
 
 // Rewards for sinking a boat
@@ -190,21 +190,21 @@ export const AI = {
   seekHp: [0.55, 0.80],
   recoverHp: [0.50, 0.75],
   lastStand: [6, 12],
-  lockTime: [2.5, 5.0],
+  lockTime: [4, 8],
   roamHunt: 0.95, // almost always sails towards active fights
   aimCone: 1.35, // generous firing cone so guns stay active
   aimConeOpp: 1.15, // wide firing cone for passing shots
   gunPause: [0.35, 0.65], // rapid burst recovery
   wProx: 3.0, wWeak: 1.4, wBusy: 0.85, wThreat: 1.3, wSticky: 0.5, wGrudge: 2.0,
-  wCrowd: 0.5, playerCap: 2, // cap player hunters to 2 so remaining 6 boats duel each other (prevents congesting the player!)
+  wCrowd: 0.5, playerCap: 3,
   steer: {
     gain: 2.1,
     accel: 2.4,
     snapAccel: 3.4,
     meander: 0.16,
-    cruise: { factor: 0.40, dz: 0.18, t: [1.6, 3.2] },
-    sweep: { factor: 0.70, dz: 0.06, t: [1.8, 3.8] },
-    snap: { factor: 0.92, dz: 0.02, t: [0.5, 0.9], cooldown: [2.0, 4.0] },
+    cruise: { factor: 0.7, dz: 0.18, t: [1.6, 3.2] },
+    sweep: { factor: 0.95, dz: 0.06, t: [1.8, 3.8] },
+    snap: { factor: 1.0, dz: 0.02, t: [0.5, 0.9], cooldown: [2.0, 4.0] },
   },
   mood: { time: [3.0, 6.0], defRange: 1.10, defWeave: 1.35, atkWeave: 0.75 },
 };
@@ -235,8 +235,8 @@ export const SWARM = {
 export const DIFFICULTY = {
   hp: 1.0, // uses scaled HP directly
   bigHp: 1.0,
-  speed: 1.0, // uses 71.82 cruise / 107.73 chase / 151.2 boost directly
-  dmg: 1.0, // uses 3.6 bullet DMG / 63 missile DMG directly
+  speed: 1.0,
+  dmg: 1.0,
   dmgVsEnemy: 1.0,
   aim: 0.80, // sharp, accurate tracking
   hitbox: 1.15,
@@ -245,11 +245,11 @@ export const DIFFICULTY = {
   dodgeReact: 0.28,
   dodgeCooldown: 4.5,
   rammerReact: 0.65,
-  // Enemy boost: 7.2s meter (exactly 10% less than player's 8.0s)
+  // Enemy boost: 7.2s meter
   boost: { time: 7.2, min: 1.0, minOn: 0.6, offenseMax: 2.5, burstGap: [3.5, 6.5], refillDelay: 2.0, refillTime: 6.0 },
-  turnMul: 0.92,
-  turnDrag: 0.15,
-  minCombatSpeed: 0.52,
+  turnMul: 0.9,
+  turnDrag: 0.10,
+  minCombatSpeed: 0.6,
   dodgeRange: 110,
   respawn: 5.0, // fast respawn to keep combat intense
   retreatHp: 0.18,
@@ -270,7 +270,7 @@ export const MP = {
   orbLifetime: 95,          // seconds before an unclaimed orb expires
   maxNameLength: 16,
   colors: [
-    { id: 0, name: 'Sunfire', hex: '#ff7a59', icon: '🔥', style: { hull: 0xff7a59, chine: 0xdce5e8, accent: 0xffe066, roof: 0xd9532f, flag: 0xffe066, cabin: 0xfff4e0, dark: 0x2b3440, neon: 0xff7a59 } },
+    { id: 0, name: 'Sunfire', hex: '#ff7a59', icon: '🔥', style: { hull: 0xfff4e0, chine: 0xdce5e8, accent: 0xff7a59, roof: 0xff8a3d, flag: 0xffe066, cabin: 0xff7a59, dark: 0x2b3440, neon: 0x1fd1c9 } },
     { id: 1, name: 'Azure', hex: '#1fd1c9', icon: '💧', style: { hull: 0x1fd1c9, chine: 0xb5dff5, accent: 0x69c0ff, roof: 0x0fa8a0, flag: 0xbae7ff, cabin: 0xe6f7ff, dark: 0x1b2838, neon: 0x40a9ff } },
     { id: 2, name: 'Jade', hex: '#1fb36b', icon: '🌿', style: { hull: 0x1fb36b, chine: 0xc6f6d5, accent: 0xa7f3d0, roof: 0x137948, flag: 0xd9f99d, cabin: 0xf0fff4, dark: 0x1c3326, neon: 0x48bb78 } },
     { id: 3, name: 'Violet', hex: '#9a86ff', icon: '⚡', style: { hull: 0x9a86ff, chine: 0xdcd0ff, accent: 0xf472b6, roof: 0x6941c6, flag: 0xe9d5ff, cabin: 0xf8f5ff, dark: 0x2e1b4d, neon: 0xc084fc } },

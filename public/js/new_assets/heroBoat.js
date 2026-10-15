@@ -11,7 +11,7 @@ const glow = (color, opacity = 1, additive = false) => new THREE.MeshBasicMateri
 });
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 
-// Loft a hull from cross-sections: [z, halfWidth, deckY, keelY]. Real boat silhouette, flat-shaded facets.
+// Loft a continuous band/rail or keel from cross-sections
 function loft(stations, color, { bottomTaper = 0.7, widen = 1, band = 0 } = {}) {
   const sec = ([z, hw, top, bot]) => {
     const a = hw * widen, b = hw * bottomTaper * widen;
@@ -22,21 +22,82 @@ function loft(stations, color, { bottomTaper = 0.7, widen = 1, band = 0 } = {}) 
   const tri = (p, q, r) => pos.push(...p, ...q, ...r);
   for (let i = 0; i < S.length - 1; i++) {
     for (let k = 0; k < 4; k++) {
+      // When lofting a side rub rail (band > 0), only draw starboard (k=1) and port (k=3) flanks.
+      // Do NOT draw k=0 (deck) or k=2 (belly), which would occlude the cream deck!
+      if (band && (k === 0 || k === 2)) continue;
       const a = S[i][k], b = S[i][(k + 1) % 4], c = S[i + 1][(k + 1) % 4], d = S[i + 1][k];
       tri(a, b, c); tri(a, c, d);
     }
   }
-  const s0 = S[0]; tri(s0[0], s0[1], s0[2]); tri(s0[0], s0[2], s0[3]); // stern cap
+  if (!band) {
+    const s0 = S[0]; tri(s0[0], s0[1], s0[2]); tri(s0[0], s0[2], s0[3]); // stern cap
+  }
   const geo = new THREE.BufferGeometry();
   geo.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
   geo.computeVertexNormals();
   return new THREE.Mesh(geo, std(color, { side: THREE.DoubleSide }));
 }
 
+// Two-tone hull builder: clean cream deck surface on top + light-grey chine facets on flanks and belly
+function loftHull(stations, deckColor, chineColor) {
+  const sec = ([z, hw, top, bot]) => {
+    const a = hw, b = hw * 0.7;
+    return [[-a, top, z], [a, top, z], [b, bot, z], [-b, bot, z]];
+  };
+  const S = stations.map(sec);
+  const posDeck = [];
+  const posSides = [];
+  const tri = (arr, a, b, c) => arr.push(...a, ...b, ...c);
+
+  for (let i = 0; i < S.length - 1; i++) {
+    const a = S[i];
+    const b = S[i + 1];
+    // k = 0: deck (top surface) in deckColor (clean cream/beige)
+    tri(posDeck, a[0], a[1], b[1]);
+    tri(posDeck, a[0], b[1], b[0]);
+
+    // k = 1: starboard flank in chineColor
+    tri(posSides, a[1], a[2], b[2]);
+    tri(posSides, a[1], b[2], b[1]);
+
+    // k = 2: underbelly in chineColor
+    tri(posSides, a[2], a[3], b[3]);
+    tri(posSides, a[2], b[3], b[2]);
+
+    // k = 3: port flank in chineColor
+    tri(posSides, a[3], a[0], b[0]);
+    tri(posSides, a[3], b[0], b[3]);
+  }
+  // stern cap in chineColor
+  const s0 = S[0];
+  tri(posSides, s0[0], s0[1], s0[2]);
+  tri(posSides, s0[0], s0[2], s0[3]);
+
+  const geoDeck = new THREE.BufferGeometry();
+  geoDeck.setAttribute('position', new THREE.Float32BufferAttribute(posDeck, 3));
+  geoDeck.computeVertexNormals();
+  const deckMesh = new THREE.Mesh(geoDeck, std(deckColor, { side: THREE.DoubleSide }));
+
+  const geoSides = new THREE.BufferGeometry();
+  geoSides.setAttribute('position', new THREE.Float32BufferAttribute(posSides, 3));
+  geoSides.computeVertexNormals();
+  const sidesMesh = new THREE.Mesh(geoSides, std(chineColor, { side: THREE.DoubleSide }));
+
+  const g = new THREE.Group();
+  g.add(deckMesh, sidesMesh);
+  return { group: g, deckMesh, sidesMesh };
+}
+
 export function buildHeroBoat(style = {}) {
   const C = {
-    hull: style.hull ?? 0xfff4e0, accent: style.accent ?? 0xff7a59, roof: style.roof ?? 0xff8a3d,
-    flag: style.flag ?? 0xffe066, cabin: style.cabin ?? 0xffd9a0, dark: 0x3b4452, neon: 0x39e6ff,
+    hull: style.hull ?? 0xfff4e0,       // warm cream deck & hydrofoil wings (--cream)
+    chine: style.chine ?? 0xdce5e8,     // light chine facets below rail
+    accent: style.accent ?? 0xff7a59,   // warm coral orange rail & accents (--wood)
+    roof: style.roof ?? 0xd9803f,       // rich wood tail fin & cap (--wood)
+    flag: style.flag ?? 0xffe066,       // golden yellow pennant (--rope)
+    cabin: style.cabin ?? (style.accent ?? 0xff7a59),     // rich coral orange cabin under dome
+    dark: style.dark ?? 0x2b3440,       // deep ink graphite guns, pods, keel (--ink)
+    neon: style.neon ?? 0x1fd1c9,       // luminous UI teal (--teal)
   };
   const g = new THREE.Group();
   g.rotation.order = 'YXZ';
@@ -47,18 +108,19 @@ export function buildHeroBoat(style = {}) {
   };
   const flashMats = [];
 
-  // ---- hull: lofted body + gunwale rail + keel ----
+  // ---- hull: two-tone body (cream deck + light chine) + coral rail + ink keel ----
   const st = [[-2.6, 1.0, 0.65, -0.2], [-1.8, 1.15, 0.65, -0.25], [-0.4, 1.15, 0.7, -0.25],
               [1.0, 1.0, 0.7, -0.15], [2.4, 0.62, 0.68, 0.0], [3.5, 0.28, 0.7, 0.25], [4.4, 0.04, 0.75, 0.5]];
-  const hull = loft(st, C.hull); g.add(hull);
+  const { group: hullGroup, deckMesh, sidesMesh } = loftHull(st, C.hull, C.chine);
+  g.add(hullGroup);
   const rail = loft(st, C.accent, { band: 0.2, widen: 1.03 }); g.add(rail);
   const keel = loft(st.map(([z, hw, t, b]) => [z, hw * 0.35, b + 0.1, b - 0.15]), C.dark, { bottomTaper: 0.6 }); g.add(keel);
-  flashMats.push(hull.material, rail.material);
+  flashMats.push(deckMesh.material, sidesMesh.material, rail.material);
 
   // neon strips along the flanks
   for (const s of [-1, 1]) add(new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.07, 3.1), glow(C.neon)), s * 1.2, 0.45, -0.3);
 
-  // ---- cockpit: cabin, glass dome, and the pilot ----
+  // ---- cockpit: coral orange cabin, glass dome, and the pilot ----
   add(new THREE.Mesh(new THREE.BoxGeometry(1.5, 0.5, 2.1), std(C.cabin)), 0, 0.95, -0.7);
   const dome = new THREE.Mesh(new THREE.SphereGeometry(1, 14, 10), std(0x8eeaff, { transparent: true, opacity: 0.5, emissive: 0x1a7a99, emissiveIntensity: 0.6 }));
   dome.scale.set(0.8, 0.55, 1.25); add(dome, 0, 1.3, -0.5);
@@ -87,8 +149,8 @@ export function buildHeroBoat(style = {}) {
       cyl(0.09, 1.5, 0xf2f2f2, o, 0.04, 0.15, rack);
       const tip = new THREE.Mesh(new THREE.ConeGeometry(0.09, 0.3, 8), std(0xff4d4d)); tip.rotation.x = Math.PI / 2; add(tip, o, 0.04, 1.05, rack);
     }
-    // swept hydrofoil wings with tip lights
-    const wing = new THREE.Mesh(new THREE.BoxGeometry(1.1, 0.07, 1.5), std(C.accent));
+    // swept hydrofoil wings with tip lights - colored cream to match deck!
+    const wing = new THREE.Mesh(new THREE.BoxGeometry(1.1, 0.07, 1.5), std(C.hull));
     add(wing, s * 1.7, 0.3, -0.9); wing.rotation.set(0, s * 0.4, -s * 0.12);
     add(new THREE.Mesh(new THREE.SphereGeometry(0.1, 8, 6), glow(C.neon)), s * 2.2, 0.28, -1.15);
   }

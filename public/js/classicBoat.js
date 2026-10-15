@@ -19,12 +19,18 @@ export function buildClassicBoat(style = {}) {
     return add(new THREE.Mesh(geo, mat(color)), x, y, z);
   };
 
+  // Authentic Classic OG Boat styling matching reference design:
+  // - Beige hull & deck (0xfff4e0)
+  // - Orange waterline bottom stripe (0xff7a59)
+  // - Clean slate-blue / chine cabin walls (0xdce5e8)
+  // - Warm amber-orange roof (0xd9803f)
+  // - Yellow flag (0xffe066) & red rocket barrels (0xff4d4d) on dark pod (0x3b4452)
   const C = {
-    hull: style.hull ?? 0xfff4e0,
-    accent: style.accent ?? 0xff7a59,
-    cabin: style.cabin ?? 0xffd9a0,
-    roof: style.roof ?? 0xff8a3d,
-    flag: style.flag ?? 0xffe066,
+    hull: style.classicHull ?? 0xfff4e0,
+    accent: style.classicAccent ?? 0xff7a59,
+    cabin: style.classicCabin ?? 0xdce5e8,
+    roof: style.classicRoof ?? 0xd9803f,
+    flag: style.classicFlag ?? 0xffe066,
   };
 
   const flashMats = [];

@@ -9,8 +9,12 @@ const assert = require('assert');
 const fs = require('fs');
 const path = require('path');
 
-const URL = 'ws://localhost:3000';
-const MP_SKIN_KEYS = ['reefbreaker', 'tidecutter', 'twinhull', 'manta', 'blazerunner'];
+const WS_URL = 'ws://localhost:3000';
+const MP_SKIN_KEYS = [
+  'sunfire', 'reefbreaker', 'tidecutter', 'twinhull', 'manta', 'blazerunner',
+  'thunderpike', 'emeralddrake', 'brassleviathan', 'nightshade', 'buzzsaw',
+  'skyfoil', 'krakenhulk', 'jollyroger', 'auroragyro', 'crabcrusher'
+];
 
 // Verify offline settings in index.html only has hero and classic
 const html = fs.readFileSync(path.join(__dirname, '..', 'public', 'index.html'), 'utf8');
@@ -31,7 +35,7 @@ console.log('✓ Lobby modal contains multiplayer boat & paint picker.');
 
 function connectClient(name) {
   return new Promise((resolve, reject) => {
-    const ws = new WebSocket(URL);
+    const ws = new WebSocket(WS_URL);
     ws.on('open', () => resolve(ws));
     ws.on('error', reject);
   });

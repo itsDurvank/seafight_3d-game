@@ -288,29 +288,72 @@ export function createWorld(scene) {
   };
 }
 
+let cachedObstacles = null;
+let lastIslandsRef = null;
+let lastAssetsLen = -1;
+
+// Cached obstacle circles combining islands, dock, and marine obstacles
+export function getObstacles() {
+  const islands = WORLD.islands || [];
+  const assets = WORLD.assets || [];
+  if (cachedObstacles && lastIslandsRef === islands && lastAssetsLen === assets.length) {
+    return cachedObstacles;
+  }
+  lastIslandsRef = islands;
+  lastAssetsLen = assets.length;
+  const obs = [];
+  for (let i = 0; i < islands.length; i++) {
+    const isl = islands[i];
+    obs.push({ x: isl.x, z: isl.z, r: isl.r });
+  }
+  if (WORLD.dock) {
+    obs.push({ x: WORLD.dock.x, z: WORLD.dock.z, r: 8 });
+  }
+  const ASSET_RADII = {
+    sea_rocks: 8,
+    shipwreck: 9,
+    sea_castle: 10,
+    sea_mine: 6,
+    pier: 8,
+  };
+  for (let i = 0; i < assets.length; i++) {
+    const a = assets[i];
+    const baseR = ASSET_RADII[a.type];
+    if (baseR) {
+      obs.push({ x: a.x, z: a.z, r: baseR * (a.scale || 1) });
+    }
+  }
+  cachedObstacles = obs;
+  return obs;
+}
+
 // Soft collisions: bumping into things nudges the boat away, never hurts it.
 // Returns true if anything was touched.
 export function resolveCollisions(b, radius, dt) {
   let hit = false;
+  const obstacles = getObstacles();
 
-  for (const i of WORLD.islands) {
-    const dx = b.x - i.x, dz = b.z - i.z;
+  for (let i = 0; i < obstacles.length; i++) {
+    const o = obstacles[i];
+    const dx = b.x - o.x, dz = b.z - o.z;
     const d = Math.hypot(dx, dz) || 0.0001;
-    const min = i.r * 0.95 + radius;
+    const min = o.r * 0.95 + radius;
     if (d < min) {
-      b.x = i.x + (dx / d) * min;
-      b.z = i.z + (dz / d) * min;
+      b.x = o.x + (dx / d) * min;
+      b.z = o.z + (dz / d) * min;
       hit = true;
     }
   }
 
   const k = WORLD.dock;
-  const hx = k.w / 2 + radius, hz = k.d / 2 + radius;
-  const dx = b.x - k.x, dz = b.z - k.z;
-  if (Math.abs(dx) < hx && Math.abs(dz) < hz) {
-    if (hx - Math.abs(dx) < hz - Math.abs(dz)) b.x = k.x + Math.sign(dx || 1) * hx;
-    else b.z = k.z + Math.sign(dz || 1) * hz;
-    hit = true;
+  if (k) {
+    const hx = k.w / 2 + radius, hz = k.d / 2 + radius;
+    const dx = b.x - k.x, dz = b.z - k.z;
+    if (Math.abs(dx) < hx && Math.abs(dz) < hz) {
+      if (hx - Math.abs(dx) < hz - Math.abs(dz)) b.x = k.x + Math.sign(dx || 1) * hx;
+      else b.z = k.z + Math.sign(dz || 1) * hz;
+      hit = true;
+    }
   }
 
   const dist = Math.hypot(b.x, b.z);

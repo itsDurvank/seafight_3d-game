@@ -1,6 +1,8 @@
 // server/rooms.js
 // Server-authoritative room, match, combat, and health-orb management for Boom Boats multiplayer.
 
+const fs = require('fs');
+const path = require('path');
 const { WebSocketServer } = require('ws');
 
 // Single source of truth for multiplayer server constants (mirrors MP in config.js)
@@ -16,7 +18,7 @@ const MP_CONFIG = {
   maxNameLength: 16,
   rateLimitMsgsPerSec: 60,
   colors: [
-    { id: 0, name: 'Sunfire', hex: '#ff7a59', icon: '🔥', style: { hull: 0xff7a59, chine: 0xdce5e8, accent: 0xffe066, roof: 0xd9532f, flag: 0xffe066, cabin: 0xfff4e0, dark: 0x2b3440, neon: 0xff7a59 } },
+    { id: 0, name: 'Sunfire', hex: '#ff7a59', icon: '🔥', style: { hull: 0xfff4e0, chine: 0xdce5e8, accent: 0xff7a59, roof: 0xff8a3d, flag: 0xffe066, cabin: 0xff7a59, dark: 0x2b3440, neon: 0x1fd1c9 } },
     { id: 1, name: 'Azure', hex: '#1fd1c9', icon: '💧', style: { hull: 0x1fd1c9, chine: 0xb5dff5, accent: 0x69c0ff, roof: 0x0fa8a0, flag: 0xbae7ff, cabin: 0xe6f7ff, dark: 0x1b2838, neon: 0x40a9ff } },
     { id: 2, name: 'Jade', hex: '#1fb36b', icon: '🌿', style: { hull: 0x1fb36b, chine: 0xc6f6d5, accent: 0xa7f3d0, roof: 0x137948, flag: 0xd9f99d, cabin: 0xf0fff4, dark: 0x1c3326, neon: 0x48bb78 } },
     { id: 3, name: 'Violet', hex: '#9a86ff', icon: '⚡', style: { hull: 0x9a86ff, chine: 0xdcd0ff, accent: 0xf472b6, roof: 0x6941c6, flag: 0xe9d5ff, cabin: 0xf8f5ff, dark: 0x2e1b4d, neon: 0xc084fc } },
@@ -31,25 +33,71 @@ const MP_CONFIG = {
   ],
 };
 
-const MP_SKIN_KEYS = ['reefbreaker', 'tidecutter', 'twinhull', 'manta', 'blazerunner'];
+const MP_SKIN_KEYS = [
+  'sunfire',
+  'reefbreaker',
+  'tidecutter',
+  'twinhull',
+  'manta',
+  'blazerunner',
+  'thunderpike',
+  'emeralddrake',
+  'brassleviathan',
+  'nightshade',
+  'buzzsaw',
+  'skyfoil',
+  'krakenhulk',
+  'jollyroger',
+  'auroragyro',
+  'crabcrusher',
+];
 
-const WORLD_LAYOUT = {
-  radius: 520,
-  safeHarbor: { x: 0, z: -2, r: 34 },
-  islands: [
-    { x: 75, z: -55, r: 26 },
-    { x: -130, z: 62, r: 24 },
-    { x: 115, z: 155, r: 28 },
-    { x: -82, z: -178, r: 26 },
-    { x: 225, z: -28, r: 24 },
-    { x: -232, z: -62, r: 30 },
-    { x: -40, z: 232, r: 30 },
-    { x: -205, z: -190, r: 28 },
-    { x: 250, z: -190, r: 26 },
-    { x: 250, z: 170, r: 27 },
-    { x: -250, z: 200, r: 28 },
-  ]
-};
+// Dynamically loads the current map layout (islands and buildings/assets) from public/maps/default.json
+function loadWorldLayout() {
+  const layout = {
+    radius: 520,
+    safeHarbor: { x: 0, z: -2, r: 34 },
+    islands: [],
+    assets: [],
+  };
+
+  try {
+    const mapPath = path.join(__dirname, '..', 'public', 'maps', 'default.json');
+    if (fs.existsSync(mapPath)) {
+      const data = JSON.parse(fs.readFileSync(mapPath, 'utf8'));
+      if (Array.isArray(data.islands)) {
+        layout.islands = data.islands.map(i => ({ x: i.x, z: i.z, r: i.r || 26 }));
+      }
+      if (Array.isArray(data.assets)) {
+        layout.assets = data.assets.map(a => ({ x: a.x, z: a.z, r: (a.scale || 1) * 8 }));
+      }
+    }
+  } catch (e) {
+    console.error('Failed to load map layout in rooms.js:', e);
+  }
+
+  // Fallback to all known map islands if file was empty
+  if (layout.islands.length === 0) {
+    layout.islands = [
+      { x: 134, z: -57, r: 26 },
+      { x: -154, z: 32, r: 24 },
+      { x: 187, z: -278, r: 28 },
+      { x: -3, z: -319, r: 26 },
+      { x: 329, z: -18, r: 28 },
+      { x: -292, z: 233, r: 30 },
+      { x: -113, z: 323, r: 30 },
+      { x: -164, z: -224, r: 28 },
+      { x: 332, z: -194, r: 26 },
+      { x: 341, z: 159, r: 27 },
+      { x: -324, z: 27, r: 28 },
+      { x: 151, z: 147, r: 30 },
+      { x: 163, z: 360, r: 62 },
+      { x: -339, z: -201, r: 24 },
+    ];
+  }
+
+  return layout;
+}
 
 const CODE_CHARS = '23456789ABCDEFGHJKMNPQRSTUVWXYZ'; // 31 unambiguous uppercase chars
 
@@ -79,28 +127,122 @@ function generateRoomCode(existingRooms) {
   return String(Date.now()).slice(-5);
 }
 
-function isFreeWater(x, z, existingOrbs = []) {
-  if (Math.hypot(x, z) > WORLD_LAYOUT.radius - 85) return false;
-  const h = WORLD_LAYOUT.safeHarbor;
-  if (Math.hypot(x - h.x, z - h.z) < h.r + 20) return false;
-  for (const isl of WORLD_LAYOUT.islands) {
-    if (Math.hypot(x - isl.x, z - isl.z) < isl.r + 32) return false;
+function isFreeWater(x, z, layout, existingOrbs = [], minOrbSpacing = 60) {
+  // 1. Inside outer sea boundary
+  if (Math.hypot(x, z) > layout.radius - 85) return false;
+
+  // 2. Safe harbor clearance (dock area)
+  const h = layout.safeHarbor;
+  if (Math.hypot(x - h.x, z - h.z) < h.r + 26) return false;
+
+  // 3. Strict Island clearance: must be in open, sailable water (island radius + 36m margin)
+  for (const isl of layout.islands) {
+    if (Math.hypot(x - isl.x, z - isl.z) < isl.r + 36) return false;
   }
+
+  // 4. Asset / building clearance
+  if (Array.isArray(layout.assets)) {
+    for (const a of layout.assets) {
+      if (Math.hypot(x - a.x, z - a.z) < (a.r || 10) + 16) return false;
+    }
+  }
+
+  // 5. Existing orb spacing
   for (const o of existingOrbs) {
-    if (Math.hypot(x - o.x, z - o.z) < 80) return false;
+    const oz = o.z !== undefined ? o.z : (o.y !== undefined ? o.y : 0);
+    if (Math.hypot(x - o.x, z - oz) < minOrbSpacing) return false;
   }
+
   return true;
 }
 
-function findOrbPosition(existingOrbs) {
-  for (let i = 0; i < 150; i++) {
+function getSector(x, z) {
+  let a = Math.atan2(z, x);
+  if (a < 0) a += Math.PI * 2;
+  return Math.floor(a / (Math.PI / 2)) % 4; // 0: SE (+x,+z), 1: SW (-x,+z), 2: NW (-x,-z), 3: NE (+x,-z)
+}
+
+function findOrbPosition(existingOrbs = []) {
+  const layout = loadWorldLayout();
+
+  // Count active orbs per compass quadrant
+  const sectorCounts = [0, 0, 0, 0];
+  for (const o of existingOrbs) {
+    const oz = o.z !== undefined ? o.z : (o.y !== undefined ? o.y : 0);
+    sectorCounts[getSector(o.x, oz)]++;
+  }
+
+  // Prioritize quadrants with the fewest orbs, tie-breaking randomly
+  const preferredSectors = [0, 1, 2, 3].sort((s1, s2) => {
+    const diff = sectorCounts[s1] - sectorCounts[s2];
+    return diff !== 0 ? diff : (Math.random() - 0.5);
+  });
+
+  // Try candidate search prioritizing underrepresented quadrants
+  for (const sec of preferredSectors) {
+    const baseAngle = sec * (Math.PI / 2);
+    for (const minSpacing of [110, 85, 60, 40]) {
+      for (let i = 0; i < 250; i++) {
+        // Sample angle inside the quadrant with padding from boundary lines
+        const a = baseAngle + rand(0.12, (Math.PI / 2) - 0.12);
+        const rMin = 90;
+        const rMax = layout.radius - 90;
+        // Area-uniform radial distribution: sqrt(rand(rMin^2, rMax^2))
+        const r = Math.sqrt(rand(rMin * rMin, rMax * rMax));
+        const x = Math.round(Math.cos(a) * r);
+        const z = Math.round(Math.sin(a) * r);
+
+        // Collinearity rejection: avoid creating straight-line patterns with existing orbs
+        if (existingOrbs.length >= 2) {
+          let tooCollinear = false;
+          for (let j = 0; j < existingOrbs.length; j++) {
+            for (let k = j + 1; k < existingOrbs.length; k++) {
+              const o1 = existingOrbs[j];
+              const o2 = existingOrbs[k];
+              const o1z = o1.z !== undefined ? o1.z : (o1.y !== undefined ? o1.y : 0);
+              const o2z = o2.z !== undefined ? o2.z : (o2.y !== undefined ? o2.y : 0);
+              const dx = o2.x - o1.x;
+              const dz = o2z - o1z;
+              const segLen = Math.hypot(dx, dz);
+              if (segLen > 30) {
+                const perpDist = Math.abs(dz * x - dx * z + o2.x * o1z - o2z * o1.x) / segLen;
+                if (perpDist < 50) {
+                  tooCollinear = true;
+                  break;
+                }
+              }
+            }
+            if (tooCollinear) break;
+          }
+          if (tooCollinear) continue;
+        }
+
+        if (isFreeWater(x, z, layout, existingOrbs, minSpacing)) {
+          return { x, z };
+        }
+      }
+    }
+  }
+
+  // Broad open water search if quadrant constraint was too tight
+  for (let i = 0; i < 600; i++) {
     const a = Math.random() * Math.PI * 2;
-    const r = rand(60, WORLD_LAYOUT.radius - 95);
+    const r = Math.sqrt(rand(85 * 85, (layout.radius - 90) * (layout.radius - 90)));
     const x = Math.round(Math.cos(a) * r);
     const z = Math.round(Math.sin(a) * r);
-    if (isFreeWater(x, z, existingOrbs)) return { x, z };
+    if (isFreeWater(x, z, layout, existingOrbs, 35)) {
+      return { x, z };
+    }
   }
-  return { x: Math.round(rand(-120, 120)), z: Math.round(rand(-120, 120)) };
+
+  // Guaranteed open deep-water spots in 4 different quadrants as last resort
+  const safeOpenSpots = [
+    { x: 140, z: 140 },
+    { x: -140, z: 140 },
+    { x: -140, z: -140 },
+    { x: 140, z: -140 },
+  ];
+  return safeOpenSpots[Math.floor(Math.random() * safeOpenSpots.length)];
 }
 
 class Room {
@@ -655,9 +797,11 @@ function setupWebSocketServer(httpServer) {
             if (msg.boatSkin && MP_SKIN_KEYS.includes(msg.boatSkin)) {
               p.boatSkin = msg.boatSkin;
             }
-            if (typeof msg.colorIndex === 'number' && msg.colorIndex >= 0 && msg.colorIndex < MP_CONFIG.colors.length) {
+            if (typeof msg.colorIndex === 'number' && msg.colorIndex >= -1 && msg.colorIndex < MP_CONFIG.colors.length) {
               p.colorIndex = msg.colorIndex;
-              p.color = MP_CONFIG.colors[p.colorIndex];
+              p.color = p.colorIndex >= 0
+                ? MP_CONFIG.colors[p.colorIndex]
+                : { id: -1, name: 'Original', hex: '#ffd166', style: null };
             }
             room.broadcast({
               type: 'playerSkinUpdate',
@@ -684,7 +828,7 @@ function setupWebSocketServer(httpServer) {
             p.state.x = Number(s.x) || 0;
             p.state.z = Number(s.z) || 0;
             p.state.yaw = Number(s.yaw) || 0;
-            p.state.speed = Number(s.speed) || 0;
+            p.state.speed = Math.min(Number(s.speed) || 0, 160);
             p.state.boosting = !!s.boosting;
             if (s.alive !== undefined) p.alive = !!s.alive;
 
@@ -712,7 +856,7 @@ function setupWebSocketServer(httpServer) {
             z: Number(msg.z) || 0,
             yaw,
             heading: yaw,
-            speed: Number(msg.speed) || 0,
+            speed: Math.min(Number(msg.speed) || 0, 160),
             targetId: msg.targetId || null,
           }, playerId);
           break;
