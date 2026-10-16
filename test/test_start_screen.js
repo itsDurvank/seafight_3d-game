@@ -63,8 +63,7 @@ async function main() {
           screenVisible: !screen.classList.contains('hidden'),
           hasStage: !!stage,
           hasArt: !!art,
-          hasBackdrop: !!backdrop,
-          stageRatio: stageRect ? (stageRect.width / stageRect.height).toFixed(3) : null,
+          stageFillsScreen: stageRect && stageRect.width === window.innerWidth && stageRect.height === window.innerHeight,
           stackInsideStage: stackRect && stageRect ? (stackRect.top >= stageRect.top && stackRect.bottom <= stageRect.bottom) : false,
           hasAllButtons: !!(b1 && b2 && b3 && b4 && b5 && musicBtn),
           b1Text: b1.innerText.trim(),
@@ -81,7 +80,8 @@ async function main() {
 
     console.log('Start screen info:', startInfo.result.value);
     assert(startInfo.result.value.screenVisible, 'Start screen is visible on load');
-    assert(startInfo.result.value.hasStage, 'Stage element exists for 16:9 locking');
+    assert(startInfo.result.value.hasStage, 'Stage element exists');
+    assert(startInfo.result.value.stageFillsScreen, 'Image stage fills entire viewport edge-to-edge');
     assert(startInfo.result.value.stackInsideStage, 'Button stack is safely contained within stage bounds');
     assert(startInfo.result.value.hasAllButtons, 'All 5 buttons + music button exist');
     assert(startInfo.result.value.musicBottomLeft, 'Music button is in bottom-left corner');
