@@ -7,7 +7,7 @@ import { createWorld, resolveCollisions } from './world.js';
 import { Boat, PLAYER_STYLE } from './boat.js';
 import { Wake } from './wake.js';
 import { Minimap } from './minimap.js';
-import { createInput, KEYBIND_DEFS, formatKeyName } from './input.js';
+import { createInput, KEYBIND_DEFS, formatKeyName, mouseButtonToCode } from './input.js';
 import { createHud } from './hud.js';
 import { Combat } from './combat.js';
 import { Potions } from './potions.js';
@@ -58,6 +58,8 @@ window.__DEBUG = {
   startGame: () => startSingleplayerGame(),
   startMultiplayer: () => startMultiplayerFromMenu(),
   get isStartScreenActive() { return isStartScreenActive(); },
+  get isPaused() { return isSinglePlayerPaused; },
+  togglePause: (val) => toggleSinglePlayerPause(val),
   get menuMusic() { return menuMusicAudio; },
 };
 const hud = createHud();
@@ -182,23 +184,53 @@ function renderKeybindsUI() {
       recordingAction = def.id;
       renderKeybindsUI();
 
-      const onKeyCapture = (evt) => {
-        evt.preventDefault();
-        evt.stopPropagation();
+      let cleanedUp = false;
+      const cleanup = () => {
+        if (cleanedUp) return;
+        cleanedUp = true;
         window.removeEventListener('keydown', onKeyCapture, true);
-        if (evt.code === 'Escape') {
-          recordingAction = null;
-          renderKeybindsUI();
-          return;
-        }
-        input.setKeybind(def.id, evt.code);
+        window.removeEventListener('pointerdown', onPointerCapture, true);
+        window.removeEventListener('contextmenu', onContextMenuCapture, true);
         recordingAction = null;
-        audio.click();
-        hud.toast(`Bound ${def.name} to [${formatKeyName(evt.code)}]`, 1200);
         renderKeybindsUI();
       };
 
-      window.addEventListener('keydown', onKeyCapture, true);
+      const bindCode = (code) => {
+        input.setKeybind(def.id, code);
+        cleanup();
+        audio.click();
+        hud.toast(`Bound ${def.name} to [${formatKeyName(code)}]`, 1200);
+      };
+
+      const onKeyCapture = (evt) => {
+        evt.preventDefault();
+        evt.stopPropagation();
+        if (evt.code === 'Escape') {
+          cleanup();
+          return;
+        }
+        bindCode(evt.code);
+      };
+
+      const onPointerCapture = (evt) => {
+        evt.preventDefault();
+        evt.stopPropagation();
+        const code = mouseButtonToCode(evt.button);
+        bindCode(code);
+      };
+
+      const onContextMenuCapture = (evt) => {
+        evt.preventDefault();
+        evt.stopPropagation();
+      };
+
+      setTimeout(() => {
+        if (recordingAction === def.id) {
+          window.addEventListener('keydown', onKeyCapture, true);
+          window.addEventListener('pointerdown', onPointerCapture, true);
+          window.addEventListener('contextmenu', onContextMenuCapture, true);
+        }
+      }, 50);
     });
 
     row.appendChild(info);
@@ -591,6 +623,86 @@ if (quitModalConfirm) {
     alert('Thank you for playing Boom Boats! You can now close this browser tab.');
   });
 }
+
+// ---------- Single Player Pause System ----------
+let isSinglePlayerPaused = false;
+const spPauseOverlay = document.getElementById('sp-pause-overlay');
+const pauseBtnResume = document.getElementById('pause-btn-resume');
+const pauseBtnKeybinds = document.getElementById('pause-btn-keybinds');
+const pauseBtnHowToPlay = document.getElementById('pause-btn-howtoplay');
+const pauseBtnMenu = document.getElementById('pause-btn-menu');
+
+function toggleSinglePlayerPause(targetState) {
+  if (isStartScreenActive()) return;
+  if (mp && mp.mode === 'online') return; // Single player only!
+  if (!player.alive) return;
+
+  const nextState = typeof targetState === 'boolean' ? targetState : !isSinglePlayerPaused;
+  if (nextState === isSinglePlayerPaused) return;
+
+  isSinglePlayerPaused = nextState;
+  if (spPauseOverlay) spPauseOverlay.classList.toggle('hidden', !isSinglePlayerPaused);
+  audio.click();
+}
+
+function returnToStartScreen() {
+  if (spPauseOverlay) spPauseOverlay.classList.add('hidden');
+  isSinglePlayerPaused = false;
+  if (startScreen) startScreen.classList.remove('hidden');
+  boat.teleport(WORLD.boatSpawn.x, WORLD.boatSpawn.z, WORLD.boatSpawn.yaw);
+  snapCamera();
+  playRandomMenuMusic();
+}
+
+if (pauseBtnResume) pauseBtnResume.addEventListener('click', () => toggleSinglePlayerPause(false));
+if (pauseBtnKeybinds) pauseBtnKeybinds.addEventListener('click', () => {
+  if (settingsModal) {
+    settingsModal.classList.add('centered-modal');
+    settingsModal.classList.remove('hidden');
+  }
+  openKeybindsView(false);
+  checkBackdropVisibility();
+});
+if (pauseBtnHowToPlay) pauseBtnHowToPlay.addEventListener('click', () => {
+  if (howToPlayModal) howToPlayModal.classList.remove('hidden');
+  checkBackdropVisibility();
+  audio.click();
+});
+if (pauseBtnMenu) pauseBtnMenu.addEventListener('click', () => {
+  returnToStartScreen();
+});
+
+// Global Escape Key Listener
+window.addEventListener('keydown', (e) => {
+  if (e.code === 'Escape') {
+    if (recordingAction) return;
+
+    const mpHubModal = document.getElementById('mp-hub-modal');
+    const mpLobbyModal = document.getElementById('mp-lobby-modal');
+    const anyModalOpen = (howToPlayModal && !howToPlayModal.classList.contains('hidden')) ||
+                         (quitModal && !quitModal.classList.contains('hidden')) ||
+                         (settingsModal && !settingsModal.classList.contains('hidden')) ||
+                         (mpHubModal && !mpHubModal.classList.contains('hidden')) ||
+                         (mpLobbyModal && !mpLobbyModal.classList.contains('hidden'));
+
+    if (anyModalOpen) {
+      if (howToPlayModal) howToPlayModal.classList.add('hidden');
+      if (quitModal) quitModal.classList.add('hidden');
+      if (settingsModal) {
+        settingsModal.classList.add('hidden');
+        settingsModal.classList.remove('keybinds-active');
+        settingsModal.classList.remove('from-start-screen');
+      }
+      if (mpHubModal) mpHubModal.classList.add('hidden');
+      checkBackdropVisibility();
+      return;
+    }
+
+    if (!isStartScreenActive() && (!mp || mp.mode !== 'online')) {
+      toggleSinglePlayerPause();
+    }
+  }
+});
 
 if (modalBackdrop) {
   modalBackdrop.addEventListener('click', () => {
@@ -1098,6 +1210,13 @@ function frame() {
     // but completely freeze gameplay entities, enemy AI, combat, and in-game audio.
     water.update(s.x, s.z, t);
     sky.update(camera, t);
+    renderer.render(scene, camera);
+    requestAnimationFrame(frame);
+    return;
+  }
+
+  if (isSinglePlayerPaused) {
+    // Singleplayer paused: freeze all entities and combat while showing blurred overlay
     renderer.render(scene, camera);
     requestAnimationFrame(frame);
     return;

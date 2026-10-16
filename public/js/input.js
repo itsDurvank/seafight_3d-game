@@ -2,6 +2,15 @@
 // Keyboard + mouse input with customizable keybindings, persistence,
 // and Boost activation mode (Toggle vs Hold).
 
+export function mouseButtonToCode(button) {
+  if (button === 0) return 'MouseLeft';
+  if (button === 1) return 'MouseMiddle';
+  if (button === 2) return 'MouseRight';
+  if (button === 3) return 'MouseBack';
+  if (button === 4) return 'MouseForward';
+  return 'MouseButton' + button;
+}
+
 export const DEFAULT_KEYBINDS = {
   forward: ['KeyW', 'ArrowUp'],
   back: ['KeyS', 'ArrowDown'],
@@ -9,7 +18,7 @@ export const DEFAULT_KEYBINDS = {
   right: ['KeyD', 'ArrowRight'],
   brake: ['Space'],
   boost: ['ShiftLeft', 'ShiftRight'],
-  fire: ['KeyF', 'Enter'],
+  fire: ['MouseLeft', 'KeyF', 'Enter'],
   gun: ['Digit1', 'Numpad1'],
   missile: ['Digit2', 'Numpad2'],
   fpv: ['KeyV'],
@@ -21,14 +30,14 @@ export const DEFAULT_KEYBINDS = {
 
 export const KEYBIND_DEFS = [
   { id: 'forward', name: 'Sail Forward', icon: '⛵', desc: 'Accelerate forward' },
-  { id: 'back',    name: 'Reverse / Back', icon: '⚓', desc: 'Slow down / reverse' },
+  { id: 'back',    name: 'Reverse / Back', icon: '⚓', desc: 'Slow down & reverse up to 30 km/h (S)' },
   { id: 'left',    name: 'Steer Left', icon: '◀️', desc: 'Turn port (left)' },
   { id: 'right',   name: 'Steer Right', icon: '▶️', desc: 'Turn starboard (right)' },
   { id: 'brake',   name: 'Brake', icon: '🛑', desc: 'Scrub speed for tight turns' },
   { id: 'boost',   name: 'Speed Boost', icon: '🔥', desc: 'High-speed ramming surge' },
   { id: 'fire',    name: 'Fire Weapon', icon: '💥', desc: 'Twin cannons / missiles' },
-  { id: 'gun',     name: 'Machine Gun', icon: '🔫', desc: 'Equip machine gun (1)' },
-  { id: 'missile', name: 'Missiles', icon: '🚀', desc: 'Equip missiles (2)' },
+  { id: 'gun',     name: 'Machine Gun', icon: '🔫', desc: 'Equip machine gun (1 / Wheel Up)' },
+  { id: 'missile', name: 'Missiles', icon: '🚀', desc: 'Equip missiles (2 / Wheel Down)' },
   { id: 'fpv',     name: 'Cockpit View', icon: '🎛️', desc: 'Toggle first-person view' },
   { id: 'skin',    name: 'Switch Skin', icon: '🎨', desc: 'Cycle boat skins' },
   { id: 'home',    name: 'Sail Home', icon: '🏠', desc: 'Fast travel to harbor' },
@@ -38,6 +47,12 @@ export const KEYBIND_DEFS = [
 
 export function formatKeyName(code) {
   if (!code) return 'None';
+  if (code === 'MouseLeft' || code === 'Mouse0') return 'L-Click';
+  if (code === 'MouseRight' || code === 'Mouse2') return 'R-Click';
+  if (code === 'MouseMiddle' || code === 'Mouse1') return 'M-Click';
+  if (code === 'MouseBack' || code === 'Mouse3') return 'Mouse 4';
+  if (code === 'MouseForward' || code === 'Mouse4') return 'Mouse 5';
+  if (code.startsWith('MouseButton')) return 'Mouse ' + code.slice(11);
   if (code.startsWith('Key')) return code.slice(3);
   if (code.startsWith('Digit')) return code.slice(5);
   if (code.startsWith('Numpad')) return 'Num ' + code.slice(6);
@@ -215,15 +230,75 @@ export function createInput() {
     }
   });
 
-  // Left mouse button = fire
+  // Mouse buttons as keybinds
   addEventListener('pointerdown', (e) => {
-    if (e.target && e.target.closest && e.target.closest('.ui-btn, #controls, #settings-modal, #settings-btn, #weapons, .slot, .keybind-badge-btn')) return;
-    if (e.button === 0) state.fire = true;
+    if (e.target && e.target.closest && e.target.closest('.ui-btn, #controls, #settings-modal, #settings-btn, #weapons, .slot, .keybind-badge-btn, #start-screen, #sp-pause-overlay')) return;
+    const code = mouseButtonToCode(e.button);
+    const action = codeToAction[code];
+    if (action) {
+      if (action === 'forward' || action === 'back' || action === 'left' || action === 'right' || action === 'brake') {
+        state[action] = true;
+      } else if (action === 'fire') {
+        state.fire = true;
+      } else if (action === 'gun') {
+        selectWeapon('gun');
+      } else if (action === 'missile') {
+        selectWeapon('missile');
+      } else if (action === 'boost') {
+        state.boost = true;
+        for (const fn of boostListeners) fn(true);
+      } else {
+        if (actionHandlers[action]) actionHandlers[action]();
+      }
+      e.preventDefault();
+    } else if (e.button === 0 && !codeToAction['MouseLeft']) {
+      // Default fallback fire if Left Click isn't explicitly remapped
+      state.fire = true;
+    }
   });
-  const release = (e) => { if (e.button === 0) state.fire = false; };
-  addEventListener('pointerup', release);
-  addEventListener('pointercancel', () => { state.fire = false; });
+
+  const releasePointer = (e) => {
+    const code = mouseButtonToCode(e.button);
+    const action = codeToAction[code];
+    if (action) {
+      if (action === 'forward' || action === 'back' || action === 'left' || action === 'right' || action === 'brake') {
+        state[action] = false;
+      } else if (action === 'fire') {
+        state.fire = false;
+      } else if (action === 'boost') {
+        state.boost = false;
+        for (const fn of boostListeners) fn(false);
+      }
+    }
+    if (e.button === 0 && (!action || action === 'fire')) {
+      state.fire = false;
+    }
+  };
+  addEventListener('pointerup', releasePointer);
+  addEventListener('pointercancel', () => {
+    for (const k of ['forward', 'back', 'left', 'right', 'brake', 'fire', 'boost']) state[k] = false;
+    for (const fn of boostListeners) fn(false);
+  });
   addEventListener('contextmenu', (e) => e.preventDefault());
+
+  // Mouse wheel scroll to shift / cycle weapons (scroll down = next/missile, scroll up = prev/gun)
+  let wheelTimer = null;
+  const WEAPONS_ORDER = ['gun', 'missile'];
+  addEventListener('wheel', (e) => {
+    if (e.target && e.target.closest && e.target.closest('.keybinds-list, .skin-picker, .mp-lobby-boat-picker, textarea, input, select')) return;
+    if (Math.abs(e.deltaY) < 15) return;
+    if (wheelTimer) return;
+    wheelTimer = setTimeout(() => { wheelTimer = null; }, 120);
+
+    const currIdx = WEAPONS_ORDER.indexOf(state.weapon);
+    let nextIdx;
+    if (e.deltaY > 0) {
+      nextIdx = (currIdx + 1) % WEAPONS_ORDER.length;
+    } else {
+      nextIdx = (currIdx - 1 + WEAPONS_ORDER.length) % WEAPONS_ORDER.length;
+    }
+    selectWeapon(WEAPONS_ORDER[nextIdx]);
+  }, { passive: true });
 
   addEventListener('blur', () => {
     for (const k of ['forward', 'back', 'left', 'right', 'brake', 'fire', 'boost']) state[k] = false;

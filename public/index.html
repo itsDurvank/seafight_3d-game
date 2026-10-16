@@ -6,6 +6,7 @@
   <title>Boom Boats</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;600;700&display=swap" rel="stylesheet" />
+  <link rel="preload" as="image" href="/images/startscreen.webp" type="image/webp" fetchpriority="high" />
   <style>
     :root { --wood:#d9803f; --wood-dark:#b9642a; --cream:#fff3de; --ink:#5b3a22; --teal:#1fd1c9; --rope:#e8b24a; }
     * { box-sizing: border-box; }
@@ -184,8 +185,8 @@
       font-weight:700; cursor:pointer; text-decoration:underline; padding:2px 4px; }
     .keybinds-reset-btn:hover { color:#e04646; }
 
-    .keybinds-list { display:flex; flex-direction:column; gap:6px; max-height:210px; overflow-y:auto; padding-right:3px; }
-    .keybind-row { display:flex; align-items:center; justify-content:space-between; gap:6px; padding:6px 10px;
+    .keybinds-list { display:flex; flex-direction:column; gap:7px; max-height:clamp(330px, 48vh, 460px); overflow-y:auto; padding-right:4px; }
+    .keybind-row { display:flex; align-items:center; justify-content:space-between; gap:8px; padding:7px 11px;
       background:#fff; border:2px solid #e3d0b3; border-radius:10px; transition:border-color .15s ease; }
     .keybind-row:hover { border-color:#f2a33a; background:#fffbf5; }
     .keybind-info { display:flex; align-items:center; gap:8px; flex:1; min-width:0; }
@@ -229,7 +230,8 @@
     .mp-error-msg { font-size:11.5px; font-weight:700; color:#e04646; background:#ffebeb; border:1px solid #ffccd2; border-radius:8px; padding:6px 8px; text-align:center; }
     .mp-error-msg.hidden { display:none; }
 
-    /* Keybinds modal view: hide footer and start-screen back btn */
+    /* Keybinds modal view: expand width, hide footer and start-screen back btn */
+    #settings-modal.keybinds-active { width: min(530px, 94vw) !important; }
     #settings-modal.keybinds-active .settings-footer { display: none !important; }
     #settings-modal.from-start-screen #keybinds-back-btn { display: none !important; }
 
@@ -596,6 +598,124 @@
     }
     #how-to-play-modal.hidden, #quit-modal.hidden { display: none !important; }
 
+    /* ⏸️ Single Player Pause Screen */
+    #sp-pause-overlay {
+      position: fixed;
+      inset: 0;
+      z-index: 500;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: rgba(10, 24, 38, 0.48);
+      backdrop-filter: blur(8px);
+      -webkit-backdrop-filter: blur(8px);
+    }
+    #sp-pause-overlay.hidden { display: none !important; }
+    .sp-pause-card {
+      width: min(390px, 92vw);
+      background: rgba(255, 246, 230, 0.97);
+      border: 3.5px solid #e8a35a;
+      border-radius: 20px;
+      padding: 24px 22px;
+      box-shadow: 0 16px 40px rgba(0, 30, 60, 0.45), 0 5px 0 var(--wood-dark);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 13px;
+      animation: popInCenter 0.18s cubic-bezier(0.18, 0.89, 0.32, 1.25);
+    }
+    .sp-pause-tag {
+      font-size: 11px;
+      font-weight: 800;
+      letter-spacing: 1.5px;
+      color: #b9642a;
+      text-transform: uppercase;
+    }
+    .sp-pause-title {
+      font-size: 34px;
+      font-weight: 800;
+      color: var(--ink);
+      margin: -6px 0 0;
+      letter-spacing: 2px;
+      text-shadow: 0 2px 0 rgba(255, 255, 255, 0.85);
+    }
+    .sp-pause-divider {
+      width: 55px;
+      height: 3.5px;
+      background: #e8a35a;
+      border-radius: 2px;
+    }
+    .sp-pause-menu {
+      width: 100%;
+      display: flex;
+      flex-direction: column;
+      gap: 9px;
+      margin-top: 4px;
+    }
+    .sp-pause-btn {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      padding: 10.5px 16px;
+      font-family: inherit;
+      font-size: 14.5px;
+      font-weight: 700;
+      color: var(--ink);
+      background: linear-gradient(180deg, #fffdf8 0%, #fff2dc 100%);
+      border: 2.5px solid #e8a35a;
+      border-radius: 12px;
+      box-shadow: 0 3px 0 var(--wood-dark);
+      cursor: pointer;
+      outline: none;
+      transition: transform 0.08s ease, background 0.15s ease, border-color 0.15s ease;
+    }
+    .sp-pause-btn:hover {
+      background: #ffeac2;
+      border-color: #ff8a3d;
+      transform: translateY(-2px);
+      box-shadow: 0 5px 0 var(--wood-dark);
+    }
+    .sp-pause-btn:active {
+      transform: translateY(2px);
+      box-shadow: 0 1px 0 var(--wood-dark);
+    }
+    .sp-pause-btn-primary {
+      background: linear-gradient(180deg, #ffa048 0%, #ff6e26 100%);
+      border-color: #ffe6c7;
+      color: #fff;
+      font-size: 15.5px;
+      font-weight: 800;
+      text-shadow: 0 1px 3px rgba(70, 20, 0, 0.45);
+      box-shadow: 0 4px 0 #872e0a;
+    }
+    .sp-pause-btn-primary:hover {
+      background: linear-gradient(180deg, #ffab59 0%, #ff7a36 100%);
+      border-color: #fff;
+      box-shadow: 0 6px 0 #872e0a;
+    }
+    .sp-pause-btn-primary:active {
+      box-shadow: 0 1px 0 #872e0a;
+    }
+    .sp-pause-btn-danger:hover {
+      background: #fee2e2;
+      border-color: #ef4444;
+      color: #991b1b;
+    }
+    .sp-pause-hint {
+      font-size: 11px;
+      color: #8c674b;
+      margin-top: 2px;
+      font-weight: 600;
+    }
+    .sp-pause-hint kbd {
+      background: #fff;
+      padding: 1px 6px;
+      border: 1px solid #d4c2ab;
+      border-radius: 4px;
+      box-shadow: 0 1px 0 #d4c2ab;
+    }
+
     #modal-backdrop {
       position: fixed;
       inset: 0;
@@ -649,7 +769,10 @@
   <!-- 🌴 Start / Introduction Screen -->
   <div id="start-screen">
     <div class="start-screen-stage">
-      <img src="/images/startscreen.png" class="start-screen-art" alt="Boom Boats" />
+      <picture class="start-screen-art">
+        <source srcset="/images/startscreen.webp" type="image/webp">
+        <img src="/images/startscreen.png" class="start-screen-art" alt="Boom Boats" decoding="async" fetchpriority="high" />
+      </picture>
       <div class="start-menu-stack">
         <button id="start-btn-singleplayer" class="start-menu-btn start-menu-btn-primary" type="button">
           <span class="btn-icon">▶</span>
@@ -678,6 +801,30 @@
     <button id="start-music-btn" class="panel ui-btn" title="Toggle Music Mute (M)" type="button">
       <span id="start-music-icon">🎵</span>
     </button>
+  </div>
+
+  <!-- ⏸️ Single Player Pause Screen Overlay -->
+  <div id="sp-pause-overlay" class="hidden">
+    <div class="sp-pause-card">
+      <div class="sp-pause-tag">GAME PAUSED</div>
+      <h2 class="sp-pause-title">PAUSED</h2>
+      <div class="sp-pause-divider"></div>
+      <div class="sp-pause-menu">
+        <button id="pause-btn-resume" class="sp-pause-btn sp-pause-btn-primary" type="button">
+          <span>▶</span> Resume Game
+        </button>
+        <button id="pause-btn-keybinds" class="sp-pause-btn" type="button">
+          <span>⌨️</span> Keybinds & Settings
+        </button>
+        <button id="pause-btn-howtoplay" class="sp-pause-btn" type="button">
+          <span>❓</span> How to Play
+        </button>
+        <button id="pause-btn-menu" class="sp-pause-btn sp-pause-btn-danger" type="button">
+          <span>🌴</span> Quit to Main Menu
+        </button>
+      </div>
+      <div class="sp-pause-hint">Press <kbd>ESC</kbd> to resume</div>
+    </div>
   </div>
 
   <!-- 🌫️ Backdrop for Modals -->

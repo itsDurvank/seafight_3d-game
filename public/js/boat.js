@@ -329,7 +329,21 @@ export class Boat {
       this.top = Math.max(BOAT.baseTop, this.top - BOAT.topDecay * dt);
       s.speed *= Math.exp(-BOAT.drag * dt);
     }
-    if (input.back && !boosting) s.speed -= BOAT.accel * 0.6 * dt;
+    if (input.back && !boosting) {
+      if (s.speed > 0.5) {
+        // Scrub forward speed off smoothly first, like car braking
+        s.speed = Math.max(0, s.speed - (BOAT.brakeDecel * 0.65) * dt);
+      } else {
+        // Accelerate backward gradually up to maxReverse (30 km/h)
+        const targetRev = -BOAT.maxReverse;
+        s.speed += (targetRev - s.speed) * (1 - Math.exp(-(BOAT.reverseAccel || 14) * 0.22 * dt));
+        s.speed = Math.max(s.speed, targetRev);
+      }
+    } else if (!input.forward && s.speed < 0) {
+      // Natural water drag smoothly stops reverse when S is released
+      s.speed *= Math.exp(-BOAT.drag * 1.8 * dt);
+      if (s.speed > -0.08) s.speed = 0;
+    }
     // after a boost ends, bleed the extra speed off smoothly instead of snapping
     if (!boosting && !braking && s.speed > this.top) s.speed += (this.top - s.speed) * (1 - Math.exp(-2 * dt));
     s.speed = Math.max(s.speed, -BOAT.maxReverse);
