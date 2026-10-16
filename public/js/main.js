@@ -74,6 +74,8 @@ window.__DEBUG = {
   },
   getVolume: () => audio.getVolume(),
   isMuted: () => audio.isMuted(),
+  get missileCd() { return missileCd; },
+  updateKeybindBadges: () => updateKeybindBadges(),
 };
 const hud = createHud();
 // browsers only start audio after a click or key press
@@ -274,6 +276,47 @@ function renderKeybindsUI() {
     keybindsList.appendChild(row);
   }
 }
+
+function updateKeybindBadges() {
+  const binds = input.getKeybinds();
+  const gunKey = binds.gun?.[0];
+  const missileKey = binds.missile?.[0];
+  const boostKey = binds.boost?.[0];
+  const fireKey = binds.fire?.[0];
+
+  const gunKbd = document.getElementById('gun-kbd') || document.querySelector('#gun-slot kbd');
+  if (gunKbd) gunKbd.textContent = gunKey ? formatKeyName(gunKey) : '1';
+
+  const missileKbd = document.getElementById('missile-kbd') || document.querySelector('#missile-slot kbd');
+  if (missileKbd) missileKbd.textContent = missileKey ? formatKeyName(missileKey) : '2';
+
+  const boostKbd = document.getElementById('boost-kbd') || document.querySelector('#boost-slot kbd');
+  if (boostKbd) boostKbd.textContent = boostKey ? formatKeyName(boostKey) : 'Shift';
+
+  const controlsPanel = document.getElementById('controls');
+  if (controlsPanel) {
+    const fKey = binds.forward?.[0] || 'KeyW';
+    const bKey = binds.back?.[0] || 'KeyS';
+    const lKey = binds.left?.[0] || 'KeyA';
+    const rKey = binds.right?.[0] || 'KeyD';
+    const brKey = binds.brake?.[0] || 'Space';
+    const hKey = binds.home?.[0] || 'KeyH';
+    const sKey = binds.skin?.[0] || 'KeyO';
+    const vKey = binds.fpv?.[0] || 'KeyV';
+    const mKey = binds.mute?.[0] || 'KeyM';
+
+    controlsPanel.innerHTML = `
+      <kbd>${formatKeyName(fKey)}</kbd> sail &nbsp; <kbd>${formatKeyName(bKey)}</kbd> reverse &nbsp; <kbd>${formatKeyName(lKey)}</kbd> <kbd>${formatKeyName(rKey)}</kbd> steer<br />
+      <kbd>${formatKeyName(gunKey || 'Digit1')}</kbd> machine gun &nbsp; <kbd>${formatKeyName(missileKey || 'Digit2')}</kbd> missile<br />
+      <kbd>${formatKeyName(fireKey || 'MouseLeft')}</kbd> fire (hold for gun)<br />
+      <kbd>${formatKeyName(boostKey || 'ShiftLeft')}</kbd> boost (8s, refills) &mdash; ram!<br />
+      <kbd>${formatKeyName(brKey)}</kbd> brake (easier steering)<br />
+      <kbd>${formatKeyName(hKey)}</kbd> sail home &nbsp; <kbd>${formatKeyName(sKey)}</kbd> boat skin &nbsp; <kbd>${formatKeyName(vKey)}</kbd> cockpit view &nbsp; <kbd>${formatKeyName(mKey)}</kbd> sound on/off
+    `;
+  }
+}
+input.onKeybindsChange(updateKeybindBadges);
+updateKeybindBadges();
 
 function openKeybindsView(fromStart = false) {
   if (!settingsKeybindsView) return;
@@ -1047,6 +1090,19 @@ function fireMissile() {
   }
 }
 
+function tryFireMissile() {
+  if (isStartScreenActive() || isSinglePlayerPaused || !player.alive) return;
+  if (mp && mp.mode === 'online' && mp.matchState !== 'playing') return;
+  input.selectWeapon('missile');
+  if (missileCd <= 0) {
+    fireMissile();
+  } else if (missileWarnTimer <= 0) {
+    missileWarnTimer = 1.0;
+    hud.toast(`⏳ Missile reloading (${missileCd.toFixed(1)}s)!`, 1000);
+  }
+}
+input.onMissileTrigger(tryFireMissile);
+
 // Shift: toggle or hold the speed boost (configured via Keybinds)
 const tryBoost = () => {
   if (!player.alive) return;
@@ -1145,7 +1201,9 @@ input.onAction('fpv', toggleFPV);
 
 let isFreeLooking = false;
 addEventListener('pointerdown', (e) => {
-  if ((e.button === 2 || e.button === 1) && isFPV && boat.fpv) {
+  const binds = input.getKeybinds();
+  const isRightBoundToWeapon = binds.missile?.includes('MouseRight') || binds.fire?.includes('MouseRight') || binds.gun?.includes('MouseRight');
+  if (((e.button === 2 && !isRightBoundToWeapon) || e.button === 1) && isFPV && boat.fpv) {
     isFreeLooking = true;
     boat.fpv.userData.look.active = true;
   }
@@ -1289,10 +1347,14 @@ function frame() {
     if (boat.boosting !== wasBoosting) { wasBoosting = boat.boosting; audio.boost(wasBoosting); }
     if (resolveCollisions(s, BOAT.radius, dt)) boat.top = Math.max(BOAT.baseTop, boat.top - 30 * dt);
 
-    // Weapons: pick with 1 / 2, fire with the left mouse button.
-    // The machine gun fires while the button is held and alternates between its two barrels.
+    // Weapons firing: pick or fire directly with weapon hotkey, or general fire
     gunTimer -= dt;
-    if (controlsActive && input.state.fire && input.state.weapon === 'gun') {
+    missileWarnTimer -= dt;
+
+    const wantGunFire = controlsActive && (input.state.gunFire || (input.state.fire && input.state.weapon === 'gun'));
+    const wantMissileFire = controlsActive && (input.state.missileFire || (input.state.fire && input.state.weapon === 'missile'));
+
+    if (wantGunFire) {
       gunFiring = true;
       if (gunTimer <= 0) {
         gunTimer = 1 / WEAPONS.gun.rate;
@@ -1312,15 +1374,34 @@ function frame() {
           mp.broadcastLocalFire('gun', { x: s.x + fx * 3.6, z: s.z + fz * 3.6, yaw: ang, speed: bspd });
         }
       }
+    } else if (controlsActive && input.state.fire && input.state.weapon === 'missile' && missileCd > 0) {
+      // If player clicks/holds primary fire while missile is on cooldown, auto-stream machine gun!
+      input.selectWeapon('gun');
+      gunFiring = true;
+      if (gunTimer <= 0) {
+        gunTimer = 1 / WEAPONS.gun.rate;
+        const fx = Math.sin(s.yaw), fz = Math.cos(s.yaw);
+        const lx = Math.cos(s.yaw), lz = -Math.sin(s.yaw);
+        const ang = s.yaw + (Math.random() - 0.5) * 2 * (WEAPONS.gun.spread || 0);
+        const bspd = WEAPONS.gun.speed + Math.max(0, s.speed);
+        for (const side of [-1, 1]) {
+          const bx = s.x + fx * 3.6 + lx * side * 0.55;
+          const bz = s.z + fz * 3.6 + lz * side * 0.55;
+          combat.fireBullet('player', bx, bz, ang, bspd, WEAPONS.gun.dmg, WEAPONS.gun.life);
+        }
+        if (boat.fpv?.userData?.fire) boat.fpv.userData.fire();
+        if (isOnline) {
+          mp.broadcastLocalFire('gun', { x: s.x + fx * 3.6, z: s.z + fz * 3.6, yaw: ang, speed: bspd });
+        }
+      }
     }
-    // The missile fires whenever it is ready and fire button/key is triggered.
-    missileWarnTimer -= dt;
-    if (controlsActive && input.state.fire && input.state.weapon === 'missile') {
+
+    if (wantMissileFire) {
       if (missileCd <= 0) {
         fireMissile();
-      } else if (missileWarnTimer <= 0) {
+      } else if (missileWarnTimer <= 0 && (input.state.missileFire || input.state.fire)) {
         missileWarnTimer = 1.0;
-        hud.toast(`⏳ Missile reloading (${missileCd.toFixed(1)}s)! Press 1 for Machine Gun`, 1100);
+        hud.toast(`⏳ Missile reloading (${missileCd.toFixed(1)}s)!`, 1000);
       }
     }
 
