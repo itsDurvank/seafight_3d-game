@@ -209,16 +209,23 @@ function renderKeybindsUI() {
   }
 }
 
-function openKeybindsView() {
+function openKeybindsView(fromStart = false) {
   if (!settingsKeybindsView) return;
   const offlineView = document.getElementById('settings-offline-view');
   const onlineView = document.getElementById('settings-online-view');
   const titleEl = document.getElementById('settings-modal-title');
   const tipEl = document.getElementById('settings-tip-text');
+  const footerEl = document.querySelector('.settings-footer');
 
   if (offlineView) offlineView.classList.add('hidden');
   if (onlineView) onlineView.classList.add('hidden');
   settingsKeybindsView.classList.remove('hidden');
+
+  if (settingsModal) {
+    settingsModal.classList.add('keybinds-active');
+    settingsModal.classList.toggle('from-start-screen', fromStart);
+  }
+  if (footerEl) footerEl.classList.add('hidden');
 
   if (titleEl) titleEl.textContent = '⌨️ Keybinds & Controls';
   if (tipEl) tipEl.innerHTML = 'Click any key badge to customize your mapping!';
@@ -229,12 +236,24 @@ function openKeybindsView() {
 
 function closeKeybindsView() {
   if (settingsKeybindsView) settingsKeybindsView.classList.add('hidden');
+  if (settingsModal) {
+    settingsModal.classList.remove('keybinds-active');
+    settingsModal.classList.remove('from-start-screen');
+  }
+  const footerEl = document.querySelector('.settings-footer');
+  if (footerEl) footerEl.classList.remove('hidden');
   updateSettingsUI();
   audio.click();
 }
 
 function updateSettingsUI() {
   if (settingsKeybindsView) settingsKeybindsView.classList.add('hidden');
+  if (settingsModal) {
+    settingsModal.classList.remove('keybinds-active');
+    settingsModal.classList.remove('from-start-screen');
+  }
+  const footerEl = document.querySelector('.settings-footer');
+  if (footerEl) footerEl.classList.remove('hidden');
   const isOnlineInRoom = !!(mp && mp.mode === 'online' && mp.roomCode);
   const offlineView = document.getElementById('settings-offline-view');
   const onlineView = document.getElementById('settings-online-view');
@@ -405,8 +424,12 @@ const quitModalCancel = document.getElementById('quit-modal-cancel');
 const modalBackdrop = document.getElementById('modal-backdrop');
 
 function checkBackdropVisibility() {
+  const mpHubModal = document.getElementById('mp-hub-modal');
+  const mpLobbyModal = document.getElementById('mp-lobby-modal');
   const isAnyOpen = (howToPlayModal && !howToPlayModal.classList.contains('hidden')) ||
                     (quitModal && !quitModal.classList.contains('hidden')) ||
+                    (mpHubModal && !mpHubModal.classList.contains('hidden')) ||
+                    (mpLobbyModal && !mpLobbyModal.classList.contains('hidden')) ||
                     (settingsModal && !settingsModal.classList.contains('hidden') && settingsModal.classList.contains('centered-modal'));
   if (modalBackdrop) modalBackdrop.classList.toggle('hidden', !isAnyOpen);
 }
@@ -494,13 +517,17 @@ function startSingleplayerGame() {
   hud.toast('Welcome, Captain! Hold W to sail.', 2000);
 }
 
-function startMultiplayerFromMenu() {
-  if (startScreen) startScreen.classList.add('hidden');
-  pauseMenuMusic();
-  audio.init();
-  if (settingsModal) settingsModal.classList.remove('hidden');
-  const onlineTab = document.getElementById('mp-mode-online');
-  if (onlineTab) onlineTab.click();
+function startMultiplayerFromMenu(e) {
+  if (e && typeof e.stopPropagation === 'function') e.stopPropagation();
+  if (mp && mp.net) mp.net.connect();
+  const mpHubModal = document.getElementById('mp-hub-modal');
+  if (mpHubModal) {
+    mpHubModal.classList.remove('hidden');
+    if (mpHud && mpHud.loadSavedName) mpHud.loadSavedName();
+    if (mpHud && mpHud.updateButtonsState) mpHud.updateButtonsState();
+  }
+  checkBackdropVisibility();
+  audio.click();
 }
 
 function openKeybindsFromMenu(e) {
@@ -509,8 +536,8 @@ function openKeybindsFromMenu(e) {
     settingsModal.classList.add('centered-modal');
     settingsModal.classList.remove('hidden');
   }
+  openKeybindsView(true);
   checkBackdropVisibility();
-  openKeybindsView();
 }
 
 if (startBtnSingleplayer) startBtnSingleplayer.addEventListener('click', startSingleplayerGame);
@@ -572,8 +599,12 @@ if (modalBackdrop) {
   modalBackdrop.addEventListener('click', () => {
     if (howToPlayModal) howToPlayModal.classList.add('hidden');
     if (quitModal) quitModal.classList.add('hidden');
+    const mpHubModal = document.getElementById('mp-hub-modal');
+    if (mpHubModal) mpHubModal.classList.add('hidden');
     if (settingsModal && settingsModal.classList.contains('centered-modal')) {
       settingsModal.classList.add('hidden');
+      settingsModal.classList.remove('keybinds-active');
+      settingsModal.classList.remove('from-start-screen');
     }
     checkBackdropVisibility();
     audio.click();
@@ -586,6 +617,9 @@ if (startMusicBtn) {
     toggleMenuMusic();
   });
 }
+
+window.__pauseMenuMusic = pauseMenuMusic;
+window.__playRandomMenuMusic = playRandomMenuMusic;
 
 // Start random menu music on load
 playRandomMenuMusic();
@@ -1067,6 +1101,16 @@ function frame() {
   }
 
   const startScreenOpen = isStartScreenActive();
+  if (startScreenOpen) {
+    // Keep gentle water waves and sky moving visually in the background,
+    // but completely freeze gameplay entities, enemy AI, combat, and in-game audio.
+    water.update(s.x, s.z, t);
+    sky.update(camera, t);
+    renderer.render(scene, camera);
+    requestAnimationFrame(frame);
+    return;
+  }
+
   const controlsActive = !startScreenOpen && (!isOnline || (mp.matchState === 'playing'));
 
   if (player.alive) {

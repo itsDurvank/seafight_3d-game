@@ -60,6 +60,12 @@ export class NetworkClient {
       this.isConnected = true;
       if (this.onStatusChange) this.onStatusChange('connected');
       this.startHeartbeat();
+      if (this.pendingQueue && this.pendingQueue.length > 0) {
+        for (const m of this.pendingQueue) {
+          this.send(m);
+        }
+        this.pendingQueue = [];
+      }
     };
 
     this.ws.onmessage = (event) => {
@@ -119,7 +125,13 @@ export class NetworkClient {
   }
 
   send(msg) {
-    if (!this.ws || this.ws.readyState !== WebSocket.OPEN) return;
+    if (!this.ws || this.ws.readyState !== WebSocket.OPEN) {
+      if (this.ws && this.ws.readyState === WebSocket.CONNECTING) {
+        if (!this.pendingQueue) this.pendingQueue = [];
+        this.pendingQueue.push(msg);
+      }
+      return;
+    }
     const raw = JSON.stringify(msg);
 
     if (this.simulatedLag > 0) {

@@ -73,13 +73,24 @@ export class MultiplayerHUD {
     this.elRestartBtn = document.getElementById('mp-restart-btn');
     this.elRestartStatus = document.getElementById('mp-restart-status');
     this.elGameOverLeaveBtn = document.getElementById('mp-gameover-leave-btn');
+
+    // Dedicated Start Screen Multiplayer Hub Modal
+    this.elHubModal = document.getElementById('mp-hub-modal');
+    this.elHubClose = document.getElementById('mp-hub-close');
+    this.elHubNameInput = document.getElementById('mp-hub-name-input');
+    this.elHubCodeInput = document.getElementById('mp-hub-code-input');
+    this.elHubCreateBtn = document.getElementById('mp-hub-create-btn');
+    this.elHubJoinBtn = document.getElementById('mp-hub-join-btn');
+    this.elHubErrorMsg = document.getElementById('mp-hub-error');
   }
 
   loadSavedName() {
     try {
       const saved = localStorage.getItem('boom_boats_player_name');
-      if (saved && this.elNameInput) {
-        this.elNameInput.value = saved.trim().slice(0, 16);
+      if (saved) {
+        const val = saved.trim().slice(0, 16);
+        if (this.elNameInput) this.elNameInput.value = val;
+        if (this.elHubNameInput) this.elHubNameInput.value = val;
         this.updateButtonsState();
       }
     } catch {}
@@ -91,6 +102,11 @@ export class MultiplayerHUD {
     } catch {}
   }
 
+  getName() {
+    const val = (this.elHubNameInput && this.elHubNameInput.value) || (this.elNameInput && this.elNameInput.value) || '';
+    return val.trim().slice(0, 16);
+  }
+
   setupListeners() {
     // Mode toggle in settings
     if (this.elModeOffline && this.elModeOnline) {
@@ -98,9 +114,17 @@ export class MultiplayerHUD {
       this.elModeOnline.addEventListener('click', () => this.setMode('online'));
     }
 
-    // Name input validation
+    // Name input validation (Settings panel & Dedicated Hub)
     if (this.elNameInput) {
       this.elNameInput.addEventListener('input', () => {
+        if (this.elHubNameInput) this.elHubNameInput.value = this.elNameInput.value;
+        this.updateButtonsState();
+        this.clearError();
+      });
+    }
+    if (this.elHubNameInput) {
+      this.elHubNameInput.addEventListener('input', () => {
+        if (this.elNameInput) this.elNameInput.value = this.elHubNameInput.value;
         this.updateButtonsState();
         this.clearError();
       });
@@ -109,37 +133,57 @@ export class MultiplayerHUD {
     if (this.elCodeInput) {
       this.elCodeInput.addEventListener('input', () => {
         this.elCodeInput.value = this.elCodeInput.value.toUpperCase().replace(/[^23456789ABCDEFGHJKMNPQRSTUVWXYZ]/g, '').slice(0, 5);
+        if (this.elHubCodeInput) this.elHubCodeInput.value = this.elCodeInput.value;
+        this.updateButtonsState();
+        this.clearError();
+      });
+    }
+    if (this.elHubCodeInput) {
+      this.elHubCodeInput.addEventListener('input', () => {
+        this.elHubCodeInput.value = this.elHubCodeInput.value.toUpperCase().replace(/[^23456789ABCDEFGHJKMNPQRSTUVWXYZ]/g, '').slice(0, 5);
+        if (this.elCodeInput) this.elCodeInput.value = this.elHubCodeInput.value;
         this.updateButtonsState();
         this.clearError();
       });
     }
 
-    // Create Room button
-    if (this.elCreateBtn) {
-      this.elCreateBtn.addEventListener('click', () => {
-        const name = this.getName();
-        if (!name) return;
-        this.saveName(name);
-        this.clearError();
-        this.elCreateBtn.disabled = true;
-        this.mp.playerName = name;
-        this.mp.net.connect();
-        this.mp.net.send({ type: 'createRoom', name });
-      });
-    }
+    // Create Room button (Settings & Hub)
+    const handleCreate = () => {
+      const name = this.getName();
+      if (!name) return;
+      this.saveName(name);
+      this.clearError();
+      if (this.elCreateBtn) this.elCreateBtn.disabled = true;
+      if (this.elHubCreateBtn) this.elHubCreateBtn.disabled = true;
+      this.mp.playerName = name;
+      this.mp.net.connect();
+      this.mp.net.send({ type: 'createRoom', name });
+    };
+    if (this.elCreateBtn) this.elCreateBtn.addEventListener('click', handleCreate);
+    if (this.elHubCreateBtn) this.elHubCreateBtn.addEventListener('click', handleCreate);
 
-    // Join Room button
-    if (this.elJoinBtn) {
-      this.elJoinBtn.addEventListener('click', () => {
-        const name = this.getName();
-        const code = (this.elCodeInput ? this.elCodeInput.value : '').trim().toUpperCase();
-        if (!name || code.length !== 5) return;
-        this.saveName(name);
-        this.clearError();
-        this.elJoinBtn.disabled = true;
-        this.mp.playerName = name;
-        this.mp.net.connect();
-        this.mp.net.send({ type: 'joinRoom', code, name });
+    // Join Room button (Settings & Hub)
+    const handleJoin = () => {
+      const name = this.getName();
+      const codeInput = (this.elHubCodeInput && this.elHubCodeInput.value) || (this.elCodeInput ? this.elCodeInput.value : '');
+      const code = codeInput.trim().toUpperCase();
+      if (!name || code.length !== 5) return;
+      this.saveName(name);
+      this.clearError();
+      if (this.elJoinBtn) this.elJoinBtn.disabled = true;
+      if (this.elHubJoinBtn) this.elHubJoinBtn.disabled = true;
+      this.mp.playerName = name;
+      this.mp.net.connect();
+      this.mp.net.send({ type: 'joinRoom', code, name });
+    };
+    if (this.elJoinBtn) this.elJoinBtn.addEventListener('click', handleJoin);
+    if (this.elHubJoinBtn) this.elHubJoinBtn.addEventListener('click', handleJoin);
+
+    if (this.elHubClose) {
+      this.elHubClose.addEventListener('click', () => {
+        if (this.elHubModal) this.elHubModal.classList.add('hidden');
+        const modalBackdrop = document.getElementById('modal-backdrop');
+        if (modalBackdrop) modalBackdrop.classList.add('hidden');
       });
     }
 
@@ -164,6 +208,9 @@ export class MultiplayerHUD {
       this.setMode('offline');
       const settingsModal = document.getElementById('settings-modal');
       if (settingsModal) settingsModal.classList.add('hidden');
+      if (this.elHubModal) this.elHubModal.classList.add('hidden');
+      const modalBackdrop = document.getElementById('modal-backdrop');
+      if (modalBackdrop) modalBackdrop.classList.add('hidden');
       if (this.mp.game && this.mp.game.teleportLocalPlayer) {
         this.mp.game.teleportLocalPlayer(0, 0, 0);
       }
@@ -465,16 +512,15 @@ export class MultiplayerHUD {
     }
   }
 
-  getName() {
-    return this.elNameInput ? this.elNameInput.value.trim().slice(0, 16) : '';
-  }
-
   updateButtonsState() {
     const nameValid = this.getName().length > 0;
-    const codeValid = this.elCodeInput ? this.elCodeInput.value.trim().length === 5 : false;
+    const code = (this.elHubCodeInput && this.elHubCodeInput.value) || (this.elCodeInput ? this.elCodeInput.value : '');
+    const codeValid = code.trim().length === 5;
 
     if (this.elCreateBtn) this.elCreateBtn.disabled = !nameValid;
     if (this.elJoinBtn) this.elJoinBtn.disabled = !(nameValid && codeValid);
+    if (this.elHubCreateBtn) this.elHubCreateBtn.disabled = !nameValid;
+    if (this.elHubJoinBtn) this.elHubJoinBtn.disabled = !(nameValid && codeValid);
   }
 
   setMode(mode) {
@@ -512,6 +558,10 @@ export class MultiplayerHUD {
       this.elErrorMsg.textContent = msg;
       this.elErrorMsg.classList.remove('hidden');
     }
+    if (this.elHubErrorMsg) {
+      this.elHubErrorMsg.textContent = msg;
+      this.elHubErrorMsg.classList.remove('hidden');
+    }
     this.updateButtonsState();
   }
 
@@ -520,12 +570,19 @@ export class MultiplayerHUD {
       this.elErrorMsg.textContent = '';
       this.elErrorMsg.classList.add('hidden');
     }
+    if (this.elHubErrorMsg) {
+      this.elHubErrorMsg.textContent = '';
+      this.elHubErrorMsg.classList.add('hidden');
+    }
   }
 
   showLobby(info) {
-    // Hide settings modal while in lobby
+    // Hide settings modal and mp hub modal while in lobby
     const settingsModal = document.getElementById('settings-modal');
     if (settingsModal) settingsModal.classList.add('hidden');
+    if (this.elHubModal) this.elHubModal.classList.add('hidden');
+    const modalBackdrop = document.getElementById('modal-backdrop');
+    if (modalBackdrop) modalBackdrop.classList.remove('hidden');
 
     if (this.elLobbyModal) {
       this.elLobbyModal.classList.remove('hidden');
@@ -666,6 +723,13 @@ export class MultiplayerHUD {
   runCountdown(seconds) {
     this.hideLobby();
     this.hideGameOver();
+    const startScreen = document.getElementById('start-screen');
+    if (startScreen) startScreen.classList.add('hidden');
+    const modalBackdrop = document.getElementById('modal-backdrop');
+    if (modalBackdrop) modalBackdrop.classList.add('hidden');
+    if (window.__pauseMenuMusic) window.__pauseMenuMusic();
+    if (this.mp.game && this.mp.game.audio) this.mp.game.audio.init();
+
     if (this.elCountdownOverlay && this.elCountdownNumber) {
       this.elCountdownOverlay.classList.remove('hidden');
       let count = seconds;
