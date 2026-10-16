@@ -73,7 +73,6 @@ const toggleAudio = () => {
   if (settingsAudioText) settingsAudioText.textContent = isMuted ? 'Sound: Muted (M)' : 'Sound: On (M)';
   hud.toast(isMuted ? '🔇 Sound off (M)' : '🔊 Sound on (M)', 1200);
 };
-input.onPress('KeyM', toggleAudio);
 input.onAction('mute', toggleAudio);
 input.onWeapon(() => audio.click());
 
@@ -82,7 +81,6 @@ const helpBtn = document.getElementById('help-btn');
 const controls = document.getElementById('controls');
 const toggleHelp = () => controls.classList.toggle('hidden');
 helpBtn.addEventListener('click', toggleHelp);
-input.onPress('Slash', toggleHelp);
 input.onAction('help', toggleHelp);
 const combat = new Combat(scene);
 
@@ -360,7 +358,6 @@ const toggleSkinAction = () => {
   const next = boat.toggleSkin();
   applySkin(next);
 };
-input.onPress('KeyO', toggleSkinAction);
 input.onAction('skin', toggleSkinAction);
 
 if (settingsAudioBtn) {
@@ -913,9 +910,6 @@ const handleBoostAction = (isDown) => {
 };
 input.onBoostPress(handleBoostAction);
 
-input.onPress('ShiftLeft', tryBoost);
-input.onPress('ShiftRight', tryBoost);
-
 // Free fast travel home so nobody ever gets stuck
 const travelHome = () => {
   if (!player.alive) return;
@@ -926,7 +920,6 @@ const travelHome = () => {
   camYaw = boat.state.yaw;
   hud.toast('Welcome home! Your resort will grow here.', 3000);
 };
-input.onPress('KeyH', travelHome);
 input.onAction('home', travelHome);
 
 // Toggle first-person cockpit perspective (V)
@@ -984,7 +977,6 @@ function toggleFPV() {
   setFPV(!isFPV);
 }
 
-input.onPress('KeyV', toggleFPV);
 input.onAction('fpv', toggleFPV);
 
 let isFreeLooking = false;

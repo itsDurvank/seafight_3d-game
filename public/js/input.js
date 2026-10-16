@@ -143,10 +143,19 @@ export function createInput() {
     const missileSlot = document.getElementById('missile-slot');
     if (missileSlot) missileSlot.addEventListener('pointerdown', (e) => { e.stopPropagation(); selectWeapon('missile'); });
     const boostSlot = document.getElementById('boost-slot');
-    if (boostSlot) boostSlot.addEventListener('pointerdown', (e) => {
-      e.stopPropagation();
-      for (const fn of boostListeners) fn(true);
-    });
+    if (boostSlot) {
+      boostSlot.addEventListener('pointerdown', (e) => {
+        e.stopPropagation();
+        for (const fn of boostListeners) fn(true);
+      });
+      const onBoostSlotRelease = (e) => {
+        if (boostMode === 'hold') {
+          for (const fn of boostListeners) fn(false);
+        }
+      };
+      boostSlot.addEventListener('pointerup', onBoostSlotRelease);
+      boostSlot.addEventListener('pointercancel', onBoostSlotRelease);
+    }
   };
   if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', wireSlots);
@@ -183,12 +192,12 @@ export function createInput() {
           e.preventDefault();
         }
       }
-    }
-
-    // Support direct legacy code listeners
-    if (!e.repeat && pressHandlers[e.code]) {
-      pressHandlers[e.code]();
-      e.preventDefault();
+    } else {
+      // Support direct legacy code listeners only when key is not mapped to an action
+      if (!e.repeat && pressHandlers[e.code]) {
+        pressHandlers[e.code]();
+        e.preventDefault();
+      }
     }
   });
 
