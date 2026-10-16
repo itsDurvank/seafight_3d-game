@@ -29,7 +29,7 @@ assert(configContent.includes('boostMul: 1.3'));
 assert(configContent.includes('boostAdd: 8'));
 assert(configContent.includes('boostMax: 150'));
 assert(configContent.includes('boostTime: 5'));
-assert(configContent.includes('boostRefillDelay: 2.5'));
+assert(configContent.includes('boostRefillDelay: 0'));
 assert(configContent.includes('boostRefillTime: 7'));
 assert(configContent.includes('turnRate: 1.7'));
 console.log('✓ Section B: BOAT config player speed settings match specs');

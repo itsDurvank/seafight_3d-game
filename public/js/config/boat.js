@@ -12,7 +12,7 @@ export const BOAT = {
   radius: 2.4, // collision radius
   // Shift boost
   boostTime: 5, // seconds of boost energy (toggle with Shift)
-  boostRefillDelay: 2.5, // seconds without boosting before the energy starts refilling
+  boostRefillDelay: 0, // seconds without boosting before the energy starts refilling (instant regeneration)
   boostRefillTime: 7, // seconds to refill a completely empty boost meter
   boostMin: 0.6, // minimum energy (seconds) needed to switch the boost on
   boostMul: 1.3, // top speed multiplier while boosting
