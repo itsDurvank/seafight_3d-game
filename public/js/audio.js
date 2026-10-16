@@ -4,6 +4,13 @@ const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 
 let ctx = null, master = null, noiseBuf = null;
 let muted = false;
+let volume = 0.8;
+try {
+  const savedVol = localStorage.getItem('boom_boats_volume');
+  if (savedVol !== null) volume = clamp(parseFloat(savedVol), 0, 1);
+  const savedMute = localStorage.getItem('boom_boats_muted');
+  if (savedMute !== null) muted = savedMute === 'true';
+} catch {}
 let engine = null, rush = null, rev = null;
 let beat = 0;
 const L = { x: 0, z: 0, yaw: 0 }; // where the "ears" are (the player's boat + camera heading)
@@ -114,7 +121,7 @@ export const audio = {
     if (!AC) return;
     ctx = new AC();
     master = ctx.createGain();
-    master.gain.value = muted ? 0 : 0.6;
+    master.gain.value = muted ? 0 : volume * 0.75;
     const comp = ctx.createDynamicsCompressor();
     master.connect(comp); comp.connect(ctx.destination);
     // reverb: a decaying burst of noise
@@ -137,9 +144,34 @@ export const audio = {
 
   toggleMute() {
     muted = !muted;
-    if (master) master.gain.setTargetAtTime(muted ? 0 : 0.6, ctx.currentTime, 0.05);
+    try { localStorage.setItem('boom_boats_muted', String(muted)); } catch {}
+    if (master && ctx) master.gain.setTargetAtTime(muted ? 0 : volume * 0.75, ctx.currentTime, 0.05);
     return muted;
   },
+
+  setMute(m) {
+    muted = !!m;
+    try { localStorage.setItem('boom_boats_muted', String(muted)); } catch {}
+    if (master && ctx) master.gain.setTargetAtTime(muted ? 0 : volume * 0.75, ctx.currentTime, 0.05);
+    return muted;
+  },
+
+  setVolume(v) {
+    volume = clamp(v, 0, 1);
+    try { localStorage.setItem('boom_boats_volume', String(volume)); } catch {}
+    if (volume > 0 && muted) {
+      muted = false;
+      try { localStorage.setItem('boom_boats_muted', 'false'); } catch {}
+    } else if (volume === 0) {
+      muted = true;
+      try { localStorage.setItem('boom_boats_muted', 'true'); } catch {}
+    }
+    if (master && ctx) master.gain.setTargetAtTime(muted ? 0 : volume * 0.75, ctx.currentTime, 0.05);
+    return { volume, muted };
+  },
+
+  getVolume() { return volume; },
+  isMuted() { return muted; },
 
   setListener(x, z, yaw) { L.x = x; L.z = z; L.yaw = yaw; },
 

@@ -48,6 +48,12 @@ const sky = createSky(scene);
 const water = createWater(scene);
 const world = createWorld(scene);
 const input = createInput();
+const startScreen = document.getElementById('start-screen');
+let menuMusicAudio = null;
+let menuMusicMuted = false;
+try {
+  menuMusicMuted = localStorage.getItem('boom_boats_menu_music_muted') === 'true';
+} catch {}
 window.__DEBUG = {
   input,
   get combat() { return combat; },
@@ -61,6 +67,13 @@ window.__DEBUG = {
   get isPaused() { return isSinglePlayerPaused; },
   togglePause: (val) => toggleSinglePlayerPause(val),
   get menuMusic() { return menuMusicAudio; },
+  setVolume: (v) => {
+    const res = audio.setVolume(v);
+    syncVolumeUI(res.volume * 100, res.muted);
+    return res;
+  },
+  getVolume: () => audio.getVolume(),
+  isMuted: () => audio.isMuted(),
 };
 const hud = createHud();
 // browsers only start audio after a click or key press
@@ -68,11 +81,11 @@ for (const ev of ['pointerdown', 'keydown']) addEventListener(ev, () => audio.in
 const toggleAudio = () => {
   if (isStartScreenActive()) {
     toggleMenuMusic();
+    syncVolumeUI(audio.getVolume() * 100, menuMusicMuted);
     return;
   }
   const isMuted = audio.toggleMute();
-  if (settingsAudioIcon) settingsAudioIcon.textContent = isMuted ? '🔇' : '🔊';
-  if (settingsAudioText) settingsAudioText.textContent = isMuted ? 'Sound: Muted (M)' : 'Sound: On (M)';
+  syncVolumeUI(audio.getVolume() * 100, isMuted);
   hud.toast(isMuted ? '🔇 Sound off (M)' : '🔊 Sound on (M)', 1200);
 };
 input.onAction('mute', toggleAudio);
@@ -101,9 +114,32 @@ const statusClassic = document.getElementById('status-classic');
 const settingsAudioBtn = document.getElementById('settings-audio-btn');
 const settingsAudioIcon = document.getElementById('settings-audio-icon');
 const settingsAudioText = document.getElementById('settings-audio-text');
+const settingsVolumeSlider = document.getElementById('settings-volume-slider');
+const settingsVolumeVal = document.getElementById('settings-volume-val');
+const settingsVolumeIcon = document.getElementById('settings-volume-icon');
 const settingsKeybindsBtn = document.getElementById('settings-keybinds-btn');
 const settingsKeybindsView = document.getElementById('settings-keybinds-view');
 const keybindsBackBtn = document.getElementById('keybinds-back-btn');
+
+function syncVolumeUI(volPct, isMuted) {
+  if (settingsVolumeSlider) {
+    settingsVolumeSlider.value = volPct;
+    const trackPct = isMuted ? 0 : volPct;
+    settingsVolumeSlider.style.background = `linear-gradient(90deg, #ff8a3d ${trackPct}%, #ebd8be ${trackPct}%)`;
+  }
+  if (settingsVolumeVal) {
+    settingsVolumeVal.textContent = isMuted ? 'Muted' : `${Math.round(volPct)}%`;
+  }
+  if (settingsVolumeIcon) {
+    if (isMuted || volPct === 0) settingsVolumeIcon.textContent = '🔇';
+    else if (volPct < 35) settingsVolumeIcon.textContent = '🔈';
+    else if (volPct < 70) settingsVolumeIcon.textContent = '🔉';
+    else settingsVolumeIcon.textContent = '🔊';
+  }
+  if (settingsAudioIcon) settingsAudioIcon.textContent = isMuted ? '🔇' : '🔊';
+  if (settingsAudioText) settingsAudioText.textContent = isMuted ? 'Sound: Muted (M)' : 'Sound: On (M)';
+}
+syncVolumeUI(audio.getVolume() * 100, audio.isMuted());
 const boostModeToggleBtn = document.getElementById('boost-mode-toggle-btn');
 const boostModeHoldBtn = document.getElementById('boost-mode-hold-btn');
 const boostModeDesc = document.getElementById('boost-mode-desc');
@@ -284,6 +320,8 @@ function updateSettingsUI() {
   }
   const footerEl = document.querySelector('.settings-footer');
   if (footerEl) footerEl.classList.remove('hidden');
+  const curMuted = isStartScreenActive() ? menuMusicMuted : audio.isMuted();
+  syncVolumeUI(audio.getVolume() * 100, curMuted);
   const isOnlineInRoom = !!(mp && mp.mode === 'online' && mp.roomCode);
   const offlineView = document.getElementById('settings-offline-view');
   const onlineView = document.getElementById('settings-online-view');
@@ -394,10 +432,30 @@ input.onAction('skin', toggleSkinAction);
 
 if (settingsAudioBtn) {
   settingsAudioBtn.addEventListener('click', () => {
-    const isMuted = audio.toggleMute();
-    if (settingsAudioIcon) settingsAudioIcon.textContent = isMuted ? '🔇' : '🔊';
-    if (settingsAudioText) settingsAudioText.textContent = isMuted ? 'Sound: Muted (M)' : 'Sound: On (M)';
-    hud.toast(isMuted ? '🔇 Sound off (M)' : '🔊 Sound on (M)', 1200);
+    if (isStartScreenActive()) {
+      toggleMenuMusic();
+      syncVolumeUI(audio.getVolume() * 100, menuMusicMuted);
+    } else {
+      const isMuted = audio.toggleMute();
+      syncVolumeUI(audio.getVolume() * 100, isMuted);
+      hud.toast(isMuted ? '🔇 Sound off (M)' : '🔊 Sound on (M)', 1200);
+    }
+  });
+}
+
+if (settingsVolumeSlider) {
+  settingsVolumeSlider.addEventListener('input', (e) => {
+    const val = parseFloat(e.target.value);
+    const { volume, muted } = audio.setVolume(val / 100);
+    if (menuMusicAudio) {
+      menuMusicAudio.volume = (val / 100) * 0.5;
+      if (muted) {
+        menuMusicAudio.muted = true;
+      } else {
+        menuMusicAudio.muted = menuMusicMuted;
+      }
+    }
+    syncVolumeUI(val, muted);
   });
 }
 
@@ -433,7 +491,6 @@ if (keybindsResetBtn) {
 updateSettingsUI();
 
 // ---------- 🌴 Start Screen & Menu Music ----------
-const startScreen = document.getElementById('start-screen');
 const startBtnSingleplayer = document.getElementById('start-btn-singleplayer');
 const startBtnMultiplayer = document.getElementById('start-btn-multiplayer');
 const startBtnKeybinds = document.getElementById('start-btn-keybinds');
@@ -469,12 +526,6 @@ const START_MENU_TRACKS = [
   '/music/start_menu_3.mp3'
 ];
 
-let menuMusicAudio = null;
-let menuMusicMuted = false;
-try {
-  menuMusicMuted = localStorage.getItem('boom_boats_menu_music_muted') === 'true';
-} catch {}
-
 function isStartScreenActive() {
   return !!(startScreen && !startScreen.classList.contains('hidden'));
 }
@@ -498,8 +549,8 @@ function playRandomMenuMusic() {
   const track = START_MENU_TRACKS[Math.floor(Math.random() * START_MENU_TRACKS.length)];
   menuMusicAudio = new Audio(track);
   menuMusicAudio.loop = true;
-  menuMusicAudio.volume = 0.5;
-  menuMusicAudio.muted = menuMusicMuted;
+  menuMusicAudio.volume = audio.getVolume() * 0.5;
+  menuMusicAudio.muted = menuMusicMuted || audio.isMuted();
   updateMenuMusicIcon();
 
   const playPromise = menuMusicAudio.play();

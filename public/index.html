@@ -180,8 +180,40 @@
       font:inherit; font-size:12.5px; font-weight:600; color:var(--ink); cursor:pointer; display:flex;
       align-items:center; justify-content:center; gap:6px; transition:all .1s ease; }
     .settings-btn-action:hover { background:#fff5e3; border-color:#e8a35a; }
-    .settings-btn-action:disabled { opacity:0.5; cursor:not-allowed; border-color:#e3d0b3; background:#f4ece1; }
     .settings-tip { font-size:11px; text-align:center; color:#8c674b; }
+
+    /* Volume Slider below Keybinds and Sound buttons */
+    .settings-volume-row {
+      display:flex; flex-direction:column; gap:5px; padding:7px 11px;
+      background:#fff; border:2px solid #e3d0b3; border-radius:10px;
+      transition:border-color .15s ease;
+    }
+    .settings-volume-row:hover { border-color:#e8a35a; }
+    .settings-volume-header {
+      display:flex; align-items:center; justify-content:space-between;
+      font-size:12px; font-weight:700; color:var(--ink);
+    }
+    .settings-volume-label { display:flex; align-items:center; gap:6px; }
+    .settings-volume-icon { font-size:14px; line-height:1; }
+    .settings-volume-val {
+      font-size:12px; font-weight:800; color:#b9642a; min-width:38px; text-align:right;
+    }
+    .settings-volume-track-wrap { display:flex; align-items:center; width:100%; }
+    #settings-volume-slider {
+      -webkit-appearance:none; appearance:none; width:100%; height:8px; border-radius:6px;
+      background:#ebd8be; outline:none; cursor:pointer; border:1px solid #d4b896;
+      transition:background 0.1s ease;
+    }
+    #settings-volume-slider::-webkit-slider-thumb {
+      -webkit-appearance:none; appearance:none; width:18px; height:18px; border-radius:50%;
+      background:#ff8a3d; border:2px solid #fff; box-shadow:0 2px 4px rgba(91,58,34,0.35);
+      cursor:pointer; transition:transform 0.1s ease, background 0.15s ease;
+    }
+    #settings-volume-slider::-webkit-slider-thumb:hover { transform:scale(1.15); background:#ff701e; }
+    #settings-volume-slider::-moz-range-thumb {
+      width:18px; height:18px; border-radius:50%; background:#ff8a3d; border:2px solid #fff;
+      box-shadow:0 2px 4px rgba(91,58,34,0.35); cursor:pointer;
+    }
 
     /* Keybinds and Boost Mode view */
     #settings-keybinds-view { display:flex; flex-direction:column; gap:12px; animation:popIn 0.14s ease-out; }
@@ -1083,6 +1115,21 @@
           <span id="settings-audio-icon">🔊</span> <span id="settings-audio-text">Sound: On (M)</span>
         </button>
       </div>
+
+      <!-- Volume Slider below sound and keybind button -->
+      <div id="settings-volume-row" class="settings-volume-row">
+        <div class="settings-volume-header">
+          <div class="settings-volume-label">
+            <span id="settings-volume-icon" class="settings-volume-icon">🔊</span>
+            <span class="settings-volume-title">Volume</span>
+          </div>
+          <span id="settings-volume-val" class="settings-volume-val">80%</span>
+        </div>
+        <div class="settings-volume-track-wrap">
+          <input type="range" id="settings-volume-slider" min="0" max="100" value="80" step="1" aria-label="Game Volume">
+        </div>
+      </div>
+
       <div id="settings-tip-text" class="settings-tip">Tip: Press <kbd>O</kbd> to switch skins &bull; <kbd>V</kbd> for cockpit view!</div>
     </div>
   </div>
