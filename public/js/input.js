@@ -35,7 +35,7 @@ export const KEYBIND_DEFS = [
   { id: 'right',   name: 'Steer Right', icon: '▶️', desc: 'Turn starboard (right)' },
   { id: 'brake',   name: 'Brake', icon: '🛑', desc: 'Scrub speed for tight turns' },
   { id: 'boost',   name: 'Speed Boost', icon: '🔥', desc: 'High-speed ramming surge' },
-  { id: 'fire',    name: 'Fire / Primary', icon: '💥', desc: 'Twin cannons / primary fire trigger' },
+  { id: 'fire',    name: 'Fire Weapon / Primary', icon: '💥', desc: 'Twin cannons / primary fire trigger' },
   { id: 'gun',     name: 'Machine Gun', icon: '🔫', desc: 'Fire / equip machine gun (1 / Wheel Up)' },
   { id: 'missile', name: 'Missiles', icon: '🚀', desc: 'Fire / launch missiles (2 / Wheel Down)' },
   { id: 'fpv',     name: 'Cockpit View', icon: '🎛️', desc: 'Toggle first-person view' },

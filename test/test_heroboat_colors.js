@@ -7,7 +7,10 @@ console.log('--- Verifying Hero Boat Colors ---');
 
 const heroBoatCode = fs.readFileSync(path.join(__dirname, '..', 'public', 'js', 'new_assets', 'heroBoat.js'), 'utf8');
 const boatCode = fs.readFileSync(path.join(__dirname, '..', 'public', 'js', 'boat.js'), 'utf8');
-const configCode = fs.readFileSync(path.join(__dirname, '..', 'public', 'js', 'config.js'), 'utf8');
+const configPath = fs.existsSync(path.join(__dirname, '..', 'public', 'js', 'config', 'multiplayer.js'))
+  ? path.join(__dirname, '..', 'public', 'js', 'config', 'multiplayer.js')
+  : path.join(__dirname, '..', 'public', 'js', 'config.js');
+const configCode = fs.readFileSync(configPath, 'utf8');
 const roomsCode = fs.readFileSync(path.join(__dirname, '..', 'server', 'rooms.js'), 'utf8');
 
 // 1. Check loftHull handles two-tone separation: deckMesh (cream/beige) and sidesMesh (chine)

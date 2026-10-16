@@ -14,8 +14,13 @@ for (const file of publicJsFiles) {
 }
 console.log('✓ Section A: All public/js imports use bare module paths (no ?v=)');
 
-// 2. Player speed (config.js)
-const configContent = fs.readFileSync('public/js/config.js', 'utf8');
+// 2. Player speed (config.js & modular config files)
+let configContent = fs.readFileSync('public/js/config.js', 'utf8');
+if (fs.existsSync('public/js/config')) {
+  for (const f of fs.readdirSync('public/js/config')) {
+    configContent += '\n' + fs.readFileSync(path.join('public/js/config', f), 'utf8');
+  }
+}
 assert(configContent.includes('baseTop: 90'));
 assert(configContent.includes('topCap: 110'));
 assert(configContent.includes('topGain: 6'));
