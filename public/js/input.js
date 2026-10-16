@@ -201,14 +201,9 @@ export function createInput() {
         e.preventDefault();
       } else if (action === 'gun') {
         selectWeapon('gun');
-        state.gunFire = true;
         e.preventDefault();
       } else if (action === 'missile') {
         selectWeapon('missile');
-        state.missileFire = true;
-        if (!e.repeat) {
-          for (const fn of missileTriggerListeners) fn();
-        }
         e.preventDefault();
       } else if (action === 'boost') {
         state.boost = true;

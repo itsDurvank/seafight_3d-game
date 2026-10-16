@@ -75,6 +75,8 @@ window.__DEBUG = {
   getVolume: () => audio.getVolume(),
   isMuted: () => audio.isMuted(),
   get missileCd() { return missileCd; },
+  acquireLock: () => acquireLock(),
+  fireMissile: () => fireMissile(),
   updateKeybindBadges: () => updateKeybindBadges(),
 };
 const hud = createHud();
@@ -1064,10 +1066,10 @@ function acquireLock() {
     if (!e.alive) continue;
     const dx = e.state.x - s.x, dz = e.state.z - s.z;
     const d = Math.hypot(dx, dz);
-    if (d > (W.lockRange || 280) || d < 4) continue;
+    if (d > (W.lockRange || 360) || d < 4) continue;
     let off = Math.atan2(dx, dz) - s.yaw;
     off = Math.atan2(Math.sin(off), Math.cos(off));
-    if (Math.abs(off) > (W.lockCone || 0.38)) continue;
+    if (Math.abs(off) > (W.lockCone || 1.25)) continue;
     const score = Math.abs(off) * 200 + d * 0.3; // prefer what you are aiming at, then what is closer
     if (score < bestScore) { bestScore = score; best = e; }
   }
@@ -1081,7 +1083,7 @@ function fireMissile() {
   combat.fireMissile('player', s.x + fx * 2.5, s.z + fz * 2.5, s.yaw, Math.max(WEAPONS.missile.speed, s.speed + 25), WEAPONS.missile, lock);
   audio.lock(!!lock);
   const targetLabel = lock ? (lock.name || lock.island?.enemyName || lock.type?.name) : null;
-  const trackTime = (WEAPONS.missile.track || 2.2).toFixed(1);
+  const trackTime = (WEAPONS.missile.track || 2.5).toFixed(1);
   hud.toast(lock ? `🎯 Locked on ${targetLabel}! Tracking for ${trackTime}s` : '🚀 No lock: aim at a boat', 1100);
   missileCd = WEAPONS.missile.cooldown;
 
