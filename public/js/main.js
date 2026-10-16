@@ -1441,7 +1441,7 @@ function frame() {
   hud.update(dt, {
     hp: player.hp, maxHp: player.maxHp,
     speed: s.speed,
-    boost: (boat.top - BOAT.baseTop) / (BOAT.topCap - BOAT.baseTop),
+    boostMaxSpeed: BOAT.boostMax,
     kills,
     gunFiring,
     missileCd, missileMax: WEAPONS.missile.cooldown,

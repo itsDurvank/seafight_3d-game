@@ -226,14 +226,15 @@ export function buildHeroBoatFPV(hero, style = {}) {
     xTex.needsUpdate = true;
   };
 
-  let lastSpd = -1, lastBst = -1, lastHp = -1, lastFl = -1;
+  let lastSpd = -999, lastBst = -1, lastHp = -1, lastFl = -1;
   const drawHUD = (speed, speedK, boostK, flashK, boat) => {
-    const roundedSpeed = Math.round(speed);
+    const isRev = (boat?.state?.speed || 0) < -0.5;
+    const signedSpeed = isRev ? -Math.round(speed) : Math.round(speed);
     const boostStep = Math.round(boostK * 25);
     const hpStep = boat?.hp != null ? Math.round(boat.hp) : -1;
     const flashStep = flashK > 0.01 ? Math.round(flashK * 10) : 0;
-    if (roundedSpeed === lastSpd && boostStep === lastBst && hpStep === lastHp && flashStep === lastFl) return;
-    lastSpd = roundedSpeed; lastBst = boostStep; lastHp = hpStep; lastFl = flashStep;
+    if (signedSpeed === lastSpd && boostStep === lastBst && hpStep === lastHp && flashStep === lastFl) return;
+    lastSpd = signedSpeed; lastBst = boostStep; lastHp = hpStep; lastFl = flashStep;
 
     const W = cv.width, H = cv.height, k = H / 981, Lo = u.hudLayout;   // k keeps the HUD at its original on-screen size
     cx.clearRect(0, 0, W, H);
@@ -244,14 +245,15 @@ export function buildHeroBoatFPV(hero, style = {}) {
         cx.fillStyle = v; cx.fillRect(0, 0, W, H);
       }
     }
-    cx.strokeStyle = cx.fillStyle = '#39e6ff'; cx.lineWidth = Math.max(1.5, 2 * k); cx.shadowColor = '#39e6ff'; cx.shadowBlur = 8 * k;
+    const gaugeCol = isRev ? '#ffaa33' : '#39e6ff';
+    cx.strokeStyle = cx.fillStyle = gaugeCol; cx.lineWidth = Math.max(1.5, 2 * k); cx.shadowColor = gaugeCol; cx.shadowBlur = 8 * k;
     cx.textBaseline = 'middle';
     // speed: ring gauge with the number inside
     const sx = W * Lo.speed[0], sy = H * Lo.speed[1];
     cx.globalAlpha = 0.25; cx.beginPath(); cx.arc(sx, sy, 30 * k, 0, Math.PI * 2); cx.stroke(); cx.globalAlpha = 1;
     cx.beginPath(); cx.arc(sx, sy, 30 * k, Math.PI * 0.75, Math.PI * (0.75 + 1.5 * speedK)); cx.stroke();
-    cx.textAlign = 'center'; cx.font = `bold ${28 * k}px monospace`; cx.fillText(String(Math.round(speed)), sx, sy - 2 * k);
-    cx.font = `${12 * k}px monospace`; cx.fillText('SPD', sx, sy + 42 * k);
+    cx.textAlign = 'center'; cx.font = `bold ${28 * k}px monospace`; cx.fillText(isRev ? `R ${Math.round(speed)}` : String(Math.round(speed)), sx, sy - 2 * k);
+    cx.font = `${12 * k}px monospace`; cx.fillText(isRev ? 'REV' : 'SPD', sx, sy + 42 * k);
     // boost bar
     const bx = W * Lo.boost[0], by = H * Lo.boost[1], col = boostK > 0.1 ? '#ffb02e' : '#39e6ff';
     cx.strokeRect(bx - 80 * k, by - 6 * k, 160 * k, 12 * k);
@@ -343,8 +345,8 @@ export function buildHeroBoatFPV(hero, style = {}) {
 
   u.update = (dt, t, boat) => {
     if (!g.visible) return;
-    const st = boat.state || {}, speed = Math.max(0, st.speed || 0), turn = st.turnVel || 0;
-    const speedK = clamp(speed / 114, 0, 1);
+    const st = boat.state || {}, rawSpeed = st.speed || 0, isRev = rawSpeed < -0.5, speed = Math.abs(rawSpeed), turn = st.turnVel || 0;
+    const speedK = isRev ? clamp(speed / 30, 0, 1) : clamp(speed / 114, 0, 1);
     boostK += ((boat.boosting ? 1 : 0) - boostK) * (1 - Math.exp(-8 * dt));
     flashK = Math.max(0, flashK - dt * 3);
     fireT = Math.max(0, fireT - dt);
@@ -352,10 +354,10 @@ export function buildHeroBoatFPV(hero, style = {}) {
     // wheel follows steering (flip the sign here if it feels backwards)
     steer += (clamp(-turn * 0.7, -0.5, 0.5) - steer) * (1 - Math.exp(-14 * dt));
     wheel.rotation.z = steer; placeSleeves();
-    needle.rotation.z = 2.2 - speedK * 4.4;
+    needle.rotation.z = isRev ? (2.2 + speedK * 0.6) : (2.2 - speedK * 4.4);
     boostBar.scale.x = Math.max(0.03, boostK);
     boostBar.material.color.setHex(boostK > 0.1 ? 0xffb02e : 0x39e6ff);
-    throttle.rotation.x = 0.15 + speedK * 0.75 + boostK * 0.25;
+    throttle.rotation.x = isRev ? (0.15 - speedK * 0.45) : (0.15 + speedK * 0.75 + boostK * 0.25);
     const spin = dt * (0.4 + speedK * 3 + boostK * 3);
     cogA.rotation.y += spin; cogB.rotation.y -= spin * (10 / 7);
     sweep.rotation.z = -t * 2.2;

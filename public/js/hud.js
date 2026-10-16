@@ -3,7 +3,8 @@ export function createHud() {
   const $ = (id) => document.getElementById(id);
   const el = {
     hpFill: $('hp-fill'), hpText: $('hp-text'),
-    speed: $('speed-text'), boostBar: $('boost-fill'), kills: $('kills'),
+    speed: $('speed-text'), speedPanel: $('speed'), speedIcon: $('speed-icon'), speedGear: $('speed-gear'),
+    boostBar: $('boost-fill'), kills: $('kills'),
     gun: $('gun-slot'), missile: $('missile-slot'), cd: $('missile-cd'), cdText: $('missile-time'),
     boost: $('boost-slot'), boostCd: $('boost-cd'), boostText: $('boost-time'),
     flash: $('flash'), toast: $('toast'), hitmarker: $('hitmarker'),
@@ -31,8 +32,38 @@ export function createHud() {
       el.hpFill.classList.toggle('low', f <= 0.25);
       el.hpText.textContent = Math.ceil(s.hp);
 
-      el.speed.textContent = Math.abs(s.speed).toFixed(0);
-      el.boostBar.style.width = `${s.boost * 100}%`;
+      const rawSpeed = s.speed || 0;
+      const isRev = rawSpeed < -0.5;
+      const isBoosting = !!s.boosting;
+      const absSpeed = Math.abs(rawSpeed);
+
+      el.speed.textContent = absSpeed.toFixed(0);
+
+      if (isBoosting) {
+        if (el.speedGear) { el.speedGear.textContent = 'BOOST'; el.speedGear.className = 'gear-tag boost'; }
+        if (el.speedIcon) el.speedIcon.textContent = '🔥';
+        if (el.speedPanel) { el.speedPanel.classList.add('boosting'); el.speedPanel.classList.remove('reversing'); }
+      } else if (isRev) {
+        if (el.speedGear) { el.speedGear.textContent = 'REV'; el.speedGear.className = 'gear-tag rev'; }
+        if (el.speedIcon) el.speedIcon.textContent = '⚓';
+        if (el.speedPanel) { el.speedPanel.classList.add('reversing'); el.speedPanel.classList.remove('boosting'); }
+      } else {
+        if (el.speedGear) el.speedGear.className = 'gear-tag hidden';
+        if (el.speedIcon) el.speedIcon.textContent = '⚓';
+        if (el.speedPanel) el.speedPanel.classList.remove('reversing', 'boosting');
+      }
+
+      // Responsive fill bar:
+      // In reverse: fills proportional to reverse limit (30 km/h)
+      // Forward: fills proportional to boost max (150 km/h, where 90 km/h cruise is 60%)
+      let fillPct = 0;
+      if (isRev) {
+        fillPct = Math.min(100, (absSpeed / 30) * 100);
+      } else {
+        const maxSpd = s.boostMaxSpeed || 150;
+        fillPct = Math.min(100, (absSpeed / maxSpd) * 100);
+      }
+      el.boostBar.style.width = `${fillPct.toFixed(1)}%`;
       el.kills.textContent = s.kills;
 
       el.gun.classList.toggle('active', s.gunFiring);
