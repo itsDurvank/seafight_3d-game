@@ -30,7 +30,7 @@ export const DEFAULT_KEYBINDS = {
 
 export const KEYBIND_DEFS = [
   { id: 'forward', name: 'Sail Forward', icon: '⛵', desc: 'Accelerate forward' },
-  { id: 'back',    name: 'Reverse / Back', icon: '⚓', desc: 'Slow down & reverse up to 30 km/h (S)' },
+  { id: 'back',    name: 'Slow Down', icon: '⚓', desc: 'Slow down boat (S)' },
   { id: 'left',    name: 'Steer Left', icon: '◀️', desc: 'Turn port (left)' },
   { id: 'right',   name: 'Steer Right', icon: '▶️', desc: 'Turn starboard (right)' },
   { id: 'brake',   name: 'Brake', icon: '🛑', desc: 'Scrub speed for tight turns' },

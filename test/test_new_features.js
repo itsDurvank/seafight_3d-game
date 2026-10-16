@@ -94,7 +94,7 @@ async function main() {
       // Find row for 'Fire Weapon'
       let targetRow = null;
       for (const r of rows) {
-        if (r.querySelector('.keybind-name')?.textContent?.includes('Fire Weapon')) {
+        if (r.querySelector('.keybind-name')?.textContent?.includes('Fire')) {
           targetRow = r;
           break;
         }
@@ -120,7 +120,7 @@ async function main() {
       const rows = document.querySelectorAll('#keybinds-list .keybind-row');
       let targetRow = null;
       for (const r of rows) {
-        if (r.querySelector('.keybind-name')?.textContent?.includes('Fire Weapon')) {
+        if (r.querySelector('.keybind-name')?.textContent?.includes('Fire')) {
           targetRow = r;
           break;
         }
@@ -204,7 +204,7 @@ async function main() {
       throw new Error('Second ESC did not unpause');
     }
 
-    console.log('\n--- 5. Testing Ship Reverse Acceleration (S / Down up to 30 km/h) ---');
+    console.log('\n--- 5. Testing S Slows Down and Clamps at 0 (No Reverse) ---');
     // Send KeyS down and simulate for 2 seconds
     ws.send(JSON.stringify({ id: 60, method: 'Input.dispatchKeyEvent', params: { type: 'keyDown', code: 'KeyS', key: 's' } }));
     await new Promise(r => setTimeout(r, 2000));
@@ -216,9 +216,12 @@ async function main() {
         absSpeed: Math.abs(b.state.speed)
       };
     })()`);
-    console.log('Reverse speed after 2s holding S:', reverseState);
-    if (reverseState.speed >= -5 || reverseState.absSpeed < 10) {
-      throw new Error(`Boat failed to reverse properly: ${JSON.stringify(reverseState)}`);
+    console.log('Speed after 2s holding S:', reverseState);
+    if (reverseState.speed < 0) {
+      throw new Error(`Boat reversed when it should be clamped at 0: ${JSON.stringify(reverseState)}`);
+    }
+    if (reverseState.speed > 0.1) {
+      throw new Error(`Boat failed to slow down to 0: ${JSON.stringify(reverseState)}`);
     }
 
     // Release KeyS

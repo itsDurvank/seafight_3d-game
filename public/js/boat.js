@@ -330,28 +330,19 @@ export class Boat {
       s.speed *= Math.exp(-BOAT.drag * dt);
     }
     if (input.back && !boosting) {
-      if (s.speed > 0.5) {
-        // Scrub forward speed off smoothly first, like car braking
+      if (s.speed > 0) {
+        // Scrub forward speed off smoothly when S is held, stopping cleanly at 0
         s.speed = Math.max(0, s.speed - (BOAT.brakeDecel * 0.65) * dt);
-      } else {
-        // Accelerate backward gradually up to maxReverse (30 km/h)
-        const targetRev = -BOAT.maxReverse;
-        s.speed += (targetRev - s.speed) * (1 - Math.exp(-(BOAT.reverseAccel || 14) * 0.22 * dt));
-        s.speed = Math.max(s.speed, targetRev);
       }
-    } else if (!input.forward && s.speed < 0) {
-      // Natural water drag smoothly stops reverse when S is released
-      s.speed *= Math.exp(-BOAT.drag * 1.8 * dt);
-      if (s.speed > -0.08) s.speed = 0;
     }
     // after a boost ends, bleed the extra speed off smoothly instead of snapping
     if (!boosting && !braking && s.speed > this.top) s.speed += (this.top - s.speed) * (1 - Math.exp(-2 * dt));
-    s.speed = Math.max(s.speed, -BOAT.maxReverse);
+    s.speed = Math.max(0, s.speed);
 
     const steer = (input.left ? 1 : 0) - (input.right ? 1 : 0);
     const grip = clamp(Math.abs(s.speed) / 5, 0.6, 1);
     const turnMul = boosting ? BOAT.boostTurnMul : braking ? BOAT.brakeTurnMul : 1;
-    const target = steer * BOAT.turnRate * turnMul * grip * (s.speed < -0.2 ? -1 : 1);
+    const target = steer * BOAT.turnRate * turnMul * grip;
 
     // Responsive rudder: snappy input response without sluggish lag
     const isReversing = steer === 0 || (Math.sign(steer) !== Math.sign(s.turnVel) && Math.abs(s.turnVel) > 0.05);

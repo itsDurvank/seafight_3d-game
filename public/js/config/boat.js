@@ -4,8 +4,7 @@ export const BOAT = {
   topGain: 6, // top speed gained per second while sailing flat out
   topDecay: 4, // top speed lost per second when you let go of W
   pull: 2.2, // how quickly speed catches up to the top speed
-  maxReverse: 30, // reverse speed cap (30 km/h)
-  reverseAccel: 14, // gradual acceleration into reverse, like a car
+  maxReverse: 0, // no reverse
   accel: 9,
   drag: 0.5,
   turnRate: 1.7, // radians per second at full grip

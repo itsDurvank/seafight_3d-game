@@ -88,41 +88,35 @@ async function main() {
     // Release forward
     await evalPromise(`window.__DEBUG.input.state.forward = false`);
 
-    console.log('--- 4. Testing Reverse Acceleration & REV Gear Tag ---');
-    // Set back input (reverse)
+    console.log('--- 4. Testing S Deceleration & Speed Clamps at 0 (No Reverse) ---');
+    // Set back input (slow down)
     await evalPromise(`window.__DEBUG.input.state.back = true`);
     
-    // Wait for boat to decelerate and enter reverse (< -0.5 speed)
+    // Wait for boat to decelerate to 0
     let revState = null;
-    for (let i = 0; i < 30; i++) {
-      await new Promise(r => setTimeout(r, 200));
+    for (let i = 0; i < 20; i++) {
+      await new Promise(r => setTimeout(r, 100));
       revState = await evalPromise(`(() => {
         const boatSpeed = window.__DEBUG.boat?.state?.speed;
         const spd = parseFloat(document.getElementById('speed-text')?.textContent || '0');
-        const fillStr = document.getElementById('boost-fill')?.style.width || '0%';
-        const fill = parseFloat(fillStr);
         const gear = document.getElementById('speed-gear');
-        const icon = document.getElementById('speed-icon')?.textContent;
         const panel = document.getElementById('speed');
         return {
           boatSpeed,
-          spd, fill, fillStr, icon,
+          spd,
           gearVisible: !gear?.classList.contains('hidden'),
           gearText: gear?.textContent,
           isReversingClass: panel?.classList.contains('reversing')
         };
       })()`);
-      if (revState.isReversingClass && revState.gearText === 'REV') break;
+      if (revState.spd === 0) break;
     }
-    console.log('Reverse State:', revState);
-    if (!revState.isReversingClass || revState.gearText !== 'REV' || !revState.gearVisible) {
-      throw new Error(`Reverse gear indication failed: ${JSON.stringify(revState)}`);
-    }
-    if (revState.spd <= 0 || revState.fill <= 0) {
-      throw new Error(`Reverse speed and fill should be positive: ${JSON.stringify(revState)}`);
+    console.log('Deceleration State:', revState);
+    if (revState.boatSpeed < 0 || revState.isReversingClass || (revState.gearVisible && revState.gearText === 'REV')) {
+      throw new Error(`Boat entered reverse when it should be clamped at 0: ${JSON.stringify(revState)}`);
     }
 
-    // Release reverse
+    // Release back
     await evalPromise(`window.__DEBUG.input.state.back = false`);
 
     console.log('--- 5. Testing Boost Mode & BOOST Gear Tag ---');

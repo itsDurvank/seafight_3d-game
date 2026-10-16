@@ -27,7 +27,7 @@ export const ENEMY_TYPES = {
   gunboat: {
     name: 'Jade Gunboat', boost: 1.45, hp: 110, speed: 22, turn: 1.7, scale: 1.25, radius: 3.1,
     pref: 38, range: 82, detect: 300,
-    gun: { rate: 0.14, burst: 6, pause: 0.6, dmg: 4.0, spread: 0.05, twin: true },
+    gun: { rate: 0.14, burst: 6, pause: 0.6, dmg: 2.4, spread: 0.05, twin: true },
     missile: { cd: 5.5 },
     style: { hull: 0x1fb36b, accent: 0xfff3b0, cabin: 0xc8f5dc, roof: 0x0b7d49, flag: 0xfff3b0, look: 'twin' },
   },

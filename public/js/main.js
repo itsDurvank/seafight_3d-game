@@ -308,7 +308,7 @@ function updateKeybindBadges() {
     const mKey = binds.mute?.[0] || 'KeyM';
 
     controlsPanel.innerHTML = `
-      <kbd>${formatKeyName(fKey)}</kbd> sail &nbsp; <kbd>${formatKeyName(bKey)}</kbd> reverse &nbsp; <kbd>${formatKeyName(lKey)}</kbd> <kbd>${formatKeyName(rKey)}</kbd> steer<br />
+      <kbd>${formatKeyName(fKey)}</kbd> sail &nbsp; <kbd>${formatKeyName(bKey)}</kbd> slow down &nbsp; <kbd>${formatKeyName(lKey)}</kbd> <kbd>${formatKeyName(rKey)}</kbd> steer<br />
       <kbd>${formatKeyName(gunKey || 'Digit1')}</kbd> machine gun &nbsp; <kbd>${formatKeyName(missileKey || 'Digit2')}</kbd> missile<br />
       <kbd>${formatKeyName(fireKey || 'MouseLeft')}</kbd> fire (hold for gun)<br />
       <kbd>${formatKeyName(boostKey || 'ShiftLeft')}</kbd> boost (8s, refills) &mdash; ram!<br />
