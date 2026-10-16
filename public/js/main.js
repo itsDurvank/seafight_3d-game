@@ -48,11 +48,26 @@ const sky = createSky(scene);
 const water = createWater(scene);
 const world = createWorld(scene);
 const input = createInput();
-window.__DEBUG = { input, get combat() { return combat; }, get boat() { return boat; }, get player() { return player; }, get enemies() { return enemies; }, get mp() { return mp; } };
+window.__DEBUG = {
+  input,
+  get combat() { return combat; },
+  get boat() { return boat; },
+  get player() { return player; },
+  get enemies() { return enemies; },
+  get mp() { return mp; },
+  startGame: () => startSingleplayerGame(),
+  startMultiplayer: () => startMultiplayerFromMenu(),
+  get isStartScreenActive() { return isStartScreenActive(); },
+  get menuMusic() { return menuMusicAudio; },
+};
 const hud = createHud();
 // browsers only start audio after a click or key press
 for (const ev of ['pointerdown', 'keydown']) addEventListener(ev, () => audio.init());
 const toggleAudio = () => {
+  if (isStartScreenActive()) {
+    toggleMenuMusic();
+    return;
+  }
   const isMuted = audio.toggleMute();
   if (settingsAudioIcon) settingsAudioIcon.textContent = isMuted ? '🔇' : '🔊';
   if (settingsAudioText) settingsAudioText.textContent = isMuted ? 'Sound: Muted (M)' : 'Sound: On (M)';
@@ -283,6 +298,7 @@ function applySkin(skinName, toast = true) {
 if (settingsBtn && settingsModal) {
   const toggleSettings = () => {
     updateSettingsUI();
+    settingsModal.classList.remove('centered-modal');
     settingsModal.classList.toggle('hidden');
     audio.click();
   };
@@ -294,17 +310,20 @@ if (settingsBtn && settingsModal) {
     settingsClose.addEventListener('click', (e) => {
       e.stopPropagation();
       settingsModal.classList.add('hidden');
+      checkBackdropVisibility();
       audio.click();
     });
   }
   addEventListener('click', (e) => {
-    if (!settingsModal.classList.contains('hidden') && !settingsModal.contains(e.target) && e.target !== settingsBtn) {
+    if (!settingsModal.classList.contains('hidden') && !settingsModal.contains(e.target) && e.target !== settingsBtn && e.target !== startBtnKeybinds && !startBtnKeybinds?.contains(e.target)) {
       settingsModal.classList.add('hidden');
+      checkBackdropVisibility();
     }
   });
   addEventListener('keydown', (e) => {
     if (e.key === 'Escape' && !settingsModal.classList.contains('hidden')) {
       settingsModal.classList.add('hidden');
+      checkBackdropVisibility();
     }
   });
 }
@@ -364,6 +383,212 @@ if (keybindsResetBtn) {
 }
 
 updateSettingsUI();
+
+// ---------- 🌴 Start Screen & Menu Music ----------
+const startScreen = document.getElementById('start-screen');
+const startBtnSingleplayer = document.getElementById('start-btn-singleplayer');
+const startBtnMultiplayer = document.getElementById('start-btn-multiplayer');
+const startBtnKeybinds = document.getElementById('start-btn-keybinds');
+const startBtnHowToPlay = document.getElementById('start-btn-howtoplay');
+const startBtnQuit = document.getElementById('start-btn-quit');
+const startMusicBtn = document.getElementById('start-music-btn');
+const startMusicIcon = document.getElementById('start-music-icon');
+
+const howToPlayModal = document.getElementById('how-to-play-modal');
+const howToPlayClose = document.getElementById('how-to-play-close');
+const howToPlayConfirmBtn = document.getElementById('how-to-play-confirm-btn');
+
+const quitModal = document.getElementById('quit-modal');
+const quitModalClose = document.getElementById('quit-modal-close');
+const quitModalConfirm = document.getElementById('quit-modal-confirm');
+const quitModalCancel = document.getElementById('quit-modal-cancel');
+const modalBackdrop = document.getElementById('modal-backdrop');
+
+function checkBackdropVisibility() {
+  const isAnyOpen = (howToPlayModal && !howToPlayModal.classList.contains('hidden')) ||
+                    (quitModal && !quitModal.classList.contains('hidden')) ||
+                    (settingsModal && !settingsModal.classList.contains('hidden') && settingsModal.classList.contains('centered-modal'));
+  if (modalBackdrop) modalBackdrop.classList.toggle('hidden', !isAnyOpen);
+}
+
+const START_MENU_TRACKS = [
+  '/music/start_menu_1.mp3',
+  '/music/start_menu_2.mp3',
+  '/music/start_menu_3.mp3'
+];
+
+let menuMusicAudio = null;
+let menuMusicMuted = false;
+try {
+  menuMusicMuted = localStorage.getItem('boom_boats_menu_music_muted') === 'true';
+} catch {}
+
+function isStartScreenActive() {
+  return !!(startScreen && !startScreen.classList.contains('hidden'));
+}
+
+function updateMenuMusicIcon() {
+  if (startMusicIcon) {
+    startMusicIcon.textContent = menuMusicMuted ? '🔇' : '🎵';
+  }
+  if (startMusicBtn) {
+    startMusicBtn.title = menuMusicMuted ? 'Unmute Menu Music (M)' : 'Mute Menu Music (M)';
+  }
+}
+
+function playRandomMenuMusic() {
+  if (menuMusicAudio) {
+    try {
+      menuMusicAudio.pause();
+      menuMusicAudio.currentTime = 0;
+    } catch {}
+  }
+  const track = START_MENU_TRACKS[Math.floor(Math.random() * START_MENU_TRACKS.length)];
+  menuMusicAudio = new Audio(track);
+  menuMusicAudio.loop = true;
+  menuMusicAudio.volume = 0.5;
+  menuMusicAudio.muted = menuMusicMuted;
+  updateMenuMusicIcon();
+
+  const playPromise = menuMusicAudio.play();
+  if (playPromise !== undefined && typeof playPromise.catch === 'function') {
+    playPromise.catch(() => {
+      // Autoplay blocked until gesture
+      const onFirstGesture = () => {
+        if (menuMusicAudio && !menuMusicMuted && isStartScreenActive()) {
+          menuMusicAudio.play().catch(() => {});
+        }
+        window.removeEventListener('pointerdown', onFirstGesture);
+        window.removeEventListener('keydown', onFirstGesture);
+      };
+      window.addEventListener('pointerdown', onFirstGesture, { once: true });
+      window.addEventListener('keydown', onFirstGesture, { once: true });
+    });
+  }
+}
+
+function pauseMenuMusic() {
+  if (menuMusicAudio) {
+    try { menuMusicAudio.pause(); } catch {}
+  }
+}
+
+function toggleMenuMusic() {
+  menuMusicMuted = !menuMusicMuted;
+  try { localStorage.setItem('boom_boats_menu_music_muted', String(menuMusicMuted)); } catch {}
+  if (menuMusicAudio) {
+    menuMusicAudio.muted = menuMusicMuted;
+    if (!menuMusicMuted && menuMusicAudio.paused && isStartScreenActive()) {
+      menuMusicAudio.play().catch(() => {});
+    }
+  } else if (!menuMusicMuted && isStartScreenActive()) {
+    playRandomMenuMusic();
+  }
+  updateMenuMusicIcon();
+}
+
+function startSingleplayerGame() {
+  if (startScreen) startScreen.classList.add('hidden');
+  pauseMenuMusic();
+  audio.init();
+  hud.toast('Welcome, Captain! Hold W to sail.', 2000);
+}
+
+function startMultiplayerFromMenu() {
+  if (startScreen) startScreen.classList.add('hidden');
+  pauseMenuMusic();
+  audio.init();
+  if (settingsModal) settingsModal.classList.remove('hidden');
+  const onlineTab = document.getElementById('mp-mode-online');
+  if (onlineTab) onlineTab.click();
+}
+
+function openKeybindsFromMenu(e) {
+  if (e && typeof e.stopPropagation === 'function') e.stopPropagation();
+  if (settingsModal) {
+    settingsModal.classList.add('centered-modal');
+    settingsModal.classList.remove('hidden');
+  }
+  checkBackdropVisibility();
+  openKeybindsView();
+}
+
+if (startBtnSingleplayer) startBtnSingleplayer.addEventListener('click', startSingleplayerGame);
+if (startBtnMultiplayer) startBtnMultiplayer.addEventListener('click', startMultiplayerFromMenu);
+if (startBtnKeybinds) startBtnKeybinds.addEventListener('click', openKeybindsFromMenu);
+
+if (startBtnHowToPlay) {
+  startBtnHowToPlay.addEventListener('click', () => {
+    if (howToPlayModal) howToPlayModal.classList.remove('hidden');
+    checkBackdropVisibility();
+    audio.click();
+  });
+}
+if (howToPlayClose) {
+  howToPlayClose.addEventListener('click', () => {
+    if (howToPlayModal) howToPlayModal.classList.add('hidden');
+    checkBackdropVisibility();
+    audio.click();
+  });
+}
+if (howToPlayConfirmBtn) {
+  howToPlayConfirmBtn.addEventListener('click', () => {
+    if (howToPlayModal) howToPlayModal.classList.add('hidden');
+    checkBackdropVisibility();
+    audio.click();
+    startSingleplayerGame();
+  });
+}
+
+if (startBtnQuit) {
+  startBtnQuit.addEventListener('click', () => {
+    if (quitModal) quitModal.classList.remove('hidden');
+    checkBackdropVisibility();
+    audio.click();
+  });
+}
+if (quitModalClose) {
+  quitModalClose.addEventListener('click', () => {
+    if (quitModal) quitModal.classList.add('hidden');
+    checkBackdropVisibility();
+    audio.click();
+  });
+}
+if (quitModalCancel) {
+  quitModalCancel.addEventListener('click', () => {
+    if (quitModal) quitModal.classList.add('hidden');
+    checkBackdropVisibility();
+    audio.click();
+  });
+}
+if (quitModalConfirm) {
+  quitModalConfirm.addEventListener('click', () => {
+    try { window.close(); } catch {}
+    alert('Thank you for playing Boom Boats! You can now close this browser tab.');
+  });
+}
+
+if (modalBackdrop) {
+  modalBackdrop.addEventListener('click', () => {
+    if (howToPlayModal) howToPlayModal.classList.add('hidden');
+    if (quitModal) quitModal.classList.add('hidden');
+    if (settingsModal && settingsModal.classList.contains('centered-modal')) {
+      settingsModal.classList.add('hidden');
+    }
+    checkBackdropVisibility();
+    audio.click();
+  });
+}
+
+if (startMusicBtn) {
+  startMusicBtn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    toggleMenuMusic();
+  });
+}
+
+// Start random menu music on load
+playRandomMenuMusic();
 
 let kills = 0;
 let warned = false;
@@ -841,7 +1066,8 @@ function frame() {
     }
   }
 
-  const controlsActive = !isOnline || (mp.matchState === 'playing');
+  const startScreenOpen = isStartScreenActive();
+  const controlsActive = !startScreenOpen && (!isOnline || (mp.matchState === 'playing'));
 
   if (player.alive) {
     if (controlsActive) {
