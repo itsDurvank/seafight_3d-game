@@ -88,7 +88,7 @@ async function runTest() {
       throw new Error(`Expected controls panel to include R-Click!`);
     }
 
-    console.log('--- 3. Starting Game and Verifying Right Click Activates Missile Directly ---');
+    console.log('--- 3. Starting Game and Verifying Right Click Equips Missile Without Firing ---');
     await evalPromise(`window.__DEBUG.startGame()`);
     await new Promise(r => setTimeout(r, 300));
 
@@ -103,38 +103,57 @@ async function runTest() {
     `);
     console.log('Pre-fire state:', preFire);
 
-    // Fire missile directly with Right Click (pointerdown button 2)
+    // Equip missile with Right Click (pointerdown button 2)
     const rightClickResult = await evalPromise(`
       (() => {
         const canvas = document.querySelector('canvas#game');
         canvas.dispatchEvent(new PointerEvent('pointerdown', { button: 2, bubbles: true }));
+        canvas.dispatchEvent(new PointerEvent('pointerup', { button: 2, bubbles: true }));
         return {
           weapon: window.__DEBUG.input.state.weapon,
-          missileFire: window.__DEBUG.input.state.missileFire,
           activeMissiles: window.__DEBUG.combat.missiles.filter(m => m.on).length,
           missileCd: window.__DEBUG.missileCd
         };
       })()
     `);
-    console.log('Direct Right Click Missile Fire Result:', rightClickResult);
-    if (rightClickResult.activeMissiles < 1) {
-      throw new Error(`Right click failed to directly launch missile! activeMissiles: ${rightClickResult.activeMissiles}`);
+    console.log('Right Click Equip Result:', rightClickResult);
+    if (rightClickResult.weapon !== 'missile') {
+      throw new Error(`Right click failed to equip missile! weapon: ${rightClickResult.weapon}`);
     }
-    if (rightClickResult.missileCd <= 0) {
-      throw new Error(`Missile cooldown did not start! missileCd: ${rightClickResult.missileCd}`);
+    if (rightClickResult.activeMissiles > 0 || rightClickResult.missileCd > 0) {
+      throw new Error(`Right click prematurely fired missile! activeMissiles: ${rightClickResult.activeMissiles}, cd: ${rightClickResult.missileCd}`);
     }
 
-    // Release right click
+    console.log('--- 4. Verifying Left Click Fires the Equipped Missile ---');
+    // Now fire the equipped missile with Left Click (button 0)
     await evalPromise(`
       (() => {
         const canvas = document.querySelector('canvas#game');
-        canvas.dispatchEvent(new PointerEvent('pointerup', { button: 2, bubbles: true }));
-        return window.__DEBUG.input.state.missileFire;
+        canvas.dispatchEvent(new PointerEvent('pointerdown', { button: 0, bubbles: true }));
       })()
     `);
+    await new Promise(r => setTimeout(r, 100));
+    const leftClickFireResult = await evalPromise(`
+      (() => {
+        const canvas = document.querySelector('canvas#game');
+        canvas.dispatchEvent(new PointerEvent('pointerup', { button: 0, bubbles: true }));
+        return {
+          weapon: window.__DEBUG.input.state.weapon,
+          activeMissiles: window.__DEBUG.combat.missiles.filter(m => m.on).length,
+          missileCd: window.__DEBUG.missileCd
+        };
+      })()
+    `);
+    console.log('Left Click Fire Result:', leftClickFireResult);
+    if (leftClickFireResult.activeMissiles < 1) {
+      throw new Error(`Left click failed to launch equipped missile! activeMissiles: ${leftClickFireResult.activeMissiles}`);
+    }
+    if (leftClickFireResult.missileCd <= 0) {
+      throw new Error(`Missile cooldown did not start! missileCd: ${leftClickFireResult.missileCd}`);
+    }
 
-    console.log('--- 4. Verifying Left Click Falls Back to Machine Gun While Missile Reloading ---');
-    // While missile is on 5s cooldown, Left Click should auto-switch to gun and shoot bullets!
+    console.log('--- 5. Verifying Left Click Does NOT Fire Machine Gun While Missile Reloading ---');
+    // While missile is on cooldown, Left Click should NOT fire machine gun and missile remains equipped
     await evalPromise(`
       (() => {
         const canvas = document.querySelector('canvas#game');
@@ -143,7 +162,7 @@ async function runTest() {
     `);
     await new Promise(r => setTimeout(r, 200));
 
-    const leftClickFallback = await evalPromise(`
+    const leftClickCooldownCheck = await evalPromise(`
       (() => {
         const canvas = document.querySelector('canvas#game');
         canvas.dispatchEvent(new PointerEvent('pointerup', { button: 0, bubbles: true }));
@@ -153,15 +172,15 @@ async function runTest() {
         };
       })()
     `);
-    console.log('Left Click Fallback Result:', leftClickFallback);
-    if (leftClickFallback.weapon !== 'gun') {
-      throw new Error(`Expected fallback to weapon 'gun', got: ${leftClickFallback.weapon}`);
+    console.log('Left Click On Cooldown Result:', leftClickCooldownCheck);
+    if (leftClickCooldownCheck.weapon !== 'missile') {
+      throw new Error(`Expected weapon to remain 'missile' without disarming, got: ${leftClickCooldownCheck.weapon}`);
     }
-    if (leftClickFallback.activeBullets < 1) {
-      throw new Error(`Expected machine gun to fire bullets on left click fallback!`);
+    if (leftClickCooldownCheck.activeBullets > 0) {
+      throw new Error(`Machine gun fired while unequipped! activeBullets: ${leftClickCooldownCheck.activeBullets}`);
     }
 
-    console.log('--- 5. Reset Keybinds and Verify Badge Reverts ---');
+    console.log('--- 6. Reset Keybinds and Verify Badge Reverts to 2 ---');
     const resetBadges = await evalPromise(`
       (() => {
         window.__DEBUG.input.resetKeybinds();
@@ -173,6 +192,23 @@ async function runTest() {
     console.log('Reset Badges:', resetBadges);
     if (resetBadges.missile !== '2') {
       throw new Error(`Expected missile badge to reset to '2', got: ${resetBadges.missile}`);
+    }
+
+    // Verify pressing key '1' equips gun and key '2' equips missile
+    const keySwitchResult = await evalPromise(`
+      (() => {
+        window.dispatchEvent(new KeyboardEvent('keydown', { code: 'Digit1', bubbles: true }));
+        window.dispatchEvent(new KeyboardEvent('keyup', { code: 'Digit1', bubbles: true }));
+        const after1 = window.__DEBUG.input.state.weapon;
+        window.dispatchEvent(new KeyboardEvent('keydown', { code: 'Digit2', bubbles: true }));
+        window.dispatchEvent(new KeyboardEvent('keyup', { code: 'Digit2', bubbles: true }));
+        const after2 = window.__DEBUG.input.state.weapon;
+        return { after1, after2 };
+      })()
+    `);
+    console.log('Key switch verification:', keySwitchResult);
+    if (keySwitchResult.after1 !== 'gun' || keySwitchResult.after2 !== 'missile') {
+      throw new Error(`Expected Digit1 -> gun, Digit2 -> missile, got: ${JSON.stringify(keySwitchResult)}`);
     }
 
     console.log('✅ ALL KEYBIND ACTIVATION & BADGE TESTS PASSED SUCCESSFULLY!');

@@ -1092,18 +1092,7 @@ function fireMissile() {
   }
 }
 
-function tryFireMissile() {
-  if (isStartScreenActive() || isSinglePlayerPaused || !player.alive) return;
-  if (mp && mp.mode === 'online' && mp.matchState !== 'playing') return;
-  input.selectWeapon('missile');
-  if (missileCd <= 0) {
-    fireMissile();
-  } else if (missileWarnTimer <= 0) {
-    missileWarnTimer = 1.0;
-    hud.toast(`⏳ Missile reloading (${missileCd.toFixed(1)}s)!`, 1000);
-  }
-}
-input.onMissileTrigger(tryFireMissile);
+
 
 // Shift: toggle or hold the speed boost (configured via Keybinds)
 const tryBoost = () => {
@@ -1349,12 +1338,12 @@ function frame() {
     if (boat.boosting !== wasBoosting) { wasBoosting = boat.boosting; audio.boost(wasBoosting); }
     if (resolveCollisions(s, BOAT.radius, dt)) boat.top = Math.max(BOAT.baseTop, boat.top - 30 * dt);
 
-    // Weapons firing: pick or fire directly with weapon hotkey, or general fire
+    // Weapons firing: Left click (fire action) fires whichever weapon is currently equipped
     gunTimer -= dt;
     missileWarnTimer -= dt;
 
-    const wantGunFire = controlsActive && (input.state.gunFire || (input.state.fire && input.state.weapon === 'gun'));
-    const wantMissileFire = controlsActive && (input.state.missileFire || (input.state.fire && input.state.weapon === 'missile'));
+    const wantGunFire = controlsActive && input.state.fire && input.state.weapon === 'gun';
+    const wantMissileFire = controlsActive && input.state.fire && input.state.weapon === 'missile';
 
     if (wantGunFire) {
       gunFiring = true;
@@ -1376,32 +1365,12 @@ function frame() {
           mp.broadcastLocalFire('gun', { x: s.x + fx * 3.6, z: s.z + fz * 3.6, yaw: ang, speed: bspd });
         }
       }
-    } else if (controlsActive && input.state.fire && input.state.weapon === 'missile' && missileCd > 0) {
-      // If player clicks/holds primary fire while missile is on cooldown, auto-stream machine gun!
-      input.selectWeapon('gun');
-      gunFiring = true;
-      if (gunTimer <= 0) {
-        gunTimer = 1 / WEAPONS.gun.rate;
-        const fx = Math.sin(s.yaw), fz = Math.cos(s.yaw);
-        const lx = Math.cos(s.yaw), lz = -Math.sin(s.yaw);
-        const ang = s.yaw + (Math.random() - 0.5) * 2 * (WEAPONS.gun.spread || 0);
-        const bspd = WEAPONS.gun.speed + Math.max(0, s.speed);
-        for (const side of [-1, 1]) {
-          const bx = s.x + fx * 3.6 + lx * side * 0.55;
-          const bz = s.z + fz * 3.6 + lz * side * 0.55;
-          combat.fireBullet('player', bx, bz, ang, bspd, WEAPONS.gun.dmg, WEAPONS.gun.life);
-        }
-        if (boat.fpv?.userData?.fire) boat.fpv.userData.fire();
-        if (isOnline) {
-          mp.broadcastLocalFire('gun', { x: s.x + fx * 3.6, z: s.z + fz * 3.6, yaw: ang, speed: bspd });
-        }
-      }
     }
 
     if (wantMissileFire) {
       if (missileCd <= 0) {
         fireMissile();
-      } else if (missileWarnTimer <= 0 && (input.state.missileFire || input.state.fire)) {
+      } else if (missileWarnTimer <= 0) {
         missileWarnTimer = 1.0;
         hud.toast(`⏳ Missile reloading (${missileCd.toFixed(1)}s)!`, 1000);
       }

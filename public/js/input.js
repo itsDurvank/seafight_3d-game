@@ -35,9 +35,9 @@ export const KEYBIND_DEFS = [
   { id: 'right',   name: 'Steer Right', icon: '▶️', desc: 'Turn starboard (right)' },
   { id: 'brake',   name: 'Brake', icon: '🛑', desc: 'Scrub speed for tight turns' },
   { id: 'boost',   name: 'Speed Boost', icon: '🔥', desc: 'High-speed ramming surge' },
-  { id: 'fire',    name: 'Fire Weapon / Primary', icon: '💥', desc: 'Twin cannons / primary fire trigger' },
-  { id: 'gun',     name: 'Machine Gun', icon: '🔫', desc: 'Fire / equip machine gun (1 / Wheel Up)' },
-  { id: 'missile', name: 'Missiles', icon: '🚀', desc: 'Fire / launch missiles (2 / Wheel Down)' },
+  { id: 'fire',    name: 'Fire / Primary', icon: '💥', desc: 'Fire currently equipped weapon' },
+  { id: 'gun',     name: 'Machine Gun', icon: '🔫', desc: 'Equip machine gun (1 / Wheel Up)' },
+  { id: 'missile', name: 'Missiles', icon: '🚀', desc: 'Equip missiles (2 / Wheel Down)' },
   { id: 'fpv',     name: 'Cockpit View', icon: '🎛️', desc: 'Toggle first-person view' },
   { id: 'skin',    name: 'Switch Skin', icon: '🎨', desc: 'Cycle boat skins' },
   { id: 'home',    name: 'Sail Home', icon: '🏠', desc: 'Fast travel to harbor' },
@@ -121,8 +121,6 @@ export function createInput() {
     boost: false,
     weapon: 'gun', // 'gun' | 'missile'
     fire: false,   // generic fire trigger (held)
-    gunFire: false, // gun action held
-    missileFire: false, // missile action held
   };
 
   let keybinds = loadSavedKeybinds();
@@ -165,7 +163,6 @@ export function createInput() {
     if (missileSlot) missileSlot.addEventListener('pointerdown', (e) => {
       e.stopPropagation();
       selectWeapon('missile');
-      for (const fn of missileTriggerListeners) fn();
     });
     const boostSlot = document.getElementById('boost-slot');
     if (boostSlot) {
@@ -233,10 +230,6 @@ export function createInput() {
         state[action] = false;
       } else if (action === 'fire') {
         state.fire = false;
-      } else if (action === 'gun') {
-        state.gunFire = false;
-      } else if (action === 'missile') {
-        state.missileFire = false;
       } else if (action === 'boost') {
         state.boost = false;
         for (const fn of boostListeners) fn(false);
@@ -256,11 +249,8 @@ export function createInput() {
         state.fire = true;
       } else if (action === 'gun') {
         selectWeapon('gun');
-        state.gunFire = true;
       } else if (action === 'missile') {
         selectWeapon('missile');
-        state.missileFire = true;
-        for (const fn of missileTriggerListeners) fn();
       } else if (action === 'boost') {
         state.boost = true;
         for (const fn of boostListeners) fn(true);
@@ -282,10 +272,6 @@ export function createInput() {
         state[action] = false;
       } else if (action === 'fire') {
         state.fire = false;
-      } else if (action === 'gun') {
-        state.gunFire = false;
-      } else if (action === 'missile') {
-        state.missileFire = false;
       } else if (action === 'boost') {
         state.boost = false;
         for (const fn of boostListeners) fn(false);
@@ -297,7 +283,7 @@ export function createInput() {
   };
   addEventListener('pointerup', releasePointer);
   addEventListener('pointercancel', () => {
-    for (const k of ['forward', 'back', 'left', 'right', 'brake', 'fire', 'gunFire', 'missileFire', 'boost']) state[k] = false;
+    for (const k of ['forward', 'back', 'left', 'right', 'brake', 'fire', 'boost']) state[k] = false;
     for (const fn of boostListeners) fn(false);
   });
   addEventListener('contextmenu', (e) => e.preventDefault());
@@ -322,7 +308,7 @@ export function createInput() {
   }, { passive: true });
 
   addEventListener('blur', () => {
-    for (const k of ['forward', 'back', 'left', 'right', 'brake', 'fire', 'gunFire', 'missileFire', 'boost']) state[k] = false;
+    for (const k of ['forward', 'back', 'left', 'right', 'brake', 'fire', 'boost']) state[k] = false;
     for (const fn of boostListeners) fn(false);
   });
 
